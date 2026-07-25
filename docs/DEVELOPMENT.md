@@ -1,6 +1,6 @@
 # Development
 
-Building Motion Detector from source, on Linux and on Windows.
+Building Kaa Rada from source, on Linux and on Windows.
 
 > **Status of this document.** The Linux instructions are verified — every
 > command in that section has been run on Ubuntu 24.04 on the development

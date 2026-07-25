@@ -9,12 +9,12 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
 
-  <name>Motion Detector</name>
-  <summary>Watch a camera for motion and send alerts to Telegram</summary>
+  <name>Kaa Rada</name>
+  <summary>Turn a spare laptop into a home security camera</summary>
 
   <description>
     <p>
-      Motion Detector watches a webcam for movement and sends a snapshot and a
+      Kaa Rada watches a webcam for movement and sends a snapshot and a
       short video clip to a Telegram chat when it sees any. Sensitivity,
       recording length and a separate night-time profile are all configurable
       from the application itself.

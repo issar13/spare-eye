@@ -46,7 +46,7 @@ Commits use Conventional Commits format.
   work. An "Open externally" button is the working path. Fixing it properly
   means moving the recorder to H.264.
 - `wails.json` lacks `companyName`, `productVersion`, and `copyright`, which
-  yields `C:\Program Files\\Motion Detector` and a colliding uninstall
+  yields `C:\Program Files\\Kaa Rada` and a colliding uninstall
   registry key.
 - `Detector.Status()` reports zero values for the first two sample intervals,
   because `storeStatus` sits after the analysis throttle.

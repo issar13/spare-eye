@@ -1,6 +1,6 @@
 # Setting up Telegram
 
-Motion Detector sends alerts through a Telegram bot that **you** create. There
+Kaa Rada sends alerts through a Telegram bot that **you** create. There
 is no shared bot and no token built into the app. Your footage goes to your bot
 and your chat, and nobody else's.
 

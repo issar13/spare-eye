@@ -1,9 +1,15 @@
-# Motion Detector
+# Kaa Rada
 
-A desktop motion detector for a webcam. It watches a camera, saves a snapshot
-when something moves, records a clip when the movement persists, and sends both
-to you on Telegram. You can also message the bot to start a recording on demand
-or pull back an earlier clip.
+Turn a spare laptop into a home security camera.
+
+Leave a laptop at home, arm it, and it watches the room through the built-in
+webcam. When something moves it saves a snapshot, records a clip if the movement
+continues, and sends both to your phone on Telegram. You can message it back to
+start a recording on demand or pull up an earlier clip.
+
+No cameras to buy, no subscription, no cloud account. It runs on hardware most
+people already have sitting in a drawer, which is the point: home monitoring
+that costs nothing beyond a laptop you were not using.
 
 Detection sensitivity switches between a day profile and a night profile on a
 schedule you set, because a room at 19:00 and the same room at noon do not need

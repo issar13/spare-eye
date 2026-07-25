@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Motion Detector
+Name=Kaa Rada
 GenericName=Motion Detection Camera
-Comment=Watch a camera for motion and send alerts to Telegram
+Comment=Turn a spare laptop into a home security camera
 # No absolute path: install.sh puts the binary on PATH under ~/.local/bin (or
 # /usr/local/bin for a system install), so the same entry works for both.
 Exec=motion-detector
