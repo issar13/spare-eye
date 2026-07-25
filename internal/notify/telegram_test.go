@@ -44,13 +44,15 @@ func TestParseCommandRecognisesBothPrefixedAndBareForms(t *testing.T) {
 // carriage return on every value is invisible in an editor but produces
 // "invalid control character in URL" on the first request.
 func TestNewTelegramTrimsCredentials(t *testing.T) {
-	subject := NewTelegram("8310685887:EXAMPLE\r\n", " 219875764\r")
+	// Deliberately fabricated values. Never put a real bot ID or chat ID in a
+	// fixture: it reads as a leak to anyone scanning the repository later.
+	subject := NewTelegram("1234567890:EXAMPLE\r\n", " 987654321\r")
 
 	if strings.ContainsAny(subject.botToken, "\r\n ") {
 		t.Errorf("bot token retained whitespace: %q", subject.botToken)
 	}
-	if subject.chatID != "219875764" {
-		t.Errorf("chat ID = %q, want %q", subject.chatID, "219875764")
+	if subject.chatID != "987654321" {
+		t.Errorf("chat ID = %q, want %q", subject.chatID, "987654321")
 	}
 
 	endpoint := subject.endpoint("getMe")
@@ -84,8 +86,8 @@ func TestParseCommandTreatsDigitsAsSelection(t *testing.T) {
 // mismatch here would silently disable the check that keeps strangers out.
 func TestFlexibleIDAcceptsNumberOrString(t *testing.T) {
 	cases := map[string]string{
-		`219875764`:   "219875764",
-		`"219875764"`: "219875764",
+		`987654321`:   "987654321",
+		`"987654321"`: "987654321",
 		`-1001234567`: "-1001234567",
 	}
 
