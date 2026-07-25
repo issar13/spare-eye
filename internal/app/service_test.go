@@ -7,10 +7,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"kaa-rada/internal/autostart"
 	"kaa-rada/internal/config"
 	"kaa-rada/internal/detector"
 )
@@ -356,6 +358,101 @@ func TestPanickedWritesTheStackToTheLogFile(t *testing.T) {
 // TestEveryFailureTellsTheUserWhatToDo guards the rule that made this UI
 // revision necessary: no action may report a bare engine error, and no failure
 // may leave the user without a next step.
+// isolateStartupRegistration redirects both the settings file and the login
+// registration into a temporary directory.
+//
+// Only the Linux registration can be redirected this way. On Windows the Run
+// key belongs to the logged-in user and nothing about it is per-test, so these
+// tests would register the compiled test binary to run at somebody's next
+// login; on macOS registering is not supported at all.
+func isolateStartupRegistration(t *testing.T) string {
+	t.Helper()
+
+	if runtime.GOOS != "linux" {
+		t.Skip("the login registration can only be redirected into a temporary directory on Linux")
+	}
+
+	temporaryHome := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", temporaryHome)
+
+	return temporaryHome
+}
+
+func TestSaveStartupKeepsBothChoicesAndMatchesTheOperatingSystemToThem(t *testing.T) {
+	isolateStartupRegistration(t)
+
+	service := newTestService(t)
+
+	// The two switches are independent, so the interesting case is one on and
+	// one off: a user who wants the app open at login has not thereby asked to
+	// be recorded from the moment they log in.
+	if result := service.SaveStartup(StartupForm{LaunchAtLogin: true}); !result.OK {
+		t.Fatalf("SaveStartup() reported %+v", result)
+	}
+
+	saved := service.Settings().Startup
+	if !saved.LaunchAtLogin || saved.WatchOnLaunch {
+		t.Errorf("saved startup settings = %+v, want only launching at login", saved)
+	}
+
+	registered, err := autostart.Enabled()
+	if err != nil {
+		t.Fatalf("autostart.Enabled() returned %v", err)
+	}
+	if !registered {
+		t.Error("saving with launch at login on left this computer unregistered")
+	}
+
+	if result := service.SaveStartup(StartupForm{WatchOnLaunch: true}); !result.OK {
+		t.Fatalf("SaveStartup() reported %+v", result)
+	}
+
+	registered, err = autostart.Enabled()
+	if err != nil {
+		t.Fatalf("autostart.Enabled() returned %v", err)
+	}
+	if registered {
+		t.Error("switching launch at login off left the registration in place")
+	}
+	if !service.Settings().Startup.WatchOnLaunch {
+		t.Error("watching on launch was not saved")
+	}
+}
+
+func TestSaveStartupKeepsTheChoicesWhenTheComputerRefusesToRegisterThem(t *testing.T) {
+	temporaryHome := isolateStartupRegistration(t)
+
+	// A file where the autostart directory belongs is a refusal no privilege
+	// gets around, which is what makes it a usable stand-in for the security
+	// software that blocks this on a real machine.
+	if err := os.WriteFile(filepath.Join(temporaryHome, "autostart"), []byte("in the way"), 0o600); err != nil {
+		t.Fatalf("blocking the autostart directory: %v", err)
+	}
+
+	service := newTestService(t)
+
+	result := service.SaveStartup(StartupForm{LaunchAtLogin: true, WatchOnLaunch: true})
+	if result.OK {
+		t.Fatal("SaveStartup() reported success although the registration could not be written")
+	}
+	if result.Headline == "" || result.NextStep == "" {
+		t.Errorf("SaveStartup() reported %+v, want a headline and a next step", result)
+	}
+
+	// The settings are written before the registration is attempted, so a
+	// refusal costs the user only the switch that was refused.
+	saved := service.Settings().Startup
+	if !saved.WatchOnLaunch {
+		t.Errorf("saved startup settings = %+v, want watching on launch kept", saved)
+	}
+
+	status := service.Status()
+	if !status.LaunchAtLogin || status.LaunchAtLoginRegistered {
+		t.Errorf("status reported asked-for %v and registered %v, want the disagreement shown",
+			status.LaunchAtLogin, status.LaunchAtLoginRegistered)
+	}
+}
+
 func TestEveryFailureTellsTheUserWhatToDo(t *testing.T) {
 	service := newTestService(t)
 

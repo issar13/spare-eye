@@ -639,6 +639,13 @@ button.big {
     gap: 0;
 }
 
+/* The startup choices sit outside the numbered list, which carries its own
+   spacing: they are not part of getting a camera working, and setup is finished
+   whether or not anybody makes them. */
+.startup {
+    margin-top: 14px;
+}
+
 .event {
     grid-template-columns: 132px 1fr auto;
 }
