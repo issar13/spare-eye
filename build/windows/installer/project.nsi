@@ -135,10 +135,6 @@ Section
     ## match a DLL, never a .env or a config.json.
     File "..\..\bin\*.dll"
 
-    ## The headless CLI ships with the app so a user can run the detector on a
-    ## machine with no display, and it shares the DLLs installed above.
-    File "..\..\bin\kaa-rada-cli.exe"
-
     ## PROJECT: Start Menu folder, plus an uninstall entry beside the app.
     !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
         CreateDirectory "$SMPROGRAMS\$StartMenuFolder"
