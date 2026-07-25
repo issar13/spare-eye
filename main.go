@@ -20,14 +20,44 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+// main opens the log before anything else, then reports whatever startup does
+// to both the log and the user.
+//
+// The order matters on Windows, where this binary is linked for the GUI
+// subsystem: os.Stderr is not connected to anything, so a failure before the
+// window exists is invisible unless it has already been given a file to go to.
 func main() {
-	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+	log, err := app.OpenEarlyLog()
+	if err != nil {
+		app.ReportFatalError(err.Error(), "")
+		os.Exit(1)
+	}
+	defer log.Close()
+
+	// Deferred before run so it unwinds a panic from any stage below, including
+	// one raised inside Wails while the window is being created.
+	defer func() {
+		if panicked := recover(); panicked != nil {
+			log.Panicked("desktop startup", panicked)
+			app.ReportFatalError(fmt.Sprintf("Kaa Rada stopped unexpectedly: %v", panicked), log.Path())
+			os.Exit(1)
+		}
+	}()
+
+	if err := run(log); err != nil {
+		log.Error("startup failed", "error", err)
+		app.ReportFatalError(err.Error(), log.Path())
 		os.Exit(1)
 	}
 }
 
-func run() error {
+// run carries out startup, logging each stage as it is reached. The stages are
+// what makes a crash inside a dependency — OpenCV aborting during a camera
+// probe, a webview refusing to initialise — identifiable from the last record
+// in the log, which is all a native crash leaves behind.
+func run(log *app.Log) error {
+	log.Info("startup: loading settings")
+
 	settings, err := config.Load()
 	if err != nil {
 		return err
@@ -38,13 +68,10 @@ func run() error {
 		return err
 	}
 
-	log, err := app.OpenLog(directory)
-	if err != nil {
-		return err
-	}
-	defer log.Close()
-
-	log.Info("starting", "mediaDirectory", settings.Storage.MediaDirectory, "camera", settings.Detection.CameraIndex)
+	log.Info("startup: settings loaded",
+		"configDirectory", directory,
+		"mediaDirectory", settings.Storage.MediaDirectory,
+		"camera", settings.Detection.CameraIndex)
 
 	// The claim is taken before the window opens, but a failure does not stop
 	// the app: a window that explains why it cannot arm is more useful than a
@@ -56,6 +83,8 @@ func run() error {
 
 	service := app.NewService(log, settings, lockError)
 	bound := NewApp(service)
+
+	log.Info("startup: opening the window")
 
 	return wails.Run(&options.App{
 		Title:  "Kaa Rada",

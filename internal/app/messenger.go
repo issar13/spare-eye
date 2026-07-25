@@ -58,6 +58,15 @@ func (s *Service) restartMessenger() {
 	s.messenger.mutex.Unlock()
 
 	go func() {
+		// Connecting happens during startup, and a panic on this goroutine would
+		// close the window along with the process, so it is recovered where the
+		// user can still be shown a working app without alerts.
+		defer func() {
+			if panicked := recover(); panicked != nil {
+				s.log.Panicked("connecting to telegram", panicked)
+			}
+		}()
+
 		verifyContext, done := context.WithTimeout(messengerContext, verifyTimeout)
 		defer done()
 

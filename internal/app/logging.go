@@ -9,8 +9,11 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
+
+	"kaa-rada/internal/config"
 )
 
 const (
@@ -31,8 +34,38 @@ type Log struct {
 	recent *recentLines
 }
 
+// OpenEarlyLog opens the log before any other startup work has run, locating
+// the directory itself.
+//
+// It exists because everything else in startup needs somewhere to report a
+// failure to, including the code that locates the configuration directory. When
+// that lookup fails the temporary directory is used instead: it is always
+// writable, and a log in an awkward place is worth more than a window that
+// vanishes with no record of why.
+func OpenEarlyLog() (*Log, error) {
+	directory, directoryError := config.Directory()
+	if directoryError != nil {
+		directory = os.TempDir()
+	}
+
+	log, err := OpenLog(directory)
+	if err != nil {
+		return nil, err
+	}
+
+	if directoryError != nil {
+		log.Error("configuration directory unavailable; logging to the temporary directory instead",
+			"error", directoryError)
+	}
+
+	return log, nil
+}
+
 // OpenLog starts logging into the configuration directory. Records are appended
 // so restarting the app does not discard the evidence of why it last failed.
+//
+// Records go straight to the file with no buffer in front of them, so a process
+// that dies mid-startup still leaves everything it managed to log on disk.
 func OpenLog(directory string) (*Log, error) {
 	path := filepath.Join(directory, logFileName)
 
@@ -56,6 +89,18 @@ func (l *Log) Path() string { return l.file.Name() }
 
 // Recent returns the retained lines, oldest first.
 func (l *Log) Recent() []string { return l.recent.lines() }
+
+// Panicked records a recovered panic together with the stack it came from. The
+// caller keeps the recover() itself, which Go only honours in the deferred
+// function of the goroutine that panicked.
+//
+// A panic on any goroutine takes the whole process down, and a Windows GUI
+// binary has no console for the runtime's own report to reach: the window
+// disappears and nothing is written anywhere the user can look. The log file is
+// the only place that crash can be read afterwards.
+func (l *Log) Panicked(stage string, panicked any) {
+	l.Error("panic", "stage", stage, "value", fmt.Sprint(panicked), "stack", string(debug.Stack()))
+}
 
 func (l *Log) Close() error { return l.file.Close() }
 
