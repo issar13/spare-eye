@@ -55,9 +55,6 @@ type DetectionSettings struct {
 	PrebufferLead Duration `json:"prebufferLead"`
 
 	ClipDuration Duration `json:"clipDuration"`
-
-	AutomaticClipFPS float64 `json:"automaticClipFPS"`
-	ManualClipFPS    float64 `json:"manualClipFPS"`
 }
 
 // SensitivityProfile is one lighting condition's detection thresholds.
@@ -135,8 +132,6 @@ func Default() Config {
 			MotionPersist:     Duration(5 * time.Second),
 			PrebufferLead:     Duration(3 * time.Second),
 			ClipDuration:      Duration(15 * time.Second),
-			AutomaticClipFPS:  8,
-			ManualClipFPS:     15,
 		},
 		Storage: StorageSettings{RetentionDays: 30},
 	}

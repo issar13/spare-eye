@@ -195,13 +195,6 @@ func TestDefaultMatchesTheBehaviourOfThePreviousBuild(t *testing.T) {
 			settings.Detection.Night.MinimumContourArea, settings.Detection.Day.MinimumContourArea)
 	}
 
-	// A manual clip is recorded at a higher frame rate than an automatic one,
-	// because the user is watching it live.
-	if settings.Detection.ManualClipFPS <= settings.Detection.AutomaticClipFPS {
-		t.Errorf("manual FPS %v should exceed automatic FPS %v",
-			settings.Detection.ManualClipFPS, settings.Detection.AutomaticClipFPS)
-	}
-
 	// Alerts are on by default but unusable until the user supplies credentials.
 	if !settings.Telegram.Enabled {
 		t.Error("Telegram should be enabled by default")
@@ -311,9 +304,9 @@ func TestLoadKeepsDefaultsForFieldsAbsentFromTheFile(t *testing.T) {
 		t.Errorf("night start = %d, want the default %d",
 			settings.Detection.NightStartMinutes, defaults.Detection.NightStartMinutes)
 	}
-	if settings.Detection.ManualClipFPS != defaults.Detection.ManualClipFPS {
-		t.Errorf("manual FPS = %v, want the default %v",
-			settings.Detection.ManualClipFPS, defaults.Detection.ManualClipFPS)
+	if settings.Detection.MotionPersist != defaults.Detection.MotionPersist {
+		t.Errorf("motion persist = %v, want the default %v",
+			settings.Detection.MotionPersist, defaults.Detection.MotionPersist)
 	}
 	if settings.Storage.RetentionDays != defaults.Storage.RetentionDays {
 		t.Errorf("retention = %d, want the default %d",
@@ -350,8 +343,6 @@ func TestSaveThenLoadRoundTripsEverySetting(t *testing.T) {
 	original.Detection.MotionPersist = Duration(7 * time.Second)
 	original.Detection.PrebufferLead = Duration(1500 * time.Millisecond)
 	original.Detection.ClipDuration = Duration(90 * time.Second)
-	original.Detection.AutomaticClipFPS = 6.5
-	original.Detection.ManualClipFPS = 24
 	original.Detection.Day.MinimumContourArea = 1234
 	original.Detection.Day.SampleInterval = Duration(2 * time.Second)
 	original.Detection.Night.AlertCooldown = Duration(90 * time.Minute)

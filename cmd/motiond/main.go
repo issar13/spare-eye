@@ -3,9 +3,9 @@
 // It exists so the engine can be confirmed working on its own, and it doubles
 // as the way to run the detector on a machine with no display.
 //
-//	go run ./cmd/motion-detector -list-cameras
-//	go run ./cmd/motion-detector
-//	go run ./cmd/motion-detector -camera 1 -no-telegram
+//	go run ./cmd/motiond -list-cameras
+//	go run ./cmd/motiond
+//	go run ./cmd/motiond -camera 1 -no-telegram
 package main
 
 import (
@@ -85,10 +85,20 @@ func run(requestedCamera int, disableTelegram bool) error {
 	fmt.Printf("Media directory: %s\n", settings.Storage.MediaDirectory)
 	fmt.Printf("Camera index:    %d\n", settings.Detection.CameraIndex)
 
-	if removed, err := media.Prune(settings.VideoDirectory(), settings.Storage.RetentionDays); err != nil {
-		fmt.Printf("Retention pruning failed: %v\n", err)
-	} else if removed > 0 {
-		fmt.Printf("Pruned %d recordings older than %d days\n", removed, settings.Storage.RetentionDays)
+	// Both directories are pruned. Passing only the video directory left
+	// snapshots accumulating forever, which on a busy camera is the larger
+	// share of the files even though each one is smaller.
+	prunedTotal := 0
+	for _, directory := range []string{settings.VideoDirectory(), settings.SnapshotDirectory()} {
+		removed, err := media.Prune(directory, settings.Storage.RetentionDays)
+		if err != nil {
+			fmt.Printf("Retention pruning failed for %s: %v\n", directory, err)
+			continue
+		}
+		prunedTotal += removed
+	}
+	if prunedTotal > 0 {
+		fmt.Printf("Pruned %d files older than %d days\n", prunedTotal, settings.Storage.RetentionDays)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
