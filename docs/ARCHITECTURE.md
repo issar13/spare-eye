@@ -86,6 +86,7 @@ Its public surface is small on purpose:
 | `Events()` | Receive-only channel of `Event`, closed when `Run` returns |
 | `Status()` | Current state, safe from any goroutine |
 | `PreviewJPEG()` | Most recent frame as JPEG, or nil before the first frame |
+| `SetPreview(fps, quality)` | Retune the live view on a detector that is already running |
 | `StartManualRecording()` / `StopManualRecording()` | Request a manual clip |
 
 Everything the detector wants to tell the outside world goes out as an `Event`

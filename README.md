@@ -257,6 +257,10 @@ Snapshots and clips written to disk, and anything sent to Telegram, are always
 encoded at full quality regardless of what these are set to. Lowering them is
 how you buy back CPU on a slow machine without making detection less sensitive.
 
+The desktop app edits these two on the **Live view** screen, under the picture
+they affect, rather than with the motion settings. Saving them applies at once:
+the camera keeps running and a clip in progress is not interrupted.
+
 ### Sensitivity profiles
 
 `detection.day` and `detection.night` hold the same four fields, applied

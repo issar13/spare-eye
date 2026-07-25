@@ -65,6 +65,10 @@ func (a *App) SelectCamera(index int) app.ActionResult { return a.service.Select
 
 func (a *App) SaveTuning(form app.TuningForm) app.ActionResult { return a.service.SaveTuning(form) }
 
+func (a *App) SaveLiveView(form app.LiveViewForm) app.ActionResult {
+	return a.service.SaveLiveView(form)
+}
+
 func (a *App) StartManualRecording() app.ActionResult { return a.service.StartManualRecording() }
 func (a *App) StopManualRecording() app.ActionResult  { return a.service.StopManualRecording() }
 

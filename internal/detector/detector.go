@@ -76,6 +76,13 @@ type Detector struct {
 	// preview holds the most recent JPEG-encoded frame for the UI.
 	preview atomic.Pointer[[]byte]
 
+	// previewFramesPerSecond and previewJPEGQuality are read on the capture path
+	// and written by the Live view screen. They are atomics rather than fields
+	// of settings so retuning the picture on screen costs nothing more than a
+	// store, leaving the camera open and any clip in progress untouched.
+	previewFramesPerSecond atomic.Int64
+	previewJPEGQuality     atomic.Int64
+
 	mutex           sync.Mutex
 	activeRecorder  *recorder
 	recordingManual bool
@@ -101,6 +108,7 @@ func New(settings config.Config) *Detector {
 		manualStop:  make(chan struct{}, 1),
 	}
 	created.status.Store(&Status{})
+	created.SetPreview(settings.Detection.PreviewFPS, settings.Detection.PreviewQuality)
 
 	return created
 }
@@ -392,15 +400,22 @@ func (d *Detector) saveSnapshot(frame gocv.Mat, night bool) (string, error) {
 	return path, nil
 }
 
-// previewInterval converts the configured frames-per-second ceiling into the
-// gap between encodes, clamped so a hand-edited config cannot divide by zero.
+// SetPreview retunes the live view on a detector that is already running. Both
+// values are clamped on the way in, so the capture path can trust whatever it
+// reads back.
+func (d *Detector) SetPreview(framesPerSecond, quality int) {
+	d.previewFramesPerSecond.Store(int64(clampInt(framesPerSecond, minPreviewFPS, maxPreviewFPS)))
+	d.previewJPEGQuality.Store(int64(clampInt(quality, minPreviewQuality, maxPreviewQuality)))
+}
+
+// previewInterval converts the frames-per-second ceiling into the gap between
+// encodes. The clamp in SetPreview is what keeps this division safe.
 func (d *Detector) previewInterval() time.Duration {
-	framesPerSecond := clampInt(d.settings.Detection.PreviewFPS, minPreviewFPS, maxPreviewFPS)
-	return time.Second / time.Duration(framesPerSecond)
+	return time.Second / time.Duration(d.previewFramesPerSecond.Load())
 }
 
 func (d *Detector) previewQuality() int {
-	return clampInt(d.settings.Detection.PreviewQuality, minPreviewQuality, maxPreviewQuality)
+	return int(d.previewJPEGQuality.Load())
 }
 
 func clampInt(value, lowest, highest int) int {
