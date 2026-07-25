@@ -97,7 +97,7 @@ const readProfile = (prefix: string, cooldownSeconds: string) => ({
 });
 
 // readForm hands zod the text as typed, except for the two clock fields:
-// "18:45" is a time, not a number, so date-fns turns it into the minutes since
+// "06:30" is a time, not a number, so date-fns turns it into the minutes since
 // midnight the detector schedules on.
 const readForm = () => {
     const cooldownSeconds = String(Number(requireField(form, 'alertCooldownMinutes').value) * 60);

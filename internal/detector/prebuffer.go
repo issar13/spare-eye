@@ -9,10 +9,11 @@ import (
 // prebuffer holds the most recent frames so a clip can begin slightly before
 // the moment motion was confirmed.
 //
-// The previous build used a 300-frame buffer and prepended all of it to every
-// clip, which both prepended up to 37 seconds of unwanted history and held
-// roughly 276 MB of frames at VGA resolution. This buffer is instead bounded by
-// a wall-clock lead time, so its size follows the camera's real frame rate.
+// The bound is a wall-clock lead time rather than a fixed frame count, so the
+// buffer holds the number of seconds the user asked for at whatever rate the
+// camera actually delivers. A fixed count does neither job: at VGA a flat 300
+// frames is roughly 276 MB, and it prepends a span of history that varies with
+// frame rate instead of staying the length that was configured.
 type prebuffer struct {
 	mutex  sync.Mutex
 	frames []gocv.Mat

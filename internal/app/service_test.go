@@ -152,7 +152,7 @@ func TestValidateTuningRejectsUnusableValues(t *testing.T) {
 	usable := TuningForm{
 		Day:                  SensitivityForm{MinimumContourArea: 8000, ThresholdValue: 30, SampleIntervalSeconds: 1, AlertCooldownSeconds: 300},
 		Night:                SensitivityForm{MinimumContourArea: 9000, ThresholdValue: 30, SampleIntervalSeconds: 1, AlertCooldownSeconds: 300},
-		NightStartMinutes:    1125,
+		NightStartMinutes:    1140,
 		NightEndMinutes:      360,
 		MotionPersistSeconds: 5,
 		PrebufferLeadSeconds: 3,

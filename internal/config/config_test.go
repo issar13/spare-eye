@@ -157,10 +157,9 @@ func TestDurationRoundTripsThroughJSON(t *testing.T) {
 	}
 }
 
-// TestDefaultMatchesTheBehaviourOfThePreviousBuild pins the defaults to what the
-// old Python actually ran with. The old README advertised a 15 second alert
-// cooldown while the code used 5 minutes; these values are the code's.
-func TestDefaultMatchesTheBehaviourOfThePreviousBuild(t *testing.T) {
+// TestDefaultsAreTheDocumentedOnes pins every default that the README states, so
+// the two cannot drift apart without a test failing.
+func TestDefaultsAreTheDocumentedOnes(t *testing.T) {
 	settings := Default()
 
 	cases := []struct {
@@ -185,10 +184,10 @@ func TestDefaultMatchesTheBehaviourOfThePreviousBuild(t *testing.T) {
 		})
 	}
 
-	// The night window is 18:45 to 06:00, which the old whole-hour constant
-	// could not express.
-	if settings.Detection.NightStartMinutes != 18*60+45 {
-		t.Errorf("night start = %d minutes, want %d", settings.Detection.NightStartMinutes, 18*60+45)
+	// The night window is 19:00 to 06:00, stored as minutes since midnight so
+	// that a boundary off the hour stays expressible.
+	if settings.Detection.NightStartMinutes != 19*60 {
+		t.Errorf("night start = %d minutes, want %d", settings.Detection.NightStartMinutes, 19*60)
 	}
 	if settings.Detection.NightEndMinutes != 6*60 {
 		t.Errorf("night end = %d minutes, want %d", settings.Detection.NightEndMinutes, 6*60)

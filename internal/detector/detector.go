@@ -184,8 +184,8 @@ func (d *Detector) Run(ctx context.Context) error {
 }
 
 // measureCaptureRate times a short burst of reads. Webcams commonly report 0 or
-// a nominal value for VideoCaptureFPS, and writing clips at a wrong frame rate
-// is what made the previous build's recordings play back at the wrong speed.
+// a nominal value for VideoCaptureFPS, and a clip written at a frame rate the
+// camera is not actually delivering plays back too fast or too slow.
 func measureCaptureRate(camera *gocv.VideoCapture, frame *gocv.Mat) (float64, error) {
 	const sampleCount = 30
 
@@ -358,7 +358,7 @@ func (d *Detector) profileFor(night bool) config.SensitivityProfile {
 }
 
 // isNight compares minutes-since-midnight, handling the window that wraps past
-// midnight. The previous build could only express whole hours.
+// midnight.
 func (d *Detector) isNight(now time.Time) bool {
 	minutes := now.Hour()*60 + now.Minute()
 	start := d.settings.Detection.NightStartMinutes
@@ -443,9 +443,9 @@ func (d *Detector) handleManualRequests(frame gocv.Mat, frameSize image.Point, c
 		manual := d.recordingManual
 		d.mutex.Unlock()
 
-		// Only a manual clip responds to stop. The previous build let a stop
-		// arriving during an automatic clip latch a flag that silently killed
-		// the *next* manual recording.
+		// Only a manual clip responds to stop. A stop arriving during an
+		// automatic clip is discarded rather than latched, so it cannot carry
+		// over and silently kill the *next* manual recording.
 		if active != nil && manual {
 			active.stopRecording()
 		}

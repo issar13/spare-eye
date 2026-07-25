@@ -32,8 +32,7 @@ type TelegramSettings struct {
 	Enabled  bool   `json:"enabled"`
 }
 
-// DetectionSettings are the tuning values that used to be Go constants, which
-// is why the old README drifted out of sync with them.
+// DetectionSettings are the tuning values a user can change without a rebuild.
 type DetectionSettings struct {
 	CameraIndex int `json:"cameraIndex"`
 
@@ -41,8 +40,7 @@ type DetectionSettings struct {
 	Night SensitivityProfile `json:"night"`
 
 	// NightStart and NightEnd bound the night profile as minutes since
-	// midnight, so a 18:45 boundary is expressible where the old hour-only
-	// constant was not.
+	// midnight, so a boundary that is not on the hour stays expressible.
 	NightStartMinutes int `json:"nightStartMinutes"`
 	NightEndMinutes   int `json:"nightEndMinutes"`
 
@@ -50,8 +48,9 @@ type DetectionSettings struct {
 	MotionPersist Duration `json:"motionPersist"`
 
 	// PrebufferLead is how much footage from *before* the trigger to prepend
-	// to a clip. The old build prepended its entire 300-frame buffer, which
-	// glued up to 37 seconds of history onto every "15 second" recording.
+	// to a clip. It is a duration rather than a frame count so that a "15
+	// second" clip does not grow an unpredictable tail of history when the
+	// camera runs faster than expected.
 	PrebufferLead Duration `json:"prebufferLead"`
 
 	ClipDuration Duration `json:"clipDuration"`
@@ -108,8 +107,7 @@ func (d *Duration) UnmarshalJSON(data []byte) error {
 
 func (d Duration) AsDuration() time.Duration { return time.Duration(d) }
 
-// Default returns settings tuned to match the values the previous build
-// actually ran with, rather than the stale ones its README advertised.
+// Default returns the settings a fresh installation starts from.
 func Default() Config {
 	return Config{
 		Telegram: TelegramSettings{Enabled: true},
@@ -127,7 +125,10 @@ func Default() Config {
 				SampleInterval:     Duration(time.Second),
 				AlertCooldown:      Duration(5 * time.Minute),
 			},
-			NightStartMinutes: 18*60 + 45,
+			// A round evening default rather than one person's actual routine:
+			// a shipped default is public, and an oddly specific one advertises
+			// when whoever chose it is usually out.
+			NightStartMinutes: 19 * 60,
 			NightEndMinutes:   6 * 60,
 			MotionPersist:     Duration(5 * time.Second),
 			PrebufferLead:     Duration(3 * time.Second),

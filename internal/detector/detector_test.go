@@ -11,8 +11,7 @@ import (
 
 func TestIsNightHandlesWindowCrossingMidnight(t *testing.T) {
 	settings := config.Default()
-	// Defaults are 18:45 to 06:00, the window the previous build could not
-	// express with whole-hour constants.
+	// Defaults are 19:00 to 06:00, a window that wraps past midnight.
 	subject := New(settings)
 
 	cases := []struct {
@@ -20,8 +19,8 @@ func TestIsNightHandlesWindowCrossingMidnight(t *testing.T) {
 		clock       time.Time
 		expectNight bool
 	}{
-		{"just before night starts", at(18, 44), false},
-		{"exactly at night start", at(18, 45), true},
+		{"just before night starts", at(18, 59), false},
+		{"exactly at night start", at(19, 0), true},
 		{"late evening", at(23, 30), true},
 		{"after midnight", at(2, 0), true},
 		{"one minute before night ends", at(5, 59), true},
@@ -36,6 +35,24 @@ func TestIsNightHandlesWindowCrossingMidnight(t *testing.T) {
 					testCase.clock.Format("15:04"), got, testCase.expectNight)
 			}
 		})
+	}
+}
+
+// TestIsNightHonoursABoundaryOffTheHour is why the window is stored as minutes
+// rather than an hour: a schedule that turns over at 21:30 has to be honoured
+// to the minute, not rounded to 21:00 or 22:00.
+func TestIsNightHonoursABoundaryOffTheHour(t *testing.T) {
+	settings := config.Default()
+	settings.Detection.NightStartMinutes = 21*60 + 30
+	settings.Detection.NightEndMinutes = 6 * 60
+
+	subject := New(settings)
+
+	if subject.isNight(at(21, 29)) {
+		t.Error("21:29 should not be night for a window starting at 21:30")
+	}
+	if !subject.isNight(at(21, 30)) {
+		t.Error("21:30 should be night for a window starting at 21:30")
 	}
 }
 
@@ -73,8 +90,9 @@ func TestProfileForSelectsConfiguredSensitivity(t *testing.T) {
 	}
 }
 
-// TestPrebufferHonoursItsLimit guards the regression that mattered most: the
-// previous build kept 300 frames and prepended all of them to every clip.
+// TestPrebufferHonoursItsLimit is the guard on the buffer's bound. If it stops
+// discarding, clips silently grow a long tail of unwanted history and the
+// buffer's memory cost becomes unbounded.
 func TestPrebufferHonoursItsLimit(t *testing.T) {
 	const limit = 4
 
