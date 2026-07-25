@@ -25,7 +25,13 @@ DISABLED
 
 # Webview frontend build artifacts
 frontend/node_modules/
-frontend/dist/
+
+# The Go binary embeds frontend/dist via //go:embed, which fails outright if
+# the directory is absent. Ignore the built assets but keep the directory, so
+# a fresh clone still compiles before the frontend has been built.
+frontend/dist/*
+!frontend/dist/.gitkeep
+
 build/bin/
 
 # IDE

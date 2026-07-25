@@ -123,10 +123,10 @@ jobs:
             echo "::notice::wails.json not present yet, skipping the desktop build."
             exit 0
           fi
-          # -tags webkit2gtk_4_1 is mandatory on Ubuntu 24.04. Without it the
+          # -tags webkit2_41 is mandatory on Ubuntu 24.04. Without it the
           # build fails looking for webkit2gtk-4.0, which 24.04 removed. This
           # matches `make build-desktop`.
-          wails build -tags webkit2gtk_4_1 -clean
+          wails build -tags webkit2_41 -clean
 
       # Runs after the build so it inspects real output, not an empty tree.
       - name: Fail if a credential reached the build output
