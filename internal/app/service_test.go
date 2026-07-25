@@ -38,7 +38,25 @@ func newTestService(t *testing.T) *Service {
 	settings := config.Default()
 	settings.Storage.MediaDirectory = mediaDirectory
 
-	return NewService(log, settings, nil)
+	service := NewService(log, settings, nil)
+
+	// Most of these tests are about something other than the camera, and an app
+	// that has not been told which one to use refuses to arm before it gets as
+	// far as whatever they are checking. They start from an installation where
+	// somebody already chose camera 0 and a sweep confirmed it.
+	chooseWorkingCamera(service, 0)
+
+	return service
+}
+
+func chooseWorkingCamera(service *Service, index int) {
+	service.mutex.Lock()
+	defer service.mutex.Unlock()
+
+	service.settings.Detection.CameraIndex = index
+	service.settings.Detection.CameraChosen = true
+	service.camerasScanned = true
+	service.cameras = []detector.Camera{{Index: index, Width: 640, Height: 480}}
 }
 
 func TestResolveMediaRejectsPathsOutsideTheMediaDirectory(t *testing.T) {
@@ -185,15 +203,105 @@ func TestAClaimThatCouldNotBeTakenDoesNotBlockArming(t *testing.T) {
 	settings.Telegram.Enabled = false
 
 	service := NewService(log, settings, errors.New("opening lock file camera.lock: permission denied"))
-
-	service.mutex.Lock()
-	service.camerasScanned = true
-	service.cameras = []detector.Camera{{Index: 0, Width: 640, Height: 480}}
-	service.mutex.Unlock()
+	chooseWorkingCamera(service, 0)
 
 	status := service.Status()
 	if !status.CanArm {
 		t.Fatalf("a lock that could not be taken blocked arming: %+v", status.Problem)
+	}
+}
+
+// TestAFirstRunWaitsToBeToldWhichCamera is the whole point of the chosen flag:
+// a working camera being present is not permission to point it at a room.
+func TestAFirstRunWaitsToBeToldWhichCamera(t *testing.T) {
+	service := newTestService(t)
+
+	service.mutex.Lock()
+	service.settings.Detection.CameraChosen = false
+	service.settings.Telegram.Enabled = false
+	service.cameras = []detector.Camera{{Index: 1, Width: 640, Height: 480}}
+	service.mutex.Unlock()
+
+	status := service.Status()
+	if status.CanArm {
+		t.Fatal("a first run armed itself before anybody chose a camera")
+	}
+	if status.Problem == nil || !strings.Contains(status.Problem.Headline, "not chosen") {
+		t.Fatalf("status did not ask for a camera to be chosen: %+v", status.Problem)
+	}
+	if service.Settings().CameraIndex != 0 {
+		t.Fatalf("the camera index moved to %d without anybody choosing it", service.Settings().CameraIndex)
+	}
+}
+
+// TestAChosenCameraThatStopsRespondingIsSaidSo covers the upgrade from silently
+// adopting a replacement: the user has to know their camera stopped, because
+// only they can decide what the app should watch instead.
+func TestAChosenCameraThatStopsRespondingIsSaidSo(t *testing.T) {
+	service := newTestService(t)
+
+	service.mutex.Lock()
+	service.settings.Telegram.Enabled = false
+	service.cameras = []detector.Camera{{Index: 3, Width: 640, Height: 480}}
+	service.mutex.Unlock()
+
+	status := service.Status()
+	if status.CanArm {
+		t.Fatal("arming was offered with the chosen camera missing")
+	}
+	if status.Problem == nil || !strings.Contains(status.Problem.Headline, "not responding") {
+		t.Fatalf("status did not report the missing camera: %+v", status.Problem)
+	}
+	if service.Settings().CameraIndex != 0 {
+		t.Fatalf("the camera moved to %d on its own", service.Settings().CameraIndex)
+	}
+}
+
+// TestAStreamIsNotBlockedByAnEmptyDeviceSweep guards the case a device sweep
+// says nothing about: a network camera is not on the list and never will be.
+func TestAStreamIsNotBlockedByAnEmptyDeviceSweep(t *testing.T) {
+	service := newTestService(t)
+
+	service.mutex.Lock()
+	service.settings.Telegram.Enabled = false
+	service.settings.Detection.CameraURL = "rtsp://192.168.1.50:554/stream"
+	service.cameras = nil
+	service.mutex.Unlock()
+
+	if status := service.Status(); !status.CanArm {
+		t.Fatalf("a chosen stream was refused because no local device was found: %+v", status.Problem)
+	}
+}
+
+func TestValidateCameraURLAcceptsOnlyStreamsThatCanBeOpened(t *testing.T) {
+	for _, address := range []string{
+		"rtsp://192.168.1.50:554/stream",
+		"rtsps://camera.lan/live",
+		"http://camera.lan/video.mjpg",
+		"HTTPS://camera.lan/video",
+	} {
+		if problem := validateCameraURL(address); problem != nil {
+			t.Errorf("%q was rejected: %+v", address, problem)
+		}
+	}
+
+	for _, address := range []string{
+		"",
+		"   ",
+		"/dev/video0",
+		"file:///etc/passwd",
+		"ftp://camera.lan/live",
+		"rtsp://",
+		"camera.lan/live",
+	} {
+		problem := validateCameraURL(address)
+		if problem == nil {
+			t.Errorf("%q was accepted as a camera address", address)
+			continue
+		}
+		if problem.NextStep == "" {
+			t.Errorf("%q was rejected without saying what to do instead", address)
+		}
 	}
 }
 
@@ -516,11 +624,6 @@ func TestStatusSpeaksPlainlyThroughEveryState(t *testing.T) {
 	if result := service.SaveTelegram(TelegramForm{Enabled: false}); !result.OK {
 		t.Fatalf("turning alerts off: %+v", result)
 	}
-	service.mutex.Lock()
-	service.camerasScanned = true
-	service.cameras = []detector.Camera{{Index: 0, Width: 640, Height: 480}}
-	service.mutex.Unlock()
-
 	idle := service.Status()
 	if idle.Headline != "Not running" || idle.Tone != "idle" {
 		t.Fatalf("idle status is %+v", idle)

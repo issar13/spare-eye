@@ -46,9 +46,17 @@ func armedService(t *testing.T) *Service {
 	settings := config.Default()
 	settings.Storage.MediaDirectory = mediaDirectory
 	settings.Detection.CameraIndex = cameraIndex
+	settings.Detection.CameraChosen = true
 	settings.Telegram.Enabled = false
 
-	return NewService(log, settings, nil)
+	service := NewService(log, settings, nil)
+
+	// Arming checks the chosen camera against the last sweep, and these tests
+	// never run one: FirstUsableCamera has already proved this index works.
+	service.camerasScanned = true
+	service.cameras = []detector.Camera{{Index: cameraIndex, Width: 640, Height: 480}}
+
+	return service
 }
 
 func TestArmProducesADecodablePreview(t *testing.T) {

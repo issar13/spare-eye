@@ -2,6 +2,7 @@ package detector
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -234,6 +235,44 @@ func TestCameraScanStartRejectsArgumentsItCannotUse(t *testing.T) {
 		if _, scanning := CameraScanStart([]string{argument}); scanning {
 			t.Fatalf("%q was accepted as a scan request", argument)
 		}
+	}
+}
+
+func TestCameraTestSourceReadsItsOwnArgument(t *testing.T) {
+	address, testing := CameraTestSource([]string{"--started-at-login", CameraTestArgument("rtsp://camera.lan/live")})
+
+	if !testing || address != "rtsp://camera.lan/live" {
+		t.Fatalf("parsed %q, %v; want the address, true", address, testing)
+	}
+}
+
+func TestCameraTestSourceRejectsArgumentsItCannotUse(t *testing.T) {
+	for _, argument := range []string{"--started-at-login", CameraTestFlag, CameraTestFlag + "=", CameraScanArgument(0)} {
+		if _, testing := CameraTestSource([]string{argument}); testing {
+			t.Fatalf("%q was accepted as a stream test request", argument)
+		}
+	}
+}
+
+// TestAStreamReplyIsReadBackByTheSweepsReader is what lets a single-source test
+// reuse the sweep's machinery instead of growing a protocol of its own.
+func TestAStreamReplyIsReadBackByTheSweepsReader(t *testing.T) {
+	var reply strings.Builder
+	stream := Camera{Width: 1920, Height: 1080, Label: "Network stream (1920x1080)"}
+
+	announced := 0
+	encoder := json.NewEncoder(&reply)
+	encoder.Encode(cameraScanLine{Probing: &announced})
+	encoder.Encode(cameraScanLine{Camera: &stream})
+	encoder.Encode(cameraScanLine{Done: true})
+
+	outcome := readCameraScan(strings.NewReader(reply.String()))
+
+	if !outcome.complete {
+		t.Fatal("a finished stream test was not read as complete")
+	}
+	if len(outcome.found) != 1 || outcome.found[0].Width != 1920 {
+		t.Fatalf("found %+v, want the stream the child reported", outcome.found)
 	}
 }
 

@@ -63,6 +63,14 @@ func (a *App) TestTelegram(form app.TelegramForm) app.ActionResult {
 
 func (a *App) SelectCamera(index int) app.ActionResult { return a.service.SelectCamera(index) }
 
+func (a *App) TestCameraURL(address string) app.ActionResult {
+	return a.service.TestCameraURL(address)
+}
+
+func (a *App) SelectCameraURL(address string) app.ActionResult {
+	return a.service.SelectCameraURL(address)
+}
+
 func (a *App) SaveTuning(form app.TuningForm) app.ActionResult { return a.service.SaveTuning(form) }
 
 func (a *App) SaveLiveView(form app.LiveViewForm) app.ActionResult {

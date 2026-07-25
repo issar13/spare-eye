@@ -247,6 +247,25 @@
                     </div>
 
                     <div class="banner" hidden id="camera-message"></div>
+
+                    <details>
+                        <summary>My camera is on the network, not plugged in</summary>
+
+                        <p class="hint">Some cameras send their picture over your home network instead of
+                            through a cable. Their address is on the camera's own settings page or in its
+                            manual, and usually starts with rtsp:// or http://.</p>
+
+                        <form id="stream-form">
+                            <div class="row">
+                                <input id="stream-address" name="cameraURL"
+                                       placeholder="rtsp://192.168.1.50:554/stream" type="text"/>
+                                <button id="stream-test" type="button">Test it</button>
+                                <button type="submit">Use this camera</button>
+                            </div>
+                        </form>
+
+                        <div class="banner" hidden id="stream-message"></div>
+                    </details>
                 </li>
 
                 <li class="step" id="step-telegram">

@@ -5,27 +5,36 @@ import {
     SaveStartup,
     SaveTelegram,
     SelectCamera,
+    SelectCameraURL,
     Settings,
+    TestCameraURL,
     TestTelegram,
 } from '../wailsjs/go/main/App';
 import type {app, detector} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
 import {requireElement, requireField} from './elements';
-import {startupSchema, telegramSchema} from './schemas';
+import {cameraStreamSchema, describeIssue, startupSchema, telegramSchema} from './schemas';
 
 const telegramForm = requireElement<HTMLFormElement>('#telegram-form');
 const startupForm = requireElement<HTMLFormElement>('#startup-form');
+const streamForm = requireElement<HTMLFormElement>('#stream-form');
 const startupMessage = requireElement<HTMLElement>('#startup-message');
 const setupMessage = requireElement<HTMLElement>('#setup-message');
 const cameraMessage = requireElement<HTMLElement>('#camera-message');
+const streamMessage = requireElement<HTMLElement>('#stream-message');
 const startMessage = requireElement<HTMLElement>('#start-message');
 const picker = requireElement<HTMLSelectElement>('#camera-picker');
 const startButton = requireElement<HTMLButtonElement>('#setup-start');
 
-// Whether the selected camera is known to work, which is what decides if step
-// one shows as finished. A scan sets it directly; until one has run, the status
-// poll stands in, because the engine only reports it can arm once it has opened
-// a camera itself. Without that fallback the step reads as outstanding on every
+// unchosen is the picker's value while nobody has picked anything. A select has
+// to have some value, and an empty one is the only one that cannot be confused
+// with device 0.
+const unchosen = '';
+
+// Whether the chosen camera is known to work, which is what decides if step one
+// shows as finished. A scan sets it directly; until one has run, the status poll
+// stands in, because the engine only reports it can arm once it has opened a
+// camera itself. Without that fallback the step reads as outstanding on every
 // screen but Setup, and stays that way if the camera was busy at launch.
 let cameraConfirmed = false;
 
@@ -50,71 +59,104 @@ export const loadSetup = async (): Promise<void> => {
     requireField(startupForm, 'launchAtLogin').checked = settings.startup.launchAtLogin;
     requireField(startupForm, 'watchOnLaunch').checked = settings.startup.watchOnLaunch;
 
-    renderCameraOptions([], settings.cameraIndex);
+    requireField(streamForm, 'cameraURL').value = settings.cameraURL;
+
+    renderCameraOptions([], settings);
 };
 
-// renderCameraOptions always keeps the configured camera selectable, even when
-// a scan did not find it: an empty picker after a webcam is unplugged would
-// hide which camera the app is still trying to use.
-const renderCameraOptions = (cameras: detector.Camera[], selectedIndex: number): void => {
-    cameraConfirmed = cameras.some((camera) => camera.index === selectedIndex);
+// usingStream and usingDevice split the three states step one can be in: no
+// answer yet, a camera on this computer, or one on the network. They are asked
+// about separately because a network camera is never in the scanned list.
+const usingStream = (settings: app.SettingsView): boolean =>
+    settings.cameraChosen && settings.cameraURL !== '';
+
+const usingDevice = (settings: app.SettingsView): boolean =>
+    settings.cameraChosen && settings.cameraURL === '';
+
+// renderCameraOptions always keeps the chosen camera selectable, even when a
+// scan did not find it: an empty picker after a webcam is unplugged would hide
+// which camera the app is still trying to use.
+const renderCameraOptions = (cameras: detector.Camera[], settings: app.SettingsView): void => {
+    const deviceFound = cameras.some((camera) => camera.index === settings.cameraIndex);
+
+    cameraConfirmed = usingStream(settings) || (usingDevice(settings) && deviceFound);
 
     const found = cameras.map((camera) => ({
-        value: camera.index,
+        value: String(camera.index),
         label: `Camera ${camera.index} — ${camera.width} × ${camera.height}`,
     }));
-    const missing = cameraConfirmed
-        ? []
-        : [{value: selectedIndex, label: `Camera ${selectedIndex} — not responding`}];
 
-    picker.replaceChildren(...[...missing, ...found].map((option) => {
+    // Nothing is chosen for the user. Until they answer, the picker leads with a
+    // prompt rather than resting on whichever device happens to be first.
+    const waiting = settings.cameraChosen
+        ? []
+        : [{value: unchosen, label: 'Choose a camera…'}];
+
+    const onTheNetwork = usingStream(settings)
+        ? [{value: unchosen, label: 'A camera on your network'}]
+        : [];
+
+    const missing = usingDevice(settings) && !deviceFound
+        ? [{value: String(settings.cameraIndex), label: `Camera ${settings.cameraIndex} — not responding`}]
+        : [];
+
+    const selected = usingDevice(settings) ? String(settings.cameraIndex) : unchosen;
+
+    picker.replaceChildren(...[...waiting, ...onTheNetwork, ...missing, ...found].map((option) => {
         const element = document.createElement('option');
-        element.value = String(option.value);
+        element.value = option.value;
         element.textContent = option.label;
-        element.selected = option.value === selectedIndex;
+        element.selected = option.value === selected;
         return element;
     }));
 };
 
-// look reuses the last scan; lookAgain forces a fresh sweep of every device,
+// look reuses the last scan; RescanCameras forces a fresh sweep of every device,
 // which is what the button is for.
 const showCameras = async (look: () => Promise<detector.Camera[]>): Promise<void> => {
     showBanner(cameraMessage, 'Looking for cameras…');
 
     const [cameras, settings] = await Promise.all([look(), Settings()]);
 
+    renderCameraOptions(cameras, settings);
+    showBanner(cameraMessage, ...describeCameras(cameras, settings));
+};
+
+// describeCameras says what the list means for whoever is reading it. Nothing is
+// adopted on their behalf: a camera watching a room is a decision, and the app
+// helping itself to whichever device answered first is how somebody ends up
+// recording a room they did not mean to.
+const describeCameras = (cameras: detector.Camera[], settings: app.SettingsView): [string, 'good' | 'warn' | 'error'] => {
+    if (usingStream(settings)) {
+        return [`Using your network camera at ${settings.cameraURL}. Pick one from the list to change it.`, 'good'];
+    }
+
     if (cameras.length === 0) {
-        renderCameraOptions(cameras, settings.cameraIndex);
-        showBanner(
-            cameraMessage,
+        return [
             'No camera responded. Another program is probably using it — close Zoom, Teams or OBS, ' +
-            'then press Look again.',
+            'then press Look again. If your camera is on your network, use the box below instead.',
             'error',
-        );
-        return;
+        ];
     }
 
-    // The saved index is a default until a scan proves it, and the shipped
-    // default of 0 is very often a virtual device that never sends a picture.
-    // Adopting a working camera rather than waiting to be told avoids the state
-    // where the step reports itself unfinished directly underneath a message
-    // saying the camera was found.
-    const configuredWorks = cameras.some((camera) => camera.index === settings.cameraIndex);
-    const chosen = configuredWorks ? settings.cameraIndex : cameras[0].index;
-
-    if (!configuredWorks) {
-        await SelectCamera(chosen);
+    if (!settings.cameraChosen) {
+        return [
+            cameras.length === 1
+                ? 'Found one camera. Choose it below to start using it.'
+                : `Found ${cameras.length} cameras. Choose the one you want below.`,
+            'warn',
+        ];
     }
 
-    renderCameraOptions(cameras, chosen);
+    if (!cameras.some((camera) => camera.index === settings.cameraIndex)) {
+        return [
+            `Camera ${settings.cameraIndex}, the one you chose, did not respond. Choose another one below, ` +
+            'or plug it back in and press Look again.',
+            'error',
+        ];
+    }
 
-    showBanner(
-        cameraMessage,
-        cameras.length === 1
-            ? 'Found your camera and selected it.'
-            : `Found ${cameras.length} cameras, using camera ${chosen}. Pick a different one below if you want.`,
-        'good',
-    );
+    return [`Using camera ${settings.cameraIndex}. Pick a different one below if you want.`, 'good'];
 };
 
 // updateSetupProgress ticks the steps off as they are completed, so a first-run
@@ -160,6 +202,21 @@ const markStep = (selector: string, done: boolean): void => {
     state.className = done ? 'step-state done' : 'step-state';
 };
 
+// readStreamAddress returns the typed address, or nothing once it has told the
+// user what is wrong with it.
+const readStreamAddress = (): string | undefined => {
+    const parsed = cameraStreamSchema.safeParse({
+        cameraURL: requireField(streamForm, 'cameraURL').value,
+    });
+
+    if (!parsed.success) {
+        showBanner(streamMessage, describeIssue(parsed.error), 'error');
+        return undefined;
+    }
+
+    return parsed.data.cameraURL;
+};
+
 export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching: () => void): void => {
     telegramForm.addEventListener('submit', async (submission) => {
         submission.preventDefault();
@@ -193,11 +250,58 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
     requireElement<HTMLButtonElement>('#camera-refresh').addEventListener('click', () => void showCameras(RescanCameras));
 
     picker.addEventListener('change', async () => {
+        // The prompt and the network-camera entry are labels, not choices.
+        if (picker.value === unchosen) {
+            return;
+        }
+
         hideBanner(cameraMessage);
+        hideBanner(streamMessage);
 
         const result = await SelectCamera(Number(picker.value));
-        if (!result.ok) {
+        if (result.ok) {
+            await showCameras(Cameras);
+        } else {
             showResult(cameraMessage, result);
+        }
+
+        onSettingsChanged();
+    });
+
+    requireElement<HTMLButtonElement>('#stream-test').addEventListener('click', async (event) => {
+        const address = readStreamAddress();
+        if (address === undefined) {
+            return;
+        }
+
+        const button = event.currentTarget as HTMLButtonElement;
+
+        button.disabled = true;
+        showBanner(streamMessage, 'Trying that camera…');
+
+        try {
+            showResult(streamMessage, await TestCameraURL(address));
+        } finally {
+            button.disabled = false;
+        }
+    });
+
+    streamForm.addEventListener('submit', async (submission) => {
+        submission.preventDefault();
+
+        const address = readStreamAddress();
+        if (address === undefined) {
+            return;
+        }
+
+        showBanner(streamMessage, 'Trying that camera…');
+
+        const result = await SelectCameraURL(address);
+        if (result.ok) {
+            hideBanner(streamMessage);
+            await showCameras(Cameras);
+        } else {
+            showResult(streamMessage, result);
         }
 
         onSettingsChanged();

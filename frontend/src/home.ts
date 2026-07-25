@@ -51,7 +51,7 @@ const renderGuide = (problem: app.Problem | undefined): void => {
 // lives behind a collapsed disclosure on the Home screen.
 const renderDiagnostics = (status: app.StatusView): void => {
     const entries: [string, string][] = [
-        ['Camera number', String(status.cameraIndex)],
+        ['Camera', status.cameraSource],
         ['Picture size', status.frameWidth === 0 ? 'Not measured yet' : `${status.frameWidth} × ${status.frameHeight}`],
         ['Frames per second', status.captureFPS === 0 ? 'Not measured yet' : status.captureFPS.toFixed(1)],
         ['Lighting profile', status.night ? 'Night' : 'Daylight'],

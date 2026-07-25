@@ -64,6 +64,55 @@ const (
 	maxPreviewQuality = config.MaxPreviewQuality
 )
 
+// Bounds on how long the detector waits before picking a network stream back
+// up. The first wait is short because most interruptions are a dropped packet
+// or a camera rebooting; the ceiling keeps an outage lasting all afternoon from
+// meaning an open attempt every couple of seconds for hours.
+const (
+	minStreamReconnectDelay = 2 * time.Second
+	maxStreamReconnectDelay = 60 * time.Second
+)
+
+// streamFailuresBeforeReconnect is how many empty reads in a row mean the
+// stream is gone rather than stuttering. Each costs the capture loop its own
+// half second, so this is roughly five seconds of silence.
+const streamFailuresBeforeReconnect = 10
+
+// captureStream is the camera a run reads from.
+//
+// For a network source it is not the same handle throughout: a stream that
+// stops delivering is closed and opened again, and the loop reading frames has
+// to see the replacement rather than a handle nobody is filling.
+type captureStream struct {
+	source  Source
+	capture *gocv.VideoCapture
+}
+
+func openStream(source Source) (*captureStream, error) {
+	capture, err := openCapture(source)
+	if err != nil {
+		return nil, fmt.Errorf("opening %s: %w", source, err)
+	}
+
+	return &captureStream{source: source, capture: capture}, nil
+}
+
+func (s *captureStream) read(frame *gocv.Mat) bool {
+	return s.capture.Read(frame) && !frame.Empty()
+}
+
+// close forgets the handle as it releases it, because a reconnect leaves the
+// stream holding none for as long as the network is down, and the release at
+// the end of the run must not hand the same capture to OpenCV twice.
+func (s *captureStream) close() {
+	if s.capture == nil {
+		return
+	}
+
+	s.capture.Close()
+	s.capture = nil
+}
+
 // Detector runs the capture and analysis loop.
 type Detector struct {
 	settings config.Config
@@ -169,22 +218,28 @@ func (d *Detector) Run(ctx context.Context) error {
 	defer close(d.events)
 	defer d.recordings.Wait()
 
-	camera, err := openCapture(d.settings.Detection.CameraIndex)
+	source := SourceFor(d.settings.Detection)
+
+	// The first open is fatal for a stream as well as for a device: reconnecting
+	// is for a watch that was working and stopped, and an address that never
+	// answered at all is something the user has to be told about now, while they
+	// are still looking at the button they pressed.
+	stream, err := openStream(source)
 	if err != nil {
-		return fmt.Errorf("opening camera %d: %w", d.settings.Detection.CameraIndex, err)
+		return err
 	}
-	defer camera.Close()
+	defer stream.close()
 
 	frame := gocv.NewMat()
 	defer frame.Close()
 
-	if !camera.Read(&frame) || frame.Empty() {
-		return fmt.Errorf("camera %d opened but returned no frames", d.settings.Detection.CameraIndex)
+	if !stream.read(&frame) {
+		return fmt.Errorf("%s opened but returned no frames", source)
 	}
 
 	frameSize := image.Pt(frame.Cols(), frame.Rows())
 
-	captureFPS, err := measureCaptureRate(camera, &frame)
+	captureFPS, err := measureCaptureRate(stream, &frame)
 	if err != nil {
 		return err
 	}
@@ -200,20 +255,62 @@ func (d *Detector) Run(ctx context.Context) error {
 	history := newPrebuffer(leadFrames)
 	defer history.close()
 
-	return d.processFrames(ctx, camera, &frame, frameSize, captureFPS, history)
+	return d.processFrames(ctx, stream, &frame, frameSize, captureFPS, history)
+}
+
+// reconnect closes a stream that has stopped delivering and opens it again,
+// waiting longer after each refusal. It reports whether a picture is flowing
+// once more; only cancellation makes it give up, because a network camera that
+// has gone quiet is usually a router or a Wi-Fi link, and a house left unwatched
+// until somebody notices is the worse outcome by far.
+//
+// Each attempt is published rather than logged directly: this package has no
+// logger of its own, and the event stream is what the app writes to the log and
+// shows in the diagnostics panel.
+func (d *Detector) reconnect(ctx context.Context, stream *captureStream) bool {
+	stream.close()
+
+	delay := minStreamReconnectDelay
+
+	for attempt := 1; ; attempt++ {
+		d.publish(Event{
+			Kind: EventFailure,
+			Err: fmt.Errorf("%s stopped sending pictures; trying again in %s (attempt %d)",
+				stream.source, delay, attempt),
+		})
+
+		select {
+		case <-ctx.Done():
+			return false
+		case <-time.After(delay):
+		}
+
+		capture, err := openCapture(stream.source)
+		if err == nil {
+			stream.capture = capture
+			d.publish(Event{
+				Kind:   EventCameraOpened,
+				Detail: fmt.Sprintf("reconnected to %s", stream.source),
+			})
+
+			return true
+		}
+
+		delay = min(delay*2, maxStreamReconnectDelay)
+	}
 }
 
 // measureCaptureRate times a short burst of reads. Webcams commonly report 0 or
 // a nominal value for VideoCaptureFPS, and a clip written at a frame rate the
 // camera is not actually delivering plays back too fast or too slow.
-func measureCaptureRate(camera *gocv.VideoCapture, frame *gocv.Mat) (float64, error) {
+func measureCaptureRate(stream *captureStream, frame *gocv.Mat) (float64, error) {
 	const sampleCount = 30
 
 	started := time.Now()
 	captured := 0
 
 	for captured < sampleCount {
-		if !camera.Read(frame) || frame.Empty() {
+		if !stream.read(frame) {
 			continue
 		}
 		captured++
@@ -240,7 +337,7 @@ func measureCaptureRate(camera *gocv.VideoCapture, frame *gocv.Mat) (float64, er
 
 func (d *Detector) processFrames(
 	ctx context.Context,
-	camera *gocv.VideoCapture,
+	stream *captureStream,
 	frame *gocv.Mat,
 	frameSize image.Point,
 	captureFPS float64,
@@ -269,6 +366,8 @@ func (d *Detector) processFrames(
 		motionOngoing bool
 	)
 
+	emptyReads := 0
+
 	for {
 		if ctx.Err() != nil {
 			d.finishActiveRecording()
@@ -277,7 +376,22 @@ func (d *Detector) processFrames(
 
 		// A webcam read blocks until the next frame, which paces this loop at
 		// the camera's native rate without a sleep.
-		if !camera.Read(frame) || frame.Empty() {
+		if !stream.read(frame) {
+			emptyReads++
+
+			// A local device that has stopped delivering is broken hardware or a
+			// program that took it away, and no amount of waiting fixes either.
+			// A stream is the other way round: the usual cause is the network,
+			// which comes back on its own.
+			if stream.source.Network() && emptyReads >= streamFailuresBeforeReconnect {
+				if !d.reconnect(ctx, stream) {
+					d.finishActiveRecording()
+					return nil
+				}
+				emptyReads = 0
+				continue
+			}
+
 			select {
 			case <-ctx.Done():
 				d.finishActiveRecording()
@@ -286,6 +400,8 @@ func (d *Detector) processFrames(
 			}
 			continue
 		}
+
+		emptyReads = 0
 
 		night := d.isNight(time.Now())
 		profile := d.profileFor(night)

@@ -58,6 +58,10 @@ export function SelectCamera(arg1) {
   return window['go']['main']['App']['SelectCamera'](arg1);
 }
 
+export function SelectCameraURL(arg1) {
+  return window['go']['main']['App']['SelectCameraURL'](arg1);
+}
+
 export function SendRecording(arg1) {
   return window['go']['main']['App']['SendRecording'](arg1);
 }
@@ -80,6 +84,10 @@ export function Status() {
 
 export function StopManualRecording() {
   return window['go']['main']['App']['StopManualRecording']();
+}
+
+export function TestCameraURL(arg1) {
+  return window['go']['main']['App']['TestCameraURL'](arg1);
 }
 
 export function TestTelegram(arg1) {

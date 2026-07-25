@@ -54,6 +54,20 @@ type TelegramSettings struct {
 type DetectionSettings struct {
 	CameraIndex int `json:"cameraIndex"`
 
+	// CameraURL is a network stream — RTSP or HTTP — and takes precedence over
+	// CameraIndex when it is set. The two are separate fields rather than one
+	// overloaded string because a single value would leave every reader
+	// guessing whether "0" names a device or a file, and because a config.json
+	// written before streams existed simply has no cameraURL key.
+	CameraURL string `json:"cameraURL"`
+
+	// CameraChosen records that somebody picked the camera above, as opposed to
+	// its being the shipped default. Nothing is guessed on a first run: a laptop
+	// whose index 0 is a virtual webcam would otherwise be watched by a device
+	// that never sends a picture, and a household would have no idea which
+	// camera the app had helped itself to.
+	CameraChosen bool `json:"cameraChosen"`
+
 	Day   SensitivityProfile `json:"day"`
 	Night SensitivityProfile `json:"night"`
 
@@ -227,7 +241,32 @@ func Load() (Config, error) {
 	settings.Detection.PreviewFPS = clamp(settings.Detection.PreviewFPS, MinPreviewFPS, MaxPreviewFPS)
 	settings.Detection.PreviewQuality = clamp(settings.Detection.PreviewQuality, MinPreviewQuality, MaxPreviewQuality)
 
+	// An installation that predates being asked which camera to use has an index
+	// somebody has been running with, and sending it back to the Setup screen to
+	// re-pick the device it is already watching would be a regression dressed up
+	// as a prompt.
+	if !mentionsCameraChoice(contents) {
+		settings.Detection.CameraChosen = true
+	}
+
 	return withResolvedPaths(settings)
+}
+
+// mentionsCameraChoice reports whether the file carries the cameraChosen key at
+// all, which is the only way to tell an upgrade from a fresh install that has
+// saved something else — a bot token, say — before choosing a camera.
+func mentionsCameraChoice(contents []byte) bool {
+	var probe struct {
+		Detection struct {
+			CameraChosen *bool `json:"cameraChosen"`
+		} `json:"detection"`
+	}
+
+	if err := json.Unmarshal(contents, &probe); err != nil {
+		return false
+	}
+
+	return probe.Detection.CameraChosen != nil
 }
 
 func clamp(value, lowest, highest int) int {

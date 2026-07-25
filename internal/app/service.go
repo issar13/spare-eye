@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"slices"
 	"sync"
 	"time"
 
@@ -140,11 +141,10 @@ func (s *Service) armAtLaunch() {
 	s.mutex.Unlock()
 }
 
-// resolveCamera makes the configured index one that actually delivers frames.
-//
-// A fresh config points at index 0, and on a typical laptop index 0 is as
-// likely to be a virtual webcam — Iriun, OBS — that opens cleanly and then
-// hands over nothing. Left alone, a first run would arm, wait, and time out.
+// resolveCamera finds out what is available and whether the chosen camera is
+// among it. It changes nothing: a camera is adopted only when somebody picks
+// one, and a chosen camera that has stopped answering becomes a problem on
+// screen rather than a silent move to whatever else is plugged in.
 func (s *Service) resolveCamera() {
 	// This runs on its own goroutine, where a panic would take the window down
 	// with the process and leave the user with nothing to read.
@@ -153,6 +153,17 @@ func (s *Service) resolveCamera() {
 			s.log.Panicked("probing capture devices", panicked)
 		}
 	}()
+
+	s.mutex.Lock()
+	detection := s.settings.Detection
+	s.mutex.Unlock()
+
+	// A network stream is not something a device sweep can find, and opening it
+	// here would only duplicate what arming is about to do anyway.
+	if detection.CameraChosen && detection.CameraURL != "" {
+		s.log.Info("watching a network stream; no device sweep needed")
+		return
+	}
 
 	// The whole sweep runs, including the configured device: the scan happens in
 	// a child process, so opening a device the user did not ask for costs a
@@ -164,27 +175,25 @@ func (s *Service) resolveCamera() {
 	s.mutex.Lock()
 	s.cameras = found
 	s.camerasScanned = true
-	configured := s.settings.Detection.CameraIndex
-	updated := s.settings
 	s.mutex.Unlock()
 
-	if len(found) == 0 {
-		s.log.Warn("no usable camera found", "configured", configured)
+	if !detection.CameraChosen {
+		s.log.Info("waiting for a camera to be chosen", "found", len(found))
 		return
 	}
 
-	for _, camera := range found {
-		if camera.Index == configured {
-			s.log.Info("camera confirmed usable", "index", configured, "size", camera.Label)
-			return
-		}
+	if containsCamera(found, detection.CameraIndex) {
+		s.log.Info("camera confirmed usable", "index", detection.CameraIndex)
+		return
 	}
 
-	s.log.Info("configured camera is unusable; adopting one that works",
-		"configured", configured, "adopted", found[0].Index)
+	s.log.Warn("the chosen camera did not answer", "index", detection.CameraIndex, "found", len(found))
+}
 
-	updated.Detection.CameraIndex = found[0].Index
-	s.persist(updated)
+func containsCamera(cameras []detector.Camera, index int) bool {
+	return slices.ContainsFunc(cameras, func(camera detector.Camera) bool {
+		return camera.Index == index
+	})
 }
 
 // Shutdown stops the detector and the notifier. Wails calls it while the window
@@ -277,7 +286,7 @@ func (s *Service) Status() StatusView {
 	registered, _ := autostart.Enabled()
 
 	view := StatusView{
-		CameraIndex:             settings.Detection.CameraIndex,
+		CameraSource:            describeCameraSource(settings.Detection),
 		AlertsEnabled:           settings.Telegram.Enabled,
 		AlertsConfigured:        settings.ConfiguredForAlerts(),
 		TelegramConnected:       s.messenger.connected(),
@@ -389,12 +398,29 @@ func (s *Service) armBlockedProblem(settings config.Config) *Problem {
 		}
 	}
 
+	if !settings.Detection.CameraChosen {
+		problem := noCameraChosen()
+		return &problem
+	}
+
 	s.mutex.Lock()
-	noneFound := s.camerasScanned && len(s.cameras) == 0
+	scanned := s.camerasScanned
+	cameras := s.cameras
 	s.mutex.Unlock()
 
-	if noneFound || settings.Detection.CameraIndex < 0 {
+	// A stream is not in the device list and cannot be proven from here; whether
+	// it answers is settled when the watch starts. A device that the sweep did
+	// not see is a different matter: the user chose it, it is gone, and they are
+	// the only one who can decide what to use instead.
+	usingStream := settings.Detection.CameraURL != ""
+
+	if !usingStream && settings.Detection.CameraIndex < 0 {
 		problem := cameraUnavailable()
+		return &problem
+	}
+
+	if !usingStream && scanned && !containsCamera(cameras, settings.Detection.CameraIndex) {
+		problem := chosenCameraMissing()
 		return &problem
 	}
 
@@ -436,21 +462,27 @@ func (s *Service) Arm() ActionResult {
 	s.launchProblem = nil
 	s.mutex.Unlock()
 
+	source := loggableCameraSource(settings.Detection)
+
 	select {
 	case <-session.opened:
-		s.log.Info("armed", "camera", settings.Detection.CameraIndex)
+		s.log.Info("armed", "source", source)
 		return succeeded("Watching for motion")
 
 	case <-session.finished:
 		s.forgetSession(session)
-		s.noteStartupFailure(session.runError, settings.Detection.CameraIndex)
+		s.noteStartupFailure(session.runError, source)
+
+		if settings.Detection.CameraURL != "" {
+			return streamUnavailable().asResult()
+		}
 		return cameraUnavailable().asResult()
 
 	case <-time.After(cameraOpenTimeout):
 		s.forgetSession(session)
 		session.cancel()
 		<-session.finished
-		s.log.Error("camera produced no frames", "camera", settings.Detection.CameraIndex)
+		s.log.Error("the camera produced no frames", "source", source)
 
 		return failed(
 			"Your camera did not send any pictures",
@@ -567,8 +599,8 @@ func (s *Service) forgetSession(session *detectorSession) {
 // diagnostics panel. The user is shown cameraUnavailable's guidance instead:
 // OpenCV reports a busy device and an absent one almost identically, so the
 // distinction its message draws is not one anybody can act on.
-func (s *Service) noteStartupFailure(runError error, cameraIndex int) {
-	s.log.Error("arming failed", "camera", cameraIndex, "error", runError)
+func (s *Service) noteStartupFailure(runError error, source string) {
+	s.log.Error("arming failed", "source", source, "error", runError)
 
 	if runError == nil {
 		return

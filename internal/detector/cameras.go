@@ -19,16 +19,22 @@ type Camera struct {
 	Label  string `json:"label"`
 }
 
-// openCapture opens a device, naming a backend where the default is a poor one.
+// openCapture opens a source, naming a backend where the default is a poor one.
 //
-// On Linux OpenCV tries GStreamer first and prints a paragraph of warnings for
-// every index that is not a capture device, which on a typical laptop is most of
-// them. Asking for V4L2 directly avoids building a pipeline that cannot run.
-func openCapture(index int) (*gocv.VideoCapture, error) {
-	if runtime.GOOS == "linux" {
-		return gocv.OpenVideoCaptureWithAPI(index, gocv.VideoCaptureV4L2)
+// On Linux OpenCV tries GStreamer first for a local device and prints a
+// paragraph of warnings for every index that is not a capture device, which on
+// a typical laptop is most of them. Asking for V4L2 directly avoids building a
+// pipeline that cannot run.
+//
+// A network stream is the opposite case: V4L2 speaks to kernel video devices
+// and has no idea what to do with a URL, so the default preference — which
+// resolves to FFMPEG — is the only one that can open one.
+func openCapture(source Source) (*gocv.VideoCapture, error) {
+	if runtime.GOOS == "linux" && !source.Network() {
+		return gocv.OpenVideoCaptureWithAPI(source.target(), gocv.VideoCaptureV4L2)
 	}
-	return gocv.OpenVideoCapture(index)
+
+	return gocv.OpenVideoCapture(source.target())
 }
 
 // AvailableCameras returns every index that opens *and* produces a frame,
@@ -80,27 +86,55 @@ func FirstUsableCamera() (int, bool) {
 }
 
 func probeCamera(index int) (Camera, error) {
-	capture, err := openCapture(index)
+	width, height, err := probeSource(DeviceSource(index))
 	if err != nil {
 		return Camera{}, err
+	}
+
+	return Camera{
+		Index:  index,
+		Width:  width,
+		Height: height,
+		Label:  fmt.Sprintf("Camera %d (%dx%d)", index, width, height),
+	}, nil
+}
+
+// probeStream is the same proof applied to a network address. The result is
+// reported as a Camera because the picture it describes is the same one, and
+// because the child process that carries it back speaks a protocol built around
+// that shape; its index is not a device number and nothing reads it.
+func probeStream(address string) (Camera, error) {
+	width, height, err := probeSource(NetworkSource(address))
+	if err != nil {
+		return Camera{}, err
+	}
+
+	return Camera{
+		Width:  width,
+		Height: height,
+		Label:  fmt.Sprintf("Network stream (%dx%d)", width, height),
+	}, nil
+}
+
+// probeSource opens a source and requires a real frame from it before calling
+// it usable.
+func probeSource(source Source) (int, int, error) {
+	capture, err := openCapture(source)
+	if err != nil {
+		return 0, 0, err
 	}
 	defer capture.Close()
 
 	if !capture.IsOpened() {
-		return Camera{}, fmt.Errorf("camera %d did not open", index)
+		return 0, 0, fmt.Errorf("%s did not open", source)
 	}
 
 	frame := gocv.NewMat()
 	defer frame.Close()
 
 	if !capture.Read(&frame) || frame.Empty() {
-		return Camera{}, fmt.Errorf("camera %d opened but produced no frame", index)
+		return 0, 0, fmt.Errorf("%s opened but produced no frame", source)
 	}
 
-	return Camera{
-		Index:  index,
-		Width:  frame.Cols(),
-		Height: frame.Rows(),
-		Label:  fmt.Sprintf("Camera %d (%dx%d)", index, frame.Cols(), frame.Rows()),
-	}, nil
+	return frame.Cols(), frame.Rows(), nil
 }
