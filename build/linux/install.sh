@@ -14,7 +14,6 @@
 set -euo pipefail
 
 readonly APPLICATION_NAME="kaa-rada"
-readonly COMMAND_LINE_NAME="kaa-rada-cli"
 
 source_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly source_directory
@@ -48,9 +47,6 @@ echo "Installing Kaa Rada (${install_scope} scope)..."
 mkdir -p "$binary_directory" "$desktop_directory" "$icon_directory" "$metainfo_directory"
 
 install -m 0755 "${source_directory}/${APPLICATION_NAME}" "${binary_directory}/${APPLICATION_NAME}"
-if [[ -f "${source_directory}/${COMMAND_LINE_NAME}" ]]; then
-  install -m 0755 "${source_directory}/${COMMAND_LINE_NAME}" "${binary_directory}/${COMMAND_LINE_NAME}"
-fi
 
 install -m 0644 "${source_directory}/${APPLICATION_NAME}.desktop" "${desktop_directory}/${APPLICATION_NAME}.desktop"
 

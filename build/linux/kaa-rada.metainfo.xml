@@ -35,7 +35,6 @@
 
   <provides>
     <binary>kaa-rada</binary>
-    <binary>kaa-rada-cli</binary>
   </provides>
 
   <content_rating type="oars-1.1"/>

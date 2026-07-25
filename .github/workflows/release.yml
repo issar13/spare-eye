@@ -123,8 +123,6 @@ jobs:
     name: Build Windows
     needs: credential-scan
     runs-on: windows-2022
-    # UNVALIDATED, exactly as in ci.yml. This has never been run. Expect the
-    # first tagged release to need a retry or two on this job.
     steps:
       - uses: actions/checkout@v4
 
@@ -427,14 +425,14 @@ jobs:
             | | |
             |---|---|
             | Windows | 10 or later. The installer bundles OpenCV, so nothing else is needed |
-            | Linux | GTK 3.24+, WebKit2GTK 4.1+, and OpenCV 4.6 — `sudo apt install libopencv-dev` on Ubuntu 24.04 |
+            | Linux | GTK 3.24+, WebKit2GTK 4.1+, and OpenCV 4.6. `sudo apt install libopencv-dev` on Ubuntu 24.04 |
             | Camera | Any webcam not already in use by another program |
             | Telegram | Your own bot. There is no shared bot and no token in the binary |
 
             ## First run
 
             1. Create your bot with @BotFather and note the token and your chat
-               ID — the Setup screen walks you through it.
+               ID. The Setup screen walks you through it.
             2. Pick your camera. Do not assume the first one: a virtual camera
                such as Iriun or OBS often takes index 0 and delivers no frames.
             3. Press **Start watching**.
@@ -453,7 +451,7 @@ jobs:
             ## The unsigned-binary warning
 
             These builds are **not code-signed**. On first run SmartScreen shows
-            "Windows protected your PC" — choose *More info*, then *Run anyway*.
+            "Windows protected your PC". Choose *More info*, then *Run anyway*.
             The installer requests no administrator rights, so there is no
             separate red "Unknown publisher" elevation prompt.
 
