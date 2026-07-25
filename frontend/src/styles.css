@@ -70,16 +70,8 @@ body {
     flex: none;
 }
 
-.dot.armed {
-    background: var(--good);
-}
-
 .dot.recording {
     background: var(--bad);
-}
-
-.dot.blocked {
-    background: var(--warn);
 }
 
 .nav {
@@ -102,18 +94,6 @@ body {
     color: var(--text);
     background: #222835;
     border-color: var(--line);
-}
-
-.sidebar-foot {
-    margin-top: auto;
-    padding-top: 16px;
-    color: var(--muted);
-    font-size: 11px;
-    word-break: break-all;
-}
-
-.sidebar-foot p {
-    margin: 4px 0;
 }
 
 .content {
@@ -149,11 +129,7 @@ h3 {
     letter-spacing: 0.06em;
 }
 
-.lede, .muted {
-    color: var(--muted);
-}
-
-.lede {
+.lede, .lede {
     margin: 6px 0 0;
 }
 
@@ -276,14 +252,6 @@ button.tab.selected {
 .event time {
     color: var(--muted);
     font-variant-numeric: tabular-nums;
-}
-
-.event .kind {
-    color: var(--accent);
-}
-
-.event.failure .kind {
-    color: var(--bad);
 }
 
 .log {

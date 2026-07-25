@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Installs Motion Detector for the current user. Run this from inside the
+# Installs Kaa Rada for the current user. Run this from inside the
 # extracted release tarball.
 #
 # Everything goes under $HOME by default, so no root is required and nothing
@@ -43,7 +43,7 @@ else
   metainfo_directory="$HOME/.local/share/metainfo"
 fi
 
-echo "Installing Motion Detector (${install_scope} scope)..."
+echo "Installing Kaa Rada (${install_scope} scope)..."
 
 mkdir -p "$binary_directory" "$desktop_directory" "$icon_directory" "$metainfo_directory"
 
@@ -86,5 +86,5 @@ if [[ ":$PATH:" != *":${binary_directory}:"* ]]; then
 fi
 
 echo ""
-echo "Motion Detector needs OpenCV 4.6 at run time. On Ubuntu 24.04:"
+echo "Kaa Rada needs OpenCV 4.6 at run time. On Ubuntu 24.04:"
 echo "  sudo apt install libopencv-dev"

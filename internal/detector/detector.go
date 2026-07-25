@@ -53,16 +53,16 @@ type Status struct {
 	FrameHeight     int       `json:"frameHeight"`
 }
 
-// previewInterval limits how often a frame is JPEG-encoded for the UI. The
-// check sits inside the capture loop, so this is a ceiling rather than a rate:
-// a camera delivering 10 FPS is still previewed at 10 FPS. 66ms keeps the live
-// view smooth on a faster camera without encoding frames nobody will see.
-const previewInterval = 66 * time.Millisecond
-
-// previewJPEGQuality trades a little fidelity for latency. The preview is a
-// glance at a room, not evidence — the clips written to disk are untouched by
-// this — and a smaller frame reaches the webview sooner.
-const previewJPEGQuality = 80
+// Aliases for the bounds in config, which owns them because the settings screen
+// checks against the same numbers. Clamping still happens here as well as on
+// load: New accepts a Config from anywhere, including a caller that built one
+// itself, and a zero frame rate here would divide by zero.
+const (
+	minPreviewFPS     = config.MinPreviewFPS
+	maxPreviewFPS     = config.MaxPreviewFPS
+	minPreviewQuality = config.MinPreviewQuality
+	maxPreviewQuality = config.MaxPreviewQuality
+)
 
 // Detector runs the capture and analysis loop.
 type Detector struct {
@@ -281,7 +281,7 @@ func (d *Detector) processFrames(
 		history.add(*frame)
 		d.handleManualRequests(*frame, frameSize, captureFPS, history)
 
-		if time.Since(lastPreview) >= previewInterval {
+		if time.Since(lastPreview) >= d.previewInterval() {
 			d.updatePreview(*frame)
 			lastPreview = time.Now()
 		}
@@ -392,9 +392,30 @@ func (d *Detector) saveSnapshot(frame gocv.Mat, night bool) (string, error) {
 	return path, nil
 }
 
+// previewInterval converts the configured frames-per-second ceiling into the
+// gap between encodes, clamped so a hand-edited config cannot divide by zero.
+func (d *Detector) previewInterval() time.Duration {
+	framesPerSecond := clampInt(d.settings.Detection.PreviewFPS, minPreviewFPS, maxPreviewFPS)
+	return time.Second / time.Duration(framesPerSecond)
+}
+
+func (d *Detector) previewQuality() int {
+	return clampInt(d.settings.Detection.PreviewQuality, minPreviewQuality, maxPreviewQuality)
+}
+
+func clampInt(value, lowest, highest int) int {
+	if value < lowest {
+		return lowest
+	}
+	if value > highest {
+		return highest
+	}
+	return value
+}
+
 func (d *Detector) updatePreview(frame gocv.Mat) {
 	encoded, err := gocv.IMEncodeWithParams(gocv.JPEGFileExt, frame,
-		[]int{gocv.IMWriteJpegQuality, previewJPEGQuality})
+		[]int{gocv.IMWriteJpegQuality, d.previewQuality()})
 	if err != nil {
 		return
 	}

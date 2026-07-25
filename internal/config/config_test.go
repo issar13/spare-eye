@@ -214,6 +214,15 @@ func TestDefaultsAreTheDocumentedOnes(t *testing.T) {
 			settings.Telegram.BotToken, settings.Telegram.ChatID)
 	}
 
+	// The live view defaults are a compromise the README quotes: smooth enough to
+	// read at a glance, cheap enough not to compete with detection for CPU.
+	if settings.Detection.PreviewFPS != 12 {
+		t.Errorf("preview FPS = %d, want 12", settings.Detection.PreviewFPS)
+	}
+	if settings.Detection.PreviewQuality != 80 {
+		t.Errorf("preview quality = %d, want 80", settings.Detection.PreviewQuality)
+	}
+
 	if settings.Storage.RetentionDays != 30 {
 		t.Errorf("retention = %d days, want 30", settings.Storage.RetentionDays)
 	}
@@ -317,6 +326,18 @@ func TestLoadKeepsDefaultsForFieldsAbsentFromTheFile(t *testing.T) {
 		t.Errorf("retention = %d, want the default %d",
 			settings.Storage.RetentionDays, defaults.Storage.RetentionDays)
 	}
+
+	// A config.json saved before the live view became configurable names neither
+	// preview field. Landing on zero would give the settings screen a frame rate
+	// it refuses to accept and a quality libjpeg treats as blank.
+	if settings.Detection.PreviewFPS != defaults.Detection.PreviewFPS {
+		t.Errorf("preview FPS = %d, want the default %d",
+			settings.Detection.PreviewFPS, defaults.Detection.PreviewFPS)
+	}
+	if settings.Detection.PreviewQuality != defaults.Detection.PreviewQuality {
+		t.Errorf("preview quality = %d, want the default %d",
+			settings.Detection.PreviewQuality, defaults.Detection.PreviewQuality)
+	}
 }
 
 func TestLoadReportsAConfigItCannotParse(t *testing.T) {
@@ -351,6 +372,8 @@ func TestSaveThenLoadRoundTripsEverySetting(t *testing.T) {
 	original.Detection.Day.MinimumContourArea = 1234
 	original.Detection.Day.SampleInterval = Duration(2 * time.Second)
 	original.Detection.Night.AlertCooldown = Duration(90 * time.Minute)
+	original.Detection.PreviewFPS = 24
+	original.Detection.PreviewQuality = 45
 	original.Storage.MediaDirectory = filepath.Join(t.TempDir(), "media")
 	original.Storage.RetentionDays = 7
 
@@ -374,6 +397,16 @@ func TestSaveThenLoadRoundTripsEverySetting(t *testing.T) {
 	}
 	if reloaded.Detection.Night.AlertCooldown.AsDuration() != 90*time.Minute {
 		t.Errorf("night alert cooldown = %v, want 1h30m", reloaded.Detection.Night.AlertCooldown.AsDuration())
+	}
+
+	// The live view dials are plain integers rather than Durations, so they are
+	// easy to leave out of the encoded form without the whole-struct diff above
+	// being obviously wrong about which field drifted.
+	if reloaded.Detection.PreviewFPS != 24 {
+		t.Errorf("preview FPS = %d, want 24", reloaded.Detection.PreviewFPS)
+	}
+	if reloaded.Detection.PreviewQuality != 45 {
+		t.Errorf("preview quality = %d, want 45", reloaded.Detection.PreviewQuality)
 	}
 }
 

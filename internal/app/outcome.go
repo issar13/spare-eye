@@ -53,7 +53,7 @@ func cameraUnavailable() Problem {
 	return Problem{
 		Headline: "Your camera is not available",
 		NextStep: "Another program is probably using it. Close Zoom, Teams, OBS, or a second copy of " +
-			"Motion Detector, then try again. If you use a virtual webcam such as Iriun, start it first " +
+			"Kaa Rada, then try again. If you use a virtual webcam such as Iriun, start it first " +
 			"or choose a different camera in Setup.",
 	}
 }

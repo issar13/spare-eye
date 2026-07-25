@@ -42,6 +42,12 @@ export const tuningSchema = z.object({
     retentionDays: z.coerce.number().int().nonnegative(
         'The number of days to keep recordings cannot be negative. Use 0 to keep them forever.',
     ),
+    previewFPS: z.coerce.number().int()
+        .min(1, 'Under Advanced, the live view has to update between 1 and 60 times a second.')
+        .max(60, 'Under Advanced, the live view has to update between 1 and 60 times a second.'),
+    previewQuality: z.coerce.number().int()
+        .min(30, 'Under Advanced, the live view picture quality has to be between 30 and 95.')
+        .max(95, 'Under Advanced, the live view picture quality has to be between 30 and 95.'),
 });
 
 export const telegramSchema = z.object({
