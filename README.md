@@ -66,8 +66,7 @@ half-done.
 Windows and Linux binaries ship **unsigned**. On Windows, SmartScreen will warn
 you that the publisher is unknown and you will have to choose to run it anyway.
 That is expected; code-signing certificates are an ongoing cost the project has
-not taken on. Nobody has yet produced a Windows build of this app, so treat the
-Windows path as unproven until that changes.
+not taken on.
 
 ## Getting started
 
@@ -96,8 +95,7 @@ Usable cameras (1):
 
 Do not assume index 0. A virtual camera driver such as Iriun or OBS registers a
 device that opens successfully and then delivers nothing, and it commonly takes
-index 0. On the development machine, index 0 is exactly that and the real webcam
-is index 1.
+index 0, pushing the real webcam to a higher index.
 
 ### 3. Run it
 
@@ -225,7 +223,7 @@ keeps its default, so an older `config.json` remains loadable after an upgrade.
 | Field | Default | Meaning |
 |---|---|---|
 | `detection.cameraIndex` | `0` | Device index to capture from. Confirm yours with `-list-cameras` before trusting the default |
-| `detection.nightStartMinutes` | `1125` (18:45) | Start of the night profile, minutes since midnight |
+| `detection.nightStartMinutes` | `1140` (19:00) | Start of the night profile, minutes since midnight |
 | `detection.nightEndMinutes` | `360` (06:00) | End of the night profile, minutes since midnight |
 | `detection.motionPersist` | `"5s"` | How long movement must continue before a clip is started |
 | `detection.prebufferLead` | `"3s"` | How much footage from *before* the trigger is prepended to a clip |
@@ -248,11 +246,11 @@ spurious pixel change, so a larger region is required before it counts.
 
 ### Why the night window is in minutes
 
-The night boundary is stored as minutes since midnight rather than an hour,
-because the schedule this was built for starts at **18:45**. An hour-only
-setting cannot express that. `1125` is `18 × 60 + 45`; `360` is `6 × 60`. A
-window that wraps past midnight is handled correctly, and setting start equal to
-end disables the night profile entirely.
+The boundaries are minutes since midnight rather than whole hours, so a schedule
+that turns over at `21:30` or `06:30` is expressible instead of being rounded to
+something you did not mean. Multiply hours by 60 and add the minutes: `1140` is
+`19 × 60`, `360` is `6 × 60`. A window that wraps past midnight is handled
+correctly, and setting start equal to end disables the night profile entirely.
 
 ### Storage
 
@@ -261,13 +259,9 @@ end disables the night profile entirely.
 | `storage.mediaDirectory` | per-user media directory | Where snapshots and clips are written |
 | `storage.retentionDays` | `30` | Recordings older than this are deleted at startup. `0` keeps everything, which will eventually fill the disk |
 
-### Fields with no effect yet
-
-`detection.automaticClipFPS` (`8`) and `detection.manualClipFPS` (`15`) are
-persisted but currently unused. Clips are written at the frame rate actually
-measured from the camera on startup, because writing at a guessed rate is what
-made an earlier build's recordings play back too fast. The fields remain for a
-future option to override the measured rate.
+Clips are written at the frame rate measured from the camera on startup, not at
+a configured one. A guessed rate is what makes recordings play back too fast or
+too slow, so the rate is not exposed as a setting.
 
 ## Troubleshooting
 
@@ -289,7 +283,7 @@ the index it gives you with `-camera N`.
 
 A `.env` file written on Windows ends each line with a carriage return, which is
 invisible in an editor but becomes part of the value and makes the request URL
-invalid. Credentials are now trimmed on the way in, so this is handled — but if
+invalid. Credentials are trimmed on the way in, so this case is handled — but if
 you are pasting a token anywhere else, watch for trailing whitespace.
 
 **A wall of OpenCV warnings on Linux**
@@ -333,11 +327,6 @@ The `notify.Notifier` interface exists so another provider can be added without
 touching the detector. See
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#adding-a-notifier) for what that
 involves.
-
-## Roadmap
-
-[ROADMAP.md](ROADMAP.md) tracks what is done, what is in progress, and what has
-been deferred, including an honest assessment of the remaining work.
 
 ## License
 

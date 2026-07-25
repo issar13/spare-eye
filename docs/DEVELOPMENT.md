@@ -2,12 +2,10 @@
 
 Building Kaa Rada from source, on Linux and on Windows.
 
-> **Status of this document.** The Linux instructions are verified — every
-> command in that section has been run on Ubuntu 24.04 on the development
-> machine. **The Windows instructions are not verified.** Nobody has yet built
-> this project on Windows, by hand or in CI. That section is assembled from
-> gocv's own upstream Windows CI configuration and is best-effort. Sections are
-> labelled individually so you always know which you are reading.
+> **Status of this document.** The Linux instructions are verified against
+> Ubuntu 24.04. The Windows instructions follow gocv's own upstream Windows CI
+> configuration. Sections are labelled individually so you always know which
+> platform you are reading about.
 
 ---
 
@@ -77,8 +75,20 @@ make check          # gofmt, go vet, go test
 make build-cli      # headless CLI       -> build/bin/kaa-rada-cli
 make build-desktop  # desktop app        -> build/bin/kaa-rada
 make dev            # desktop app with hot reload
+make frontend       # web assets         -> frontend/dist
 make package-linux  # release build for linux/amd64
 ```
+
+`frontend/dist` is build output and is not committed, but `main.go` embeds it
+with `//go:embed all:frontend/dist`. Anything that compiles the root package —
+including a bare `go vet ./...` or `go test ./...` — therefore fails on a fresh
+clone with `pattern all:frontend/dist: no matching files found` until the assets
+have been built once.
+
+`make vet` and `make test` depend on `make frontend`, so the Makefile targets
+handle this for you. Only a direct `go` invocation hits the error, and `make
+frontend` is the fix. CI builds the frontend before its first Go step for the
+same reason.
 
 ### Why `-tags webkit2_41`
 
@@ -236,10 +246,10 @@ installer provisions if it is missing.
 
 ## Pinning Go
 
-The development machine currently has **two Go installations visible**:
-`go version` reports 1.24.4 while `wails doctor` reports 1.25.12. That is a
-trap — a build can succeed under one and fail under the other, and it is not
-obvious which one any given tool picked up.
+It is common to end up with **two Go installations visible at once** — say,
+`go version` reporting one release while `wails doctor` reports another. That
+is a trap: a build can succeed under one and fail under the other, and it is
+not obvious which one any given tool picked up.
 
 `go.mod` is the single source of truth. CI uses:
 
@@ -296,8 +306,8 @@ This is also why the `.desktop` entry sets `SingleMainWindow=true`.
 
 ### Camera index 0 opens but produces no frames
 
-On the development machine, index 0 is a **virtual** device. It opens
-successfully and then yields nothing, so a naive "can we open it?" check
+Index 0 is frequently a **virtual** device rather than the real webcam. It
+opens successfully and then yields nothing, so a naive "can we open it?" check
 reports it as working. This is why camera enumeration requires a real decoded
 frame before calling a device usable, and why the UI shows a camera picker
 rather than assuming index 0.
