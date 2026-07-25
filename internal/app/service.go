@@ -154,33 +154,12 @@ func (s *Service) resolveCamera() {
 		}
 	}()
 
-	s.mutex.Lock()
-	preferred := s.settings.Detection.CameraIndex
-	s.mutex.Unlock()
-
-	// The configured device is tried on its own before the full sweep. Opening a
-	// device can take the whole process down from inside the driver, so touching
-	// seven that nobody asked for is a risk taken for no reason when the one the
-	// user chose already works. It also makes a known-bad index avoidable: set
-	// the working one in config.json and the sweep never runs.
-	if camera, err := detector.ProbeCamera(preferred); err == nil {
-		s.log.Info("configured camera is usable; skipping the sweep", "index", preferred)
-
-		s.mutex.Lock()
-		s.cameras = []detector.Camera{camera}
-		s.camerasScanned = true
-		s.mutex.Unlock()
-		return
-	}
-
-	// Bracketing the probe is what makes an unrecoverable failure inside OpenCV
-	// diagnosable: a log that ends at "probing capture devices" says the backend
-	// died on a device, which no amount of Go error handling would have caught.
+	// The whole sweep runs, including the configured device: the scan happens in
+	// a child process, so opening a device the user did not ask for costs a
+	// second rather than risking the app, and the Setup picker needs the full
+	// list anyway.
 	s.log.Info("probing capture devices")
-	found := detector.AvailableCameras(func(index int) {
-		s.log.Info("opening capture device", "index", index)
-	})
-	s.log.Info("probed cameras", "count", len(found))
+	found := detector.AvailableCamerasIsolated(s.log.Logger)
 
 	s.mutex.Lock()
 	s.cameras = found
@@ -273,8 +252,7 @@ func (s *Service) RescanCameras() []detector.Camera {
 		return cached
 	}
 
-	found := detector.AvailableCameras(nil)
-	s.log.Info("probed cameras", "count", len(found))
+	found := detector.AvailableCamerasIsolated(s.log.Logger)
 
 	s.mutex.Lock()
 	s.cameras = found
