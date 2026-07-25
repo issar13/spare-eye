@@ -41,11 +41,11 @@ swappable and the detector testable without a network.
 
 Owns the persisted settings for one installation and nothing else.
 
-Every tuning value that the previous build compiled in as a Go constant lives
-here instead. That was not a cosmetic change: constants in code are the reason
-the old README drifted so far from reality that it documented a 15-second alert
-cooldown against a 300-second implementation. A value the user can see and edit
-is a value that can be documented truthfully.
+Every tuning value lives here rather than as a constant in code. A value
+compiled into the binary cannot be changed without a rebuild, and it drifts from
+whatever the documentation claims about it, because nothing forces the two to
+agree. A value the user can see and edit is one that can be documented
+truthfully and tested against.
 
 Three things about the shape of this package are load-bearing:
 
@@ -69,11 +69,8 @@ administrator rights, and a shared location would mean two users on one machine
 sharing one person's credentials and footage.
 
 The night window is stored as `NightStartMinutes` / `NightEndMinutes`, minutes
-since midnight, because the schedule this was built around begins at 18:45 and
-an hour-valued setting cannot express that.
-
-`AutomaticClipFPS` and `ManualClipFPS` are persisted but currently unread — see
-[Frame rate](#frame-rate) below.
+since midnight, so that a schedule turning over at a time like `21:30` stays
+expressible where an hour-valued setting would round it away.
 
 ## detector
 
@@ -122,11 +119,10 @@ interval has elapsed. Only then, if the profile's sample interval has elapsed,
 does it run motion analysis.
 
 **Analysis is throttled independently of capture, and that separation matters.**
-In the previous build the sample interval also determined how often frames
-reached the recorder, so raising sensitivity sampling to once a second produced
-clips containing one frame per second. Here, every captured frame goes to the
-recorder and the prebuffer; only the comparatively expensive grayscale/blur/diff
-work is rate-limited.
+If one interval governed both, then raising the sensitivity sampling to once a
+second would also thin the recording to one frame per second. Every captured
+frame goes to the recorder and the prebuffer; only the comparatively expensive
+grayscale/blur/diff work is rate-limited.
 
 Analysis itself is the standard frame-differencing pipeline: convert to
 grayscale, Gaussian blur (21×21) to suppress sensor noise, absolute difference
@@ -147,10 +143,10 @@ between 1 and 60 FPS. It does not ask OpenCV for `VideoCaptureFPS`, because
 webcams routinely report 0 or a nominal figure unrelated to what they deliver.
 
 The measured rate is then used for three things: the clip's declared frame rate,
-the prebuffer's frame count, and the recorder channel's capacity. Writing clips
-at a hardcoded 8 or 15 FPS is precisely what made the previous build's
-recordings play back at the wrong speed, and it is why `AutomaticClipFPS` and
-`ManualClipFPS` are no longer consulted despite still being persisted.
+the prebuffer's frame count, and the recorder channel's capacity. A hardcoded or
+configured rate is not used anywhere: if it disagrees with what the camera
+delivers, every clip plays back too fast or too slow, and the discrepancy is
+invisible until someone watches one.
 
 ### Prebuffer
 
@@ -158,11 +154,12 @@ A clip should include the moment before the trigger, so the prebuffer keeps
 recent frames and `drain()` hands them to a new recorder.
 
 Its bound is `PrebufferLead × measured FPS` — a wall-clock lead converted to a
-frame count — not a fixed frame count. The previous build kept a flat 300
-frames and prepended all of them, which glued up to 37 seconds of history onto
-every "15 second" clip and held roughly 276 MB of frames at VGA resolution. A
-time-based bound means the memory cost follows the real frame rate and the
-prepended footage is the length the user asked for.
+frame count — not a fixed frame count. A flat count fails in both directions: at
+VGA, 300 frames is roughly 276 MB held permanently, and the span of history it
+represents swings with the camera's rate, so a "15 second" clip can arrive with
+half a minute of unrequested footage on the front. A time-based bound keeps the
+memory cost proportional to the real frame rate and the prepended footage at the
+length the user asked for.
 
 `drain()` transfers ownership of every returned `Mat` to the caller.
 
@@ -174,10 +171,11 @@ that clip. Encoding and disk I/O never run on the capture goroutine.
 Frames arrive through a bounded channel sized at two seconds of footage
 (`frameRate × 2`, floor 8). Bounded is the point: `submit` does a non-blocking
 send and, when the channel is full, closes the clone and increments
-`droppedFrames`. The previous build used an unbounded queue, so its documented
-frame-dropping path could never execute and memory grew without limit instead.
-The drop count is reported on the `EventClipFinished` event, which is how a user
-learns their machine cannot encode at the camera's rate.
+`droppedFrames`. The bound is what makes the drop path reachable at all: an
+unbounded queue never rejects a frame, so it silently grows instead of shedding
+load and the counter stays at zero while memory climbs. The drop count is
+reported on the `EventClipFinished` event, which is how a user learns their
+machine cannot encode at the camera's rate.
 
 An automatic clip runs against a timer of `ClipDuration`. A manual clip has no
 duration and runs until `stopRecording`. Both flush whatever is already queued
@@ -211,8 +209,7 @@ open still drains and closes everything queued behind it.
 `AvailableCameras` probes indices 0 through 7 and reports only devices that open
 **and** deliver a real frame. Requiring a frame is not defensive padding: virtual
 camera drivers such as Iriun and OBS register a device node that opens
-successfully and then yields nothing, and on the development machine that device
-holds index 0. A probe that trusted a successful open would report a camera that
+successfully and then yields nothing, and such a device commonly holds index 0. A probe that trusted a successful open would report a camera that
 fails at first read, which is a much worse error to hand a user.
 
 `FirstUsableCamera` stops at the first success rather than probing all eight,
@@ -232,9 +229,8 @@ with a temp directory.
 `ListVideos` and `ListSnapshots` return `Recording` values sorted **newest
 first**. The ordering is part of the contract, not an incidental result of
 directory order: the Telegram listing is numbered and the user replies with a
-number, so "1" must reliably be the most recent clip. The previous Go build
-globbed the directory, returned filesystem order, and carried a comment noting
-the sort was unimplemented.
+number, so "1" must reliably be the most recent clip. Directory order is
+whatever the filesystem returns and is not sorted by time on any platform.
 
 `Manual` is derived from the `manual_` filename prefix, which is why the
 detector's clip naming is a contract rather than cosmetic.
