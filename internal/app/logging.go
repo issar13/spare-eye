@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	logFileName = "motion-detector.log"
+	logFileName = "kaa-rada.log"
 
 	// retainedLogLines bounds what the UI can read back. A windowed app has no
 	// terminal, so the last few hundred lines are the only diagnostics a user

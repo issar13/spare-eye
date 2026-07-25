@@ -67,7 +67,7 @@ jobs:
       - name: Build
         run: |
           mkdir -p build/bin
-          go build -o build/bin/motiond ./cmd/motiond
+          go build -o build/bin/kaa-rada-cli ./cmd/kaa-rada-cli
           # -tags webkit2_41 is mandatory on Ubuntu 24.04; see the Makefile.
           wails build -tags webkit2_41 -clean -platform linux/amd64
 
@@ -78,17 +78,17 @@ jobs:
         id: package
         run: |
           version="${GITHUB_REF_NAME}"
-          staging_directory="motion-detector-${version}-linux-amd64"
+          staging_directory="kaa-rada-${version}-linux-amd64"
           mkdir -p "${staging_directory}"
 
           # Copy explicitly, never `cp -r build/bin/.`, so that nothing which
           # happens to be sitting in the output directory can be swept into a
           # published archive.
-          cp build/bin/motion-detector "${staging_directory}/"
-          cp build/bin/motiond "${staging_directory}/"
+          cp build/bin/kaa-rada "${staging_directory}/"
+          cp build/bin/kaa-rada-cli "${staging_directory}/"
           cp README.md LICENSE "${staging_directory}/"
-          cp build/linux/motion-detector.desktop "${staging_directory}/"
-          cp build/linux/motion-detector.metainfo.xml "${staging_directory}/"
+          cp build/linux/kaa-rada.desktop "${staging_directory}/"
+          cp build/linux/kaa-rada.metainfo.xml "${staging_directory}/"
           cp build/appicon.png "${staging_directory}/"
           cp build/linux/install.sh "${staging_directory}/"
           chmod +x "${staging_directory}/install.sh"
@@ -211,7 +211,7 @@ jobs:
       - name: Build installer
         run: |
           New-Item -ItemType Directory -Force -Path build\bin | Out-Null
-          go build -tags customenv -o build\bin\motiond.exe .\cmd\motiond
+          go build -tags customenv -o build\bin\kaa-rada-cli.exe .\cmd\kaa-rada-cli
           wails build -tags customenv -clean -platform windows/amd64 -nsis
 
       - name: Fail if a credential reached the bundle
@@ -230,8 +230,8 @@ jobs:
             Write-Error 'No NSIS installer was produced in build\bin.'
             exit 1
           }
-          Copy-Item $installer.FullName "staging\motion-detector-$version-windows-amd64-installer.exe"
-          Copy-Item build\bin\motiond.exe "staging\motiond-$version-windows-amd64.exe"
+          Copy-Item $installer.FullName "staging\kaa-rada-$version-windows-amd64-installer.exe"
+          Copy-Item build\bin\kaa-rada-cli.exe "staging\kaa-rada-cli-$version-windows-amd64.exe"
           Get-ChildItem staging | ForEach-Object {
             $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
             "$hash  $($_.Name)" | Out-File -FilePath "$($_.FullName).sha256" -Encoding ascii
@@ -271,7 +271,7 @@ jobs:
 
             **Linux** — download the `.tar.gz`, extract it, and run `./install.sh`
             to add the application to your desktop menu, or just run the
-            `motion-detector` binary directly.
+            `kaa-rada` binary directly.
 
             Requires OpenCV 4.6 at run time: `sudo apt install libopencv-dev`
             on Ubuntu 24.04.

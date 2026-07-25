@@ -13,7 +13,7 @@ import (
 
 	"gocv.io/x/gocv"
 
-	"motion-detector/internal/config"
+	"kaa-rada/internal/config"
 )
 
 // EventKind identifies what happened, so subscribers can filter without

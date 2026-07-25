@@ -12,7 +12,7 @@ import (
 // isolateConfigDirectory points os.UserConfigDir at a per-test temporary
 // directory. Every test touching Directory, Load or Save must call this first:
 // without it the tests would read and overwrite the developer's real
-// ~/.config/motion-detector/config.json, destroying a saved bot token.
+// ~/.config/kaa-rada/config.json, destroying a saved bot token.
 func isolateConfigDirectory(t *testing.T) string {
 	t.Helper()
 

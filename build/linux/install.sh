@@ -13,8 +13,8 @@
 
 set -euo pipefail
 
-readonly APPLICATION_NAME="motion-detector"
-readonly COMMAND_LINE_NAME="motiond"
+readonly APPLICATION_NAME="kaa-rada"
+readonly COMMAND_LINE_NAME="kaa-rada-cli"
 
 source_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly source_directory

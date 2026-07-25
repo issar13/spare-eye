@@ -84,7 +84,7 @@ It takes about five minutes and needs no technical background.
 ### 2. Find your camera
 
 ```
-go run ./cmd/motiond -list-cameras
+go run ./cmd/kaa-rada-cli -list-cameras
 ```
 
 This prints only the devices that both open *and* hand over a real frame:
@@ -106,7 +106,7 @@ With credentials in the environment:
 ```
 export TELEGRAM_BOT_TOKEN=...
 export TELEGRAM_CHAT_ID=...
-go run ./cmd/motiond -camera 1
+go run ./cmd/kaa-rada-cli -camera 1
 ```
 
 On start it prints the media directory and camera index, prunes recordings past
@@ -115,7 +115,7 @@ Ctrl+C to stop; a clip in progress is finished and closed properly before exit.
 
 ## The headless command-line tool
 
-`cmd/motiond` is the detector without a window. It exists so the engine can be
+`cmd/kaa-rada-cli` is the detector without a window. It exists so the engine can be
 run on a machine with no display, and it is the supported way to use the app
 until the desktop UI is finished.
 
@@ -134,8 +134,8 @@ does not send them.
 Convenience targets in the `Makefile`:
 
 ```
-make cameras      # go run ./cmd/motiond -list-cameras
-make run          # go run ./cmd/motiond
+make cameras      # go run ./cmd/kaa-rada-cli -list-cameras
+make run          # go run ./cmd/kaa-rada-cli
 make test         # tests that need no camera
 make test-camera  # camera integration tests, needs a free webcam
 make help         # every target
@@ -184,9 +184,9 @@ Settings and media live in a per-user directory, not next to the binary:
 
 | | Linux | Windows |
 |---|---|---|
-| Settings | `~/.config/motion-detector/config.json` | `%AppData%\motion-detector\config.json` |
-| Snapshots | `~/.config/motion-detector/media/snapshots/` | `%AppData%\motion-detector\media\snapshots\` |
-| Clips | `~/.config/motion-detector/media/videos/` | `%AppData%\motion-detector\media\videos\` |
+| Settings | `~/.config/kaa-rada/config.json` | `%AppData%\kaa-rada\config.json` |
+| Snapshots | `~/.config/kaa-rada/media/snapshots/` | `%AppData%\kaa-rada\media\snapshots\` |
+| Clips | `~/.config/kaa-rada/media/videos/` | `%AppData%\kaa-rada\media\videos\` |
 
 The exact base directory is whatever the operating system reports as the user
 configuration directory.
@@ -281,7 +281,7 @@ does not say so. Close the other user of the camera first.
 **A camera is listed but the detector sees nothing, or index 0 does nothing**
 
 Index 0 is frequently a virtual camera (Iriun, OBS) that opens successfully and
-then delivers no frames. Run `go run ./cmd/motiond -list-cameras`, which
+then delivers no frames. Run `go run ./cmd/kaa-rada-cli -list-cameras`, which
 requires each device to hand over a real frame before reporting it, and pass
 the index it gives you with `-camera N`.
 

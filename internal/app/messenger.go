@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"motion-detector/internal/media"
-	"motion-detector/internal/notify"
+	"kaa-rada/internal/media"
+	"kaa-rada/internal/notify"
 )
 
 // messenger holds the connected notifier, if there is one. It is a separate

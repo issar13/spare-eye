@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"motion-detector/internal/config"
-	"motion-detector/internal/detector"
+	"kaa-rada/internal/config"
+	"kaa-rada/internal/detector"
 )
 
 // armedService builds a service pointed at the first usable camera, with alerts

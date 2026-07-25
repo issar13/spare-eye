@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"motion-detector/internal/detector"
+	"kaa-rada/internal/detector"
 )
 
 // retainedEvents bounds the in-memory history. It is a display convenience, not

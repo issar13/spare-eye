@@ -5,7 +5,7 @@
   summary. The component id must match the .desktop filename.
 -->
 <component type="desktop-application">
-  <id>motion-detector.desktop</id>
+  <id>kaa-rada.desktop</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
 
@@ -26,7 +26,7 @@
     </p>
   </description>
 
-  <launchable type="desktop-id">motion-detector.desktop</launchable>
+  <launchable type="desktop-id">kaa-rada.desktop</launchable>
 
   <categories>
     <category>Utility</category>
@@ -34,8 +34,8 @@
   </categories>
 
   <provides>
-    <binary>motion-detector</binary>
-    <binary>motiond</binary>
+    <binary>kaa-rada</binary>
+    <binary>kaa-rada-cli</binary>
   </provides>
 
   <content_rating type="oars-1.1"/>

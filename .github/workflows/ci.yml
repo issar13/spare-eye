@@ -104,7 +104,7 @@ jobs:
       - name: Build CLI
         run: |
           mkdir -p build/bin
-          go build -o build/bin/motiond ./cmd/motiond
+          go build -o build/bin/kaa-rada-cli ./cmd/kaa-rada-cli
 
       - uses: actions/setup-node@v4
         with:
@@ -134,7 +134,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: motion-detector-linux-amd64
+          name: kaa-rada-linux-amd64
           path: build/bin/
           if-no-files-found: error
           retention-days: 7
@@ -273,7 +273,7 @@ jobs:
       - name: Build CLI
         run: |
           New-Item -ItemType Directory -Force -Path build\bin | Out-Null
-          go build -tags customenv -o build\bin\motiond.exe .\cmd\motiond
+          go build -tags customenv -o build\bin\kaa-rada-cli.exe .\cmd\kaa-rada-cli
 
       - uses: actions/setup-node@v4
         with:
@@ -298,7 +298,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: motion-detector-windows-amd64
+          name: kaa-rada-windows-amd64
           path: build/bin/
           if-no-files-found: error
           retention-days: 7
