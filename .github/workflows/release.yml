@@ -136,7 +136,7 @@ jobs:
           path: |
             ${{ github.workspace }}\opencv\opencv-${{ env.OPENCV_VERSION }}
             ${{ github.workspace }}\opencv\opencv_contrib-${{ env.OPENCV_VERSION }}
-          key: opencv-source-${{ env.OPENCV_VERSION }}-windows-v1
+          key: opencv-source-${{ env.OPENCV_VERSION }}-windows-v2
 
       - name: Download OpenCV source
         if: steps.cache-opencv-source.outputs.cache-hit != 'true'
@@ -158,7 +158,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ github.workspace }}\opencv\build
-          key: opencv-build-${{ env.OPENCV_VERSION }}-windows-v1
+          key: opencv-build-${{ env.OPENCV_VERSION }}-windows-v2
 
       - name: Build OpenCV with MinGW
         if: steps.cache-opencv-build.outputs.cache-hit != 'true'
@@ -170,6 +170,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX="%GITHUB_WORKSPACE%\opencv\build\install" ^
             -DOPENCV_EXTRA_MODULES_PATH="%GITHUB_WORKSPACE%\opencv\opencv_contrib-%OPENCV_VERSION%\modules" ^
             -DENABLE_CXX11=ON -DBUILD_SHARED_LIBS=ON -DOPENCV_ENABLE_NONFREE=ON ^
+            -DBUILD_LIST=core,imgproc,imgcodecs,videoio,highgui,video,calib3d,features2d,objdetect,dnn,photo,face,xfeatures2d,plot,tracking,img_hash,bgsegm,aruco,wechat_qrcode,ximgproc ^
             -DBUILD_opencv_gapi=OFF -DWITH_IPP=OFF -DWITH_MSMF=OFF ^
             -DWITH_OPENCL_D3D11_NV=OFF -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=OFF ^
             -DBUILD_PERF_TESTS=OFF -DBUILD_DOCS=OFF -DBUILD_opencv_java=OFF ^
