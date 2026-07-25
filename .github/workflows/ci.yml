@@ -49,8 +49,8 @@ jobs:
       - uses: actions/checkout@v4
 
       # go-version-file reads the `go` directive from go.mod so CI cannot
-      # become a third answer to "which Go version is this project on". Two
-      # Go installs are visible on the main development machine already.
+      # become another answer to "which Go version is this project on". More
+      # than one Go install is commonly visible on a dev machine.
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
@@ -81,6 +81,18 @@ jobs:
             exit 1
           fi
 
+      # frontend/dist is not committed, and main.go embeds it with
+      # //go:embed all:frontend/dist. Every Go command below compiles the root
+      # package, so the assets have to exist before the first one runs or vet
+      # fails with "no matching files found".
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build the frontend the binary embeds
+        run: npm ci && npm run build
+        working-directory: frontend
+
       - name: Check formatting
         run: |
           # gofmt -l prints files needing formatting and exits 0 either way,
@@ -106,23 +118,11 @@ jobs:
           mkdir -p build/bin
           go build -o build/bin/kaa-rada-cli ./cmd/kaa-rada-cli
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
 
       - name: Build desktop app
         run: |
-          # The Wails project files are landing in a separate change. Skip
-          # rather than fail so this workflow is useful before they arrive;
-          # the step starts exercising the desktop build automatically once
-          # wails.json is committed.
-          if [ ! -f wails.json ]; then
-            echo "::notice::wails.json not present yet, skipping the desktop build."
-            exit 0
-          fi
           # -tags webkit2_41 is mandatory on Ubuntu 24.04. Without it the
           # build fails looking for webkit2gtk-4.0, which 24.04 removed. This
           # matches `make build-desktop`.
@@ -144,11 +144,9 @@ jobs:
     # Pinned rather than windows-latest so the image cannot move to 2025 and
     # change the MinGW toolchain underneath a cached OpenCV build.
     runs-on: windows-2022
-    # UNVALIDATED. Nobody has built this project on Windows, by hand or in CI.
-    # This job is written from gocv's own upstream Windows workflow and is
-    # expected to need iteration on its first real run. It is a separate job
-    # from `linux` precisely so that its failure cannot mask or block a
-    # perfectly good Linux result. See docs/DEVELOPMENT.md.
+    # A separate job from `linux` so that a Windows-only failure cannot mask or
+    # block a perfectly good Linux result. The OpenCV setup below follows gocv's
+    # own upstream Windows workflow. See docs/DEVELOPMENT.md.
     steps:
       - uses: actions/checkout@v4
 
@@ -287,6 +285,18 @@ jobs:
           # time, not just link time, or `go test` fails with exit status 3221225781.
           "$installRoot\x64\mingw\bin" >> $env:GITHUB_PATH
 
+      # frontend/dist is not committed, and main.go embeds it with
+      # //go:embed all:frontend/dist. Every Go command below compiles the root
+      # package, so the assets have to exist before the first one runs or vet
+      # fails with "no matching files found".
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build the frontend the binary embeds
+        run: npm ci && npm run build
+        working-directory: frontend
+
       - name: Vet
         run: go vet -tags customenv ./...
 
@@ -297,10 +307,6 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path build\bin | Out-Null
           go build -tags customenv -o build\bin\kaa-rada-cli.exe .\cmd\kaa-rada-cli
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
 
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0

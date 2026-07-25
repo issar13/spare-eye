@@ -2,12 +2,16 @@
 #
 # Ubuntu 24.04 dropped webkit2gtk-4.0, which Wails v2 still looks for by
 # default, so Linux builds need the webkit2_41 tag. `wails doctor` reports
-# libwebkit as "Not Found" on this machine for that reason; it is not a problem.
+# libwebkit as "Not Found" on such a system for that reason; it is not a problem.
 
 BINARY_CLI     := kaa-rada-cli
 BINARY_DESKTOP := kaa-rada
 OUTPUT_DIR     := build/bin
 WAILS          := $(shell go env GOPATH)/bin/wails
+
+# frontend/dist is not committed, and the desktop binary embeds it, so any Go
+# command that compiles the root package needs it built first.
+FRONTEND_ENTRY := frontend/dist/index.html
 
 UNAME := $(shell uname -s)
 ifeq ($(UNAME),Linux)
@@ -29,12 +33,18 @@ help: ## List available targets
 fmt: ## Format all Go code
 	gofmt -w .
 
+.PHONY: frontend
+frontend: $(FRONTEND_ENTRY) ## Build the web assets the desktop binary embeds
+
+$(FRONTEND_ENTRY): frontend/package.json frontend/package-lock.json $(wildcard frontend/src/*)
+	cd frontend && npm ci && npm run build
+
 .PHONY: vet
-vet: ## Run go vet
+vet: frontend ## Run go vet
 	go vet ./...
 
 .PHONY: test
-test: ## Run tests that do not need a camera
+test: frontend ## Run tests that do not need a camera
 	go test ./...
 
 .PHONY: test-camera
