@@ -20,9 +20,9 @@ import (
 	"kaa-rada/internal/config"
 )
 
-// TestManualClipContainsFrames is the regression test for the defect that made
-// the previous Go build useless: it opened a VideoWriter, slept, and closed it
-// without ever writing a frame, leaving unplayable files behind.
+// TestManualClipContainsFrames decodes the clip it produces. A recorder that
+// writes no frames still leaves a file on disk with a plausible size, so
+// asserting the file exists proves nothing; the frames have to be read back.
 func TestManualClipContainsFrames(t *testing.T) {
 	settings := settingsInTempDirectory(t)
 	subject := New(settings)
@@ -86,8 +86,8 @@ func TestManualClipContainsFrames(t *testing.T) {
 	assertPlayableVideo(t, clipPath)
 }
 
-// TestStatusReportsCameraGeometry confirms the detector reads real dimensions
-// from the camera rather than the hardcoded 640x480 the old build assumed.
+// TestStatusReportsCameraGeometry confirms the detector reads its dimensions
+// from the camera rather than assuming a resolution.
 func TestStatusReportsCameraGeometry(t *testing.T) {
 	settings := settingsInTempDirectory(t)
 	subject := New(settings)

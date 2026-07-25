@@ -24,9 +24,9 @@ func (r Recording) SizeMegabytes() float64 {
 	return float64(r.SizeBytes) / (1024 * 1024)
 }
 
-// ListVideos returns clips newest first. The previous Go build globbed the
-// directory and returned entries in filesystem order with a comment noting the
-// sort was unimplemented, so "recording 1" was not reliably the latest.
+// ListVideos returns clips newest first. The order is part of the contract, not
+// a convenience: the Telegram listing is numbered and the user replies with a
+// number, so "1" has to be the most recent clip. Filesystem order is not.
 func ListVideos(directory string) ([]Recording, error) {
 	return list(directory, ".mp4")
 }

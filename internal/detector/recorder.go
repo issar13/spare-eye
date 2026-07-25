@@ -29,8 +29,9 @@ type clipRequest struct {
 // recorder writes frames to a video file on its own goroutine so the capture
 // loop is never blocked by disk or encoder latency.
 //
-// The previous Go build created a VideoWriter, slept for the clip duration, and
-// closed it without ever writing a frame, producing empty files.
+// Every frame handed to the recorder is written. A VideoWriter that is opened,
+// left idle for the clip duration and then closed produces a file that exists,
+// has a plausible size, and contains nothing decodable.
 type recorder struct {
 	frames chan gocv.Mat
 	stop   chan struct{}
@@ -39,9 +40,9 @@ type recorder struct {
 	request clipRequest
 
 	// droppedFrames counts frames discarded because the encoder fell behind.
-	// The previous build used an unbounded queue, so its documented
-	// frame-dropping path could never run and memory grew without limit
-	// instead.
+	// The queue this counts against must stay bounded: an unbounded one never
+	// drops anything, so memory grows without limit rather than the load being
+	// shed, and this counter would sit at zero while the process swelled.
 	droppedFrames atomic.Int64
 
 	writeError error
