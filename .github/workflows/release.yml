@@ -94,7 +94,6 @@ jobs:
           # happens to be sitting in the output directory can be swept into a
           # published archive.
           cp build/bin/kaa-rada "${staging_directory}/"
-          cp build/bin/kaa-rada-cli "${staging_directory}/"
           cp README.md LICENSE "${staging_directory}/"
           cp build/linux/kaa-rada.desktop "${staging_directory}/"
           cp build/linux/kaa-rada.metainfo.xml "${staging_directory}/"
@@ -289,11 +288,10 @@ jobs:
           $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERTIFICATE))
           try {
-            foreach ($binary in @('build\bin\kaa-rada.exe', 'build\bin\kaa-rada-cli.exe')) {
-              & signtool sign /f $pfx /p $env:CERTIFICATE_PASSWORD `
-                /tr http://timestamp.digicert.com /td sha256 /fd sha256 $binary
-              if ($LASTEXITCODE -ne 0) { throw "signing $binary failed" }
-            }
+            $binary = 'build\bin\kaa-rada.exe'
+            & signtool sign /f $pfx /p $env:CERTIFICATE_PASSWORD `
+              /tr http://timestamp.digicert.com /td sha256 /fd sha256 $binary
+            if ($LASTEXITCODE -ne 0) { throw "signing $binary failed" }
           } finally {
             Remove-Item $pfx -Force -ErrorAction SilentlyContinue
           }
@@ -419,11 +417,6 @@ jobs:
             |---|---|---|---|
             | Windows 10/11 | x64 (Intel/AMD) | `kaa-rada-*-windows-amd64-installer.exe` | Run it and follow the wizard. Installs for your user only, so it never asks for administrator rights |
             | Linux | x64 (amd64) | `kaa-rada-*-linux-amd64.tar.gz` | Extract, then `./install.sh` |
-
-            Both downloads also contain `kaa-rada-cli`: the same detector with
-            no window, for a machine with no display or one reached over SSH.
-            Windows installs it beside the app; on Linux it is in the tarball.
-            Neither needs a separate download.
 
             Only x64 is built. Apple Silicon and ARM Linux are not published:
             the app links OpenCV through cgo, so each architecture needs a
