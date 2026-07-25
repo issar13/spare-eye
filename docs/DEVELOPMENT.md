@@ -2,44 +2,40 @@
 
 Building Kaa Rada from source, on Linux and on Windows.
 
-> **Status of this document.** The Linux instructions are verified against
-> Ubuntu 24.04. The Windows instructions follow gocv's own upstream Windows CI
-> configuration. Sections are labelled individually so you always know which
-> platform you are reading about.
+> **Status.** Linux instructions are verified against Ubuntu 24.04. Windows
+> instructions follow gocv's own upstream Windows CI configuration.
 
 ---
 
 ## The one thing to understand first: gocv is pinned to OpenCV 4.6.0
 
-This project depends on `gocv.io/x/gocv v0.31.0`, and that version is welded to
-**OpenCV 4.6.0**. Not "4.6 or later" — exactly 4.6.
+This project depends on `gocv.io/x/gocv v0.31.0`, which is welded to
+**OpenCV 4.6.0**. Not "4.6 or later". Exactly 4.6.
 
 Two independent reasons, both load-bearing:
 
 1. **gocv links OpenCV by version-suffixed library name.** Its cgo directives
    contain `-lopencv_core460`, `-lopencv_videoio460` and eighteen more in the
    same shape. Those filenames only exist in an OpenCV 4.6.0 install.
-2. **Newer gocv does not compile against OpenCV 4.6.** Upgrading to gocv
-   v0.43.0 fails to build, because the aruco C++ API changed between OpenCV
-   releases and the newer bindings assume the newer API:
+2. **Newer gocv does not compile against OpenCV 4.6.** gocv v0.43.0 fails to
+   build, because the aruco C++ API changed between OpenCV releases and the
+   newer bindings assume the newer API:
 
    ```
    error: expected primary-expression before 'bool'
    ```
 
-So the two versions move together or not at all. Ubuntu 24.04's
-`libopencv-dev` happens to be exactly 4.6.0, which is why the Linux setup is a
-single `apt install` and the Windows setup is an hour of compilation.
+Ubuntu 24.04's `libopencv-dev` is exactly 4.6.0, which is why Linux setup is a
+single `apt install` and Windows setup is an hour of compilation.
 
-**Do not bump either version independently.** If you ever need to upgrade,
-upgrade both at once and expect to fix call sites. CI enforces the Linux half
-of this with an explicit `pkg-config --modversion opencv4` check that fails the
-build on a mismatch, so a distribution upgrade cannot silently break the link
-step months later.
+**Do not bump either version independently.** Upgrade both at once and expect
+to fix call sites. CI enforces the Linux half with a
+`pkg-config --modversion opencv4` check that fails on a mismatch, so a
+distribution upgrade cannot silently break the link step months later.
 
 ---
 
-## Linux — verified on Ubuntu 24.04
+## Linux: verified on Ubuntu 24.04
 
 ### Prerequisites
 
@@ -53,14 +49,13 @@ sudo apt install --no-install-recommends -y \
   libwebkit2gtk-4.1-dev
 ```
 
-Confirm you got the right OpenCV:
+Confirm the OpenCV version:
 
 ```sh
 pkg-config --modversion opencv4   # must print 4.6.0
 ```
 
-You also need Go (see *Pinning Go* below), Node 20+ for the frontend, and
-Wails:
+You also need Go (see *Pinning Go*), Node 20+ for the frontend, and Wails:
 
 ```sh
 go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
@@ -79,22 +74,19 @@ make frontend       # web assets         -> frontend/dist
 make package-linux  # release build for linux/amd64
 ```
 
-`frontend/dist` is build output and is not committed, but `main.go` embeds it
-with `//go:embed all:frontend/dist`. Anything that compiles the root package —
-including a bare `go vet ./...` or `go test ./...` — therefore fails on a fresh
-clone with `pattern all:frontend/dist: no matching files found` until the assets
-have been built once.
-
-`make vet` and `make test` depend on `make frontend`, so the Makefile targets
-handle this for you. Only a direct `go` invocation hits the error, and `make
-frontend` is the fix. CI builds the frontend before its first Go step for the
-same reason.
+`frontend/dist` is uncommitted build output, but `main.go` embeds it with
+`//go:embed all:frontend/dist`. Anything compiling the root package, including
+a bare `go vet ./...` or `go test ./...`, therefore fails on a fresh clone with
+`pattern all:frontend/dist: no matching files found` until the assets have been
+built once. `make vet` and `make test` depend on `make frontend`, so only a
+direct `go` invocation hits this, and `make frontend` is the fix. CI builds the
+frontend before its first Go step for the same reason.
 
 ### Why `-tags webkit2_41`
 
 Ubuntu 24.04 dropped `webkit2gtk-4.0`. Wails v2.13 still looks for the 4.0
-series by default, so on 24.04 an untagged build fails at the pkg-config stage.
-The tag switches it to the 4.1 packages that 24.04 actually ships.
+series by default, so an untagged build fails at the pkg-config stage. The tag
+switches it to the 4.1 packages 24.04 ships.
 
 `make build-desktop` and `make dev` apply the tag automatically on Linux. If
 you invoke Wails yourself, you must pass it:
@@ -103,31 +95,29 @@ you invoke Wails yourself, you must pass it:
 wails build -tags webkit2_41 -clean
 ```
 
-### `wails doctor` says libwebkit is "Not Found" — this is expected
+### `wails doctor` says libwebkit is "Not Found": this is expected
 
-Running `wails doctor` on Ubuntu 24.04 reports:
+`wails doctor` on Ubuntu 24.04 reports:
 
 ```
 libwebkit: Not Found
 ```
 
-**This is harmless and you should ignore it.** `wails doctor` probes for the
-4.0 package unconditionally; it has no way to know you intend to build with the
-4.1 tag. The build works. Do not "fix" it by installing
-`libwebkit2gtk-4.0-dev` from a third-party PPA.
+**Harmless. Ignore it.** `wails doctor` probes for the 4.0 package
+unconditionally; it cannot know you intend to build with the 4.1 tag. The build
+works. Do not "fix" it by installing `libwebkit2gtk-4.0-dev` from a third-party
+PPA.
 
 ---
 
-## Windows — UNVERIFIED, best-effort
+## Windows: UNVERIFIED, best-effort
 
-> **Read this first.** No one has completed this build. The steps below are
-> derived from gocv's own Windows CI workflow, its `win_build_opencv.cmd`
-> script, and the cgo directives in gocv v0.31.0's `cgo.go`. They are
-> internally consistent and based on primary sources, but they have not been
-> executed. Expect to iterate. When you do get it working, please replace this
-> warning with what actually happened.
->
-> The CI Windows job carries the same caveat. Its first real run is expected to
+> **Read this first.** No one has completed this build. The steps below derive
+> from gocv's own Windows CI workflow, its `win_build_opencv.cmd` script, and
+> the cgo directives in gocv v0.31.0's `cgo.go`. They are internally consistent
+> and based on primary sources, but never executed. Expect to iterate, and when
+> you get it working please replace this warning with what actually happened.
+> The CI Windows job carries the same caveat; its first real run is expected to
 > need fixes.
 
 ### Why this is the hard part
@@ -135,24 +125,23 @@ libwebkit: Not Found
 There is no usable prebuilt OpenCV for this configuration:
 
 - **The Chocolatey `opencv` package will not work.** It unpacks the official
-  `opencv-4.6.0-vc14_vc15.exe`, which contains MSVC import libraries under
+  `opencv-4.6.0-vc14_vc15.exe`, whose MSVC import libraries live under
   `build\x64\vc14` and `vc15`. gocv links with MinGW and expects
   `x64\mingw\lib`. MinGW's linker cannot consume MSVC `.lib` files, and the
-  C++ ABIs are incompatible regardless. The package also ships no
-  `opencv_contrib` modules, and gocv links nine of them.
+  C++ ABIs are incompatible anyway. The package also ships no `opencv_contrib`
+  modules, and gocv links nine of them.
 - **`huihut/OpenCV-MinGW-Build`**, the best-known prebuilt MinGW OpenCV, stops
-  at 4.5.5. There is no 4.6.0 build.
+  at 4.5.5.
 - No public prebuilt OpenCV 4.6.0 + contrib + MinGW x64 artifact appears to
   exist.
 
-So OpenCV must be built from source with MinGW. That is a **60–80 minute**
-compile.
+So OpenCV must be built from source with MinGW: a **60–80 minute** compile.
 
 ### Prerequisites
 
 - **MinGW-w64 (x86_64)** with `gcc`, `g++` and `mingw32-make` on `PATH`.
-  GitHub's `windows-2022` runner ships this at `C:\mingw64\bin` already. On a
-  developer machine, install [mingw-w64 from
+  GitHub's `windows-2022` runner already ships this at `C:\mingw64\bin`.
+  Otherwise install [mingw-w64 from
   niXman/mingw-builds-binaries](https://github.com/niXman/mingw-builds-binaries/releases)
   and add its `bin` to `PATH`.
 - **CMake**
@@ -161,8 +150,8 @@ compile.
 
 ### Build OpenCV 4.6.0
 
-Download both source archives and extract them side by side under a working
-directory, here `C:\opencv`:
+Download both archives and extract them side by side under a working
+directory, here `C:\opencv`.
 
 - `https://github.com/opencv/opencv/archive/4.6.0.zip`
 - `https://github.com/opencv/opencv_contrib/archive/4.6.0.zip`
@@ -192,18 +181,20 @@ mingw32-make -j%NUMBER_OF_PROCESSORS%
 mingw32-make install
 ```
 
-Two flags deserve explanation: `-DOPENCV_ENABLE_NONFREE=ON` is required because
-gocv links `xfeatures2d`, and `-DBUILD_opencv_gapi=OFF` is there because G-API
-is a well-known MinGW build failure and gocv does not use it.
+The build list is deliberately narrow. Java, Python, docs, examples, tests,
+perf tests and saliency are off to keep an already long compile short.
+`-DOPENCV_ENABLE_NONFREE=ON` is required because gocv links `xfeatures2d`.
+`-DBUILD_opencv_gapi=OFF` is there because G-API is a well-known MinGW build
+failure and gocv does not use it.
 
-Note that gocv's own `win_build_opencv.cmd` is **not** invoked directly: it
-hardcodes `C:\opencv`, and it ends with a `chdir` into a `GOPATH`-style source
-layout that this project does not use.
+gocv's own `win_build_opencv.cmd` is **not** invoked directly: it hardcodes
+`C:\opencv` and ends with a `chdir` into a `GOPATH`-style source layout this
+project does not use.
 
 ### Point cgo at the install
 
-If you installed to exactly `C:\opencv\build\install`, gocv's built-in cgo
-directives already point there and you need no environment variables at all.
+Installed to exactly `C:\opencv\build\install`, gocv's built-in cgo directives
+already point there and no environment variables are needed.
 
 For any other location, build with the **`customenv`** tag, which tells gocv to
 ignore its baked-in directives, and set:
@@ -214,9 +205,9 @@ CGO_CPPFLAGS=-I<prefix>\build\install\include
 CGO_LDFLAGS=-L<prefix>\build\install\x64\mingw\lib -lopencv_core460 -lopencv_face460 -lopencv_videoio460 -lopencv_imgproc460 -lopencv_highgui460 -lopencv_imgcodecs460 -lopencv_objdetect460 -lopencv_features2d460 -lopencv_video460 -lopencv_dnn460 -lopencv_xfeatures2d460 -lopencv_plot460 -lopencv_tracking460 -lopencv_img_hash460 -lopencv_calib3d460 -lopencv_bgsegm460 -lopencv_photo460 -lopencv_aruco460 -lopencv_wechat_qrcode460 -lopencv_ximgproc460
 ```
 
-Also add `<prefix>\build\install\x64\mingw\bin` to `PATH`. That directory holds
-the DLLs, which are needed at **run** time as well as link time. Without it,
-the binary links fine and then dies immediately with exit status `3221225781`
+Also add `<prefix>\build\install\x64\mingw\bin` to `PATH`. It holds the DLLs,
+needed at **run** time as well as link time. Without it the binary links fine
+and then dies immediately with exit status `3221225781`
 (`STATUS_DLL_NOT_FOUND`).
 
 ### Build
@@ -226,7 +217,7 @@ go build -tags customenv -o build\bin\kaa-rada-cli.exe .\cmd\kaa-rada-cli
 wails build -tags customenv -clean -platform windows/amd64 -nsis
 ```
 
-No webkit tag on Windows — the UI uses the system WebView2 runtime, which the
+No webkit tag on Windows. The UI uses the system WebView2 runtime, which the
 installer provisions if it is missing.
 
 ### Known risks not yet hit
@@ -235,21 +226,18 @@ installer provisions if it is missing.
   stopped including `<cstdint>` transitively from other libstdc++ headers, and
   OpenCV 4.6.0 predates that change. If the compile fails with
   `'uint32_t' was not declared in this scope`, either patch the offending
-  headers or pin an older toolchain (GCC 11 or 12) via
-  `egor-tensin/setup-mingw@v2`.
-- **Camera backend.** The Linux code requests V4L2 explicitly to suppress
-  GStreamer noise; Windows takes OpenCV's default, which is DirectShow. This
-  path is untested.
+  headers or pin GCC 11 or 12 via `egor-tensin/setup-mingw@v2`.
+- **Camera backend.** Linux requests V4L2 explicitly to suppress GStreamer
+  noise; Windows takes OpenCV's default, DirectShow. Untested.
 - **`mp4v` clip encoding on Windows** is likewise unconfirmed.
 
 ---
 
 ## Pinning Go
 
-It is common to end up with **two Go installations visible at once** — say,
-`go version` reporting one release while `wails doctor` reports another. That
-is a trap: a build can succeed under one and fail under the other, and it is
-not obvious which one any given tool picked up.
+**Two Go installations are often visible at once**, `go version` reporting one
+release and `wails doctor` another. A build can succeed under one and fail
+under the other, and which tool found which is rarely obvious.
 
 `go.mod` is the single source of truth. CI uses:
 
@@ -259,9 +247,8 @@ not obvious which one any given tool picked up.
     go-version-file: go.mod
 ```
 
-so CI cannot become a third answer. Locally, check what you are actually
-running with `go version` and `which -a go`, and make sure the one you want
-comes first on `PATH`.
+so CI cannot become a third answer. Locally, check with `go version` and
+`which -a go`, and make sure the one you want comes first on `PATH`.
 
 ---
 
@@ -272,13 +259,12 @@ make test          # everything that does not need a camera
 make test-camera   # camera integration tests
 ```
 
-Camera integration tests sit behind a `//go:build camera` constraint, so a
-plain `go test ./...` excludes them. That is deliberate: CI runners have no
-webcam. There are currently three of them —
-`TestManualClipContainsFrames`, `TestPreviewProducesDecodableJPEG` and
-`TestStatusReportsCameraGeometry`.
+Camera integration tests sit behind a `//go:build camera` constraint, so plain
+`go test ./...` excludes them. That is deliberate: CI runners have no webcam.
+There are currently three: `TestManualClipContainsFrames`,
+`TestPreviewProducesDecodableJPEG` and `TestStatusReportsCameraGeometry`.
 
-To run them you need a real, free webcam:
+Running them needs a real, free webcam:
 
 ```sh
 go test -tags camera ./internal/detector/ -v
@@ -293,9 +279,9 @@ app or another test run has it, these fail with an opaque backend error.
 
 ### "Only one process can hold the camera"
 
-Opening a camera that is already in use fails with a confusing low-level
-backend error rather than a clean "device busy". If the detector will not
-start, or camera tests fail immediately, check for another instance:
+Opening a camera already in use fails with a confusing low-level backend error
+rather than a clean "device busy". If the detector will not start, or camera
+tests fail immediately, check for another instance:
 
 ```sh
 pgrep -a 'kaa-rada'
@@ -306,13 +292,12 @@ This is also why the `.desktop` entry sets `SingleMainWindow=true`.
 
 ### Camera index 0 opens but produces no frames
 
-Index 0 is frequently a **virtual** device rather than the real webcam. It
-opens successfully and then yields nothing, so a naive "can we open it?" check
-reports it as working. This is why camera enumeration requires a real decoded
-frame before calling a device usable, and why the UI shows a camera picker
-rather than assuming index 0.
+Index 0 is frequently a **virtual** device, not the real webcam: it opens
+successfully and yields nothing, so a naive "can we open it?" check reports it
+as working. Hence enumeration requires a real decoded frame before calling a
+device usable, and the UI shows a picker rather than assuming index 0.
 
-If you get a black or frozen preview, try another index:
+For a black or frozen preview, try another index:
 
 ```sh
 make cameras   # lists only devices that actually delivered a frame
@@ -320,44 +305,44 @@ make cameras   # lists only devices that actually delivered a frame
 
 ### `invalid control character in URL` from Telegram
 
-The bot token was read with a trailing carriage return. This happens when
-`.env` is saved with Windows (CRLF) line endings — the `\r` becomes part of the
-token value and then part of the request URL.
+The bot token was read with a trailing carriage return, which happens when
+`.env` is saved with Windows (CRLF) line endings: the `\r` joins the token
+value and then the request URL.
 
-Fix the file's line endings:
+Fix the line endings:
 
 ```sh
 dos2unix .env      # or: sed -i 's/\r$//' .env
 ```
 
-Configuring the token through the application UI avoids this entirely; the
-`.env` path exists for the headless CLI.
+Configuring the token through the application UI avoids this; the `.env` path
+exists for the headless CLI.
 
 ### `wails doctor` reports libwebkit "Not Found"
 
-Expected on Ubuntu 24.04. See the Linux section above — build with
+Expected on Ubuntu 24.04. See the Linux section above: build with
 `-tags webkit2_41` and ignore the report.
 
 ### Link errors mentioning `opencv_core460`
 
-Your OpenCV is not 4.6.0. Check with `pkg-config --modversion opencv4`. See the
-pinning section at the top of this document.
+Your OpenCV is not 4.6.0. Check with `pkg-config --modversion opencv4`, then
+see the pinning section at the top of this document.
 
 ---
 
 ## Credentials and the leak guard
 
 A live Telegram bot token was once hardcoded in this project's source. That is
-the reason for the current structure, and `scripts/check-no-credentials.sh` is
-what stops it recurring. It runs in CI on every push and before every release,
-and it fails the build if:
+why the current structure exists, and `scripts/check-no-credentials.sh` stops a
+recurrence. It runs in CI on every push and before every release, failing the
+build if:
 
 - any tracked file contains a Telegram-bot-token-shaped string
   (`[0-9]{8,10}:[A-Za-z0-9_-]{35}`), or
 - an `.env` file is tracked by git, or
 - an `.env` file appears in a build output directory or release bundle.
 
-Run it yourself at any time:
+Run it yourself any time:
 
 ```sh
 ./scripts/check-no-credentials.sh            # tracked source only
@@ -365,12 +350,12 @@ Run it yourself at any time:
 ```
 
 It scans `git ls-files`, not the working tree, so your local `.env` is never
-read. When it finds something it prints the file and line number but **not**
-the matched text, so a secret is never copied into a public CI log.
+read. On a hit it prints the file and line number but **not** the matched text,
+so a secret is never copied into a public CI log.
 
 `.env` is gitignored and **must stay that way**. If the guard ever fires on a
-real token, revoke it with `@BotFather` `/revoke` first — a secret that has
-been pushed is compromised whether or not you amend the commit afterwards.
+real token, revoke it with `@BotFather` `/revoke` first. A pushed secret is
+compromised whether or not you amend the commit afterwards.
 
 ---
 
@@ -382,7 +367,7 @@ been pushed is compromised whether or not you amend the commit afterwards.
 |---|---|---|
 | `credential-scan` | `ubuntu-latest` | Leak guard, fast, first |
 | `linux` | `ubuntu-latest` | apt deps, gofmt, vet, test, CLI + desktop build |
-| `windows` | `windows-2022` | OpenCV build, vet, test, build — **unvalidated** |
+| `windows` | `windows-2022` | OpenCV build, vet, test, build; **unvalidated** |
 
 `.github/workflows/release.yml` runs on a `v*` tag and publishes a GitHub
 Release with a Linux `.tar.gz` and a Windows NSIS installer, each with a
@@ -400,21 +385,20 @@ macOS is out of scope for this release.
 | Windows | **~60–80 min** (OpenCV compile) | ~5 min |
 
 The Windows figures are extrapolated from gocv's own CI, where a cold OpenCV
-4.13.0 build measured 1 h 18 m and warm runs finished in under 5 minutes.
-OpenCV 4.6.0 is a smaller tree and this configuration disables the perf tests
-and G-API, so the lower end is plausible — but this is an estimate, not a
-measurement.
+4.13.0 build measured 1 h 18 m and warm runs finished under 5 minutes. OpenCV
+4.6.0 is a smaller tree and this configuration disables perf tests and G-API,
+so the lower end is plausible. Treat it as an estimate, not a measurement.
 
 OpenCV source and build tree are cached **separately**, so a failed compile
 still leaves a reusable download for the retry. Bump the `v1` suffix in the
 cache keys whenever you change the cmake flags, or a stale build tree will be
-restored and your change will be silently ignored.
+restored and your change silently ignored.
 
 The Linux and Windows jobs are independent, so the unvalidated Windows job can
 never block or mask a good Linux result.
 
 ### Signing
 
-Binaries ship **unsigned**. Windows SmartScreen will warn users that the
-publisher is unknown; the release notes say so explicitly. Signing hooks are
-present but commented out in `build/windows/installer/project.nsi`.
+Binaries ship **unsigned**. Windows SmartScreen will warn that the publisher is
+unknown; the release notes say so explicitly. Signing hooks are present but
+commented out in `build/windows/installer/project.nsi`.
