@@ -54,6 +54,18 @@ type DetectionSettings struct {
 	PrebufferLead Duration `json:"prebufferLead"`
 
 	ClipDuration Duration `json:"clipDuration"`
+
+	// PreviewFPS caps how often a frame is re-encoded for the live view. It is
+	// a ceiling, not a rate: the check happens inside the capture loop, so a
+	// camera delivering 10 FPS is previewed at 10 FPS however high this is set.
+	// Raising it past the camera's rate costs nothing; lowering it below saves
+	// CPU at the cost of a choppier picture.
+	PreviewFPS int `json:"previewFPS"`
+
+	// PreviewQuality is the JPEG quality of live-view frames, 30 to 95. It
+	// affects only the preview: clips and snapshots written to disk are always
+	// encoded at full quality. Lower values reach the window sooner.
+	PreviewQuality int `json:"previewQuality"`
 }
 
 // SensitivityProfile is one lighting condition's detection thresholds.
@@ -133,10 +145,22 @@ func Default() Config {
 			MotionPersist:     Duration(5 * time.Second),
 			PrebufferLead:     Duration(3 * time.Second),
 			ClipDuration:      Duration(15 * time.Second),
+			PreviewFPS:        12,
+			PreviewQuality:    80,
 		},
 		Storage: StorageSettings{RetentionDays: 30},
 	}
 }
+
+// Bounds on the live-view settings. They live here rather than in the detector
+// because both the engine and the settings screen have to agree on them, and
+// duplicating the numbers in two packages is how they drift apart.
+const (
+	MinPreviewFPS     = 1
+	MaxPreviewFPS     = 60
+	MinPreviewQuality = 30
+	MaxPreviewQuality = 95
+)
 
 // Directory returns the per-user configuration directory, creating it if needed.
 func Directory() (string, error) {
@@ -174,7 +198,24 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("parsing config: %w", err)
 	}
 
+	// The live-view bounds are enforced here so that a hand-edited file heals
+	// itself. The settings screen rejects an out-of-range value, and a stored
+	// zero would otherwise make it refuse every save — including saves of
+	// unrelated fields — over a control the user may never have opened.
+	settings.Detection.PreviewFPS = clamp(settings.Detection.PreviewFPS, MinPreviewFPS, MaxPreviewFPS)
+	settings.Detection.PreviewQuality = clamp(settings.Detection.PreviewQuality, MinPreviewQuality, MaxPreviewQuality)
+
 	return withResolvedPaths(settings)
+}
+
+func clamp(value, lowest, highest int) int {
+	if value < lowest {
+		return lowest
+	}
+	if value > highest {
+		return highest
+	}
+	return value
 }
 
 // Save writes settings back to disk with owner-only permissions, since the file

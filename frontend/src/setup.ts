@@ -2,6 +2,7 @@ import {Arm, Cameras, RescanCameras, SaveTelegram, SelectCamera, Settings, TestT
 import type {app, detector} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
 import {requireElement, requireField} from './elements';
+import {telegramSchema} from './schemas';
 
 const telegramForm = requireElement<HTMLFormElement>('#telegram-form');
 const setupMessage = requireElement<HTMLElement>('#setup-message');
@@ -10,13 +11,16 @@ const startMessage = requireElement<HTMLElement>('#start-message');
 const picker = requireElement<HTMLSelectElement>('#camera-picker');
 const startButton = requireElement<HTMLButtonElement>('#setup-start');
 
-// Whether the last scan actually found the selected camera, which is what
-// decides if step one shows as finished.
+// Whether the selected camera is known to work, which is what decides if step
+// one shows as finished. A scan sets it directly; until one has run, the status
+// poll stands in, because the engine only reports it can arm once it has opened
+// a camera itself. Without that fallback the step reads as outstanding on every
+// screen but Setup, and stays that way if the camera was busy at launch.
 let cameraConfirmed = false;
 
-const readTelegramForm = (): app.TelegramForm => ({
-    botToken: requireField(telegramForm, 'botToken').value.trim(),
-    chatID: requireField(telegramForm, 'chatID').value.trim(),
+const readTelegramForm = (): app.TelegramForm => telegramSchema.parse({
+    botToken: requireField(telegramForm, 'botToken').value,
+    chatID: requireField(telegramForm, 'chatID').value,
     enabled: requireField(telegramForm, 'enabled').checked,
 });
 
@@ -81,7 +85,7 @@ const showCameras = async (look: () => Promise<detector.Camera[]>): Promise<void
 // updateSetupProgress ticks the steps off as they are completed, so a first-run
 // user can see at a glance what is left to do.
 export const updateSetupProgress = (status: app.StatusView): void => {
-    markStep('#step-camera', cameraConfirmed);
+    markStep('#step-camera', cameraConfirmed || status.canArm || status.armed);
     markStep('#step-telegram', status.telegramConnected || !status.alertsEnabled);
     markStep('#step-start', status.armed);
 
@@ -93,7 +97,7 @@ const markStep = (selector: string, done: boolean): void => {
     requireElement<HTMLElement>(selector).classList.toggle('done', done);
 
     const state = requireElement<HTMLElement>(`${selector}-state`);
-    state.textContent = done ? 'Done' : 'To do';
+    state.textContent = done ? 'Done' : 'Not done yet';
     state.className = done ? 'step-state done' : 'step-state';
 };
 

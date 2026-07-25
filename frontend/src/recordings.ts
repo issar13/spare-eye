@@ -16,7 +16,15 @@ export const refreshRecordings = async (): Promise<void> => {
         render(shown === 'clips' ? await Clips() : await Snapshots());
     } catch {
         // The listing only fails if the recordings folder cannot be read, which
-        // is a storage problem rather than anything the user did wrong.
+        // is a storage problem rather than anything the user did wrong. The list
+        // itself is replaced as well as the banner shown: leaving it untouched
+        // means a heading and three tabs above an empty region on a first visit,
+        // and rows from the other tab after a later failure.
+        const failed = document.createElement('p');
+        failed.className = 'hint';
+        failed.textContent = 'This list could not be loaded.';
+        list.replaceChildren(failed);
+
         showBanner(
             message,
             'Your recordings folder could not be read. Check the drive it is on is still connected, ' +

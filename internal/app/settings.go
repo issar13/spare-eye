@@ -90,6 +90,11 @@ type TuningForm struct {
 	ClipDurationSeconds  float64 `json:"clipDurationSeconds"`
 
 	RetentionDays int `json:"retentionDays"`
+
+	// PreviewFPS and PreviewQuality govern the live view only; neither touches
+	// what is written to disk.
+	PreviewFPS     int `json:"previewFPS"`
+	PreviewQuality int `json:"previewQuality"`
 }
 
 // SensitivityForm is one lighting profile.
@@ -116,6 +121,8 @@ func settingsView(settings config.Config) SettingsView {
 			PrebufferLeadSeconds: settings.Detection.PrebufferLead.AsDuration().Seconds(),
 			ClipDurationSeconds:  settings.Detection.ClipDuration.AsDuration().Seconds(),
 			RetentionDays:        settings.Storage.RetentionDays,
+			PreviewFPS:           settings.Detection.PreviewFPS,
+			PreviewQuality:       settings.Detection.PreviewQuality,
 		},
 		CameraIndex:    settings.Detection.CameraIndex,
 		MediaDirectory: settings.Storage.MediaDirectory,
@@ -222,6 +229,8 @@ func (s *Service) SaveTuning(form TuningForm) ActionResult {
 	updated.Detection.PrebufferLead = seconds(form.PrebufferLeadSeconds)
 	updated.Detection.ClipDuration = seconds(form.ClipDurationSeconds)
 	updated.Storage.RetentionDays = form.RetentionDays
+	updated.Detection.PreviewFPS = form.PreviewFPS
+	updated.Detection.PreviewQuality = form.PreviewQuality
 	s.mutex.Unlock()
 
 	if s.persist(updated) != nil {
@@ -281,6 +290,18 @@ func validateTuning(form TuningForm) *Problem {
 		return &Problem{
 			Headline: "That is not a number of days",
 			NextStep: "Set how long to keep recordings to 0 or more days. 0 keeps them forever.",
+		}
+	}
+	if form.PreviewFPS < config.MinPreviewFPS || form.PreviewFPS > config.MaxPreviewFPS {
+		return &Problem{
+			Headline: "That live-view speed is out of range",
+			NextStep: "Choose a smoothness, or set the frames per second between 1 and 60 under Advanced.",
+		}
+	}
+	if form.PreviewQuality < config.MinPreviewQuality || form.PreviewQuality > config.MaxPreviewQuality {
+		return &Problem{
+			Headline: "That live-view sharpness is out of range",
+			NextStep: "Choose a smoothness, or set the picture quality between 30 and 95 under Advanced.",
 		}
 	}
 

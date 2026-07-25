@@ -296,7 +296,7 @@ func explanation(view StatusView) string {
 func (s *Service) armBlockedProblem(settings config.Config) *Problem {
 	if s.instanceLockError != nil {
 		return &Problem{
-			Headline: "Motion Detector is already running",
+			Headline: "Kaa Rada is already running",
 			NextStep: "Another copy of this app has the camera. Switch to that window, or close it and try again.",
 		}
 	}

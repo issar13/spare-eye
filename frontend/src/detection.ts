@@ -3,7 +3,16 @@ import {app} from '../wailsjs/go/models';
 import {showBanner, showResult} from './banner';
 import {requireElement, requireField} from './elements';
 import {formatMinutesOfDay, parseMinutesOfDay} from './format';
-import {applyLevel, levelFor, SensitivityLevel, sensitivityOrder, sensitivityPresets} from './presets';
+import {
+    applyLevel,
+    levelFor,
+    LiveViewLevel,
+    liveViewLevelFor,
+    liveViewOrder,
+    liveViewPresets,
+    sensitivityOrder,
+    sensitivityPresets,
+} from './presets';
 import {describeIssue, tuningSchema} from './schemas';
 
 const form = requireElement<HTMLFormElement>('#detection-form');
@@ -15,14 +24,23 @@ const message = requireElement<HTMLElement>('#detection-message');
 let dayProfile: app.SensitivityForm;
 let nightProfile: app.SensitivityForm;
 
+// Held here for the same reason as the profiles: the control shows a level, the
+// engine wants a frame rate and a quality, and Advanced may have moved them.
+let liveViewLevel: LiveViewLevel;
+
 export const loadDetectionForm = async (): Promise<void> => {
     const {tuning} = await Settings();
 
     dayProfile = tuning.day;
     nightProfile = tuning.night;
+    liveViewLevel = liveViewLevelFor(tuning.previewFPS);
 
     renderSensitivity();
+    renderLiveView();
     fillAdvanced();
+
+    requireField(form, 'previewFPS').value = String(tuning.previewFPS);
+    requireField(form, 'previewQuality').value = String(tuning.previewQuality);
 
     requireField(form, 'nightStart').value = formatMinutesOfDay(tuning.nightStartMinutes);
     requireField(form, 'nightEnd').value = formatMinutesOfDay(tuning.nightEndMinutes);
@@ -39,28 +57,43 @@ export const loadDetectionForm = async (): Promise<void> => {
 };
 
 const renderSensitivity = (): void => {
-    renderSegmented('#day-sensitivity', levelFor(dayProfile), (level) => {
+    renderSegmented('#day-sensitivity', sensitivityOrder, sensitivityPresets, levelFor(dayProfile), (level) => {
         dayProfile = applyLevel(dayProfile, level);
         renderSensitivity();
         fillAdvanced();
     });
 
-    renderSegmented('#night-sensitivity', levelFor(nightProfile), (level) => {
+    renderSegmented('#night-sensitivity', sensitivityOrder, sensitivityPresets, levelFor(nightProfile), (level) => {
         nightProfile = applyLevel(nightProfile, level);
         renderSensitivity();
         fillAdvanced();
     });
 };
 
-const renderSegmented = (
+const renderLiveView = (): void => {
+    renderSegmented('#live-view-quality', liveViewOrder, liveViewPresets, liveViewLevel, (level) => {
+        liveViewLevel = level;
+        requireField(form, 'previewFPS').value = String(liveViewPresets[level].previewFPS);
+        requireField(form, 'previewQuality').value = String(liveViewPresets[level].previewQuality);
+        renderLiveView();
+    });
+};
+
+// Both controls render identically and differ only in their levels, so the
+// choices are passed in rather than duplicating the markup twice over.
+type Choice = {label: string; description: string};
+
+const renderSegmented = <Level extends string>(
     selector: string,
-    selected: SensitivityLevel,
-    onChoose: (level: SensitivityLevel) => void,
+    order: Level[],
+    choices: Record<Level, Choice>,
+    selected: Level,
+    onChoose: (level: Level) => void,
 ): void => {
     const container = requireElement<HTMLElement>(selector);
 
-    container.replaceChildren(...sensitivityOrder.map((level) => {
-        const preset = sensitivityPresets[level];
+    container.replaceChildren(...order.map((level) => {
+        const preset = choices[level];
 
         const choice = document.createElement('button');
         choice.type = 'button';
@@ -111,6 +144,8 @@ const readForm = () => {
         prebufferLeadSeconds: requireField(form, 'prebufferLeadSeconds').value,
         clipDurationSeconds: requireField(form, 'clipDurationSeconds').value,
         retentionDays: requireField(form, 'retentionDays').value,
+        previewFPS: requireField(form, 'previewFPS').value,
+        previewQuality: requireField(form, 'previewQuality').value,
     });
 };
 

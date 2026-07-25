@@ -325,11 +325,32 @@ jobs:
       - name: List assets
         run: ls -la release-assets
 
+      # Computed here rather than written into the notes by hand, so the version
+      # and date on the release page cannot disagree with the artifacts beside
+      # them. A 0.x tag is marked pre-release: the version is the claim about
+      # stability, and the release page should not contradict it.
+      - name: Describe this build
+        id: describe
+        run: |
+          version="${GITHUB_REF_NAME}"
+          {
+            echo "version=${version}"
+            echo "built=$(date -u '+%Y-%m-%d %H:%M UTC')"
+            echo "commit=${GITHUB_SHA::7}"
+          } >> "$GITHUB_OUTPUT"
+
+          if [[ "${version}" =~ ^v0\. ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: softprops/action-gh-release@v2
         with:
           files: release-assets/*
           generate_release_notes: true
           fail_on_unmatched_files: true
+          prerelease: ${{ steps.describe.outputs.prerelease }}
           body: |
             Turn a spare laptop into a home security camera. Arm it, and it
             watches the room through the built-in webcam and messages you on
@@ -384,3 +405,13 @@ jobs:
 
             Every asset ships with a `.sha256` file. Check your download against
             it before running it.
+
+            ## This build
+
+            | | |
+            |---|---|
+            | Version | ${{ steps.describe.outputs.version }} |
+            | Built | ${{ steps.describe.outputs.built }} |
+            | Commit | `${{ steps.describe.outputs.commit }}` |
+            | Platforms | Windows x64, Linux x64 |
+            | OpenCV | 4.6.0, bundled on Windows, from your distribution on Linux |

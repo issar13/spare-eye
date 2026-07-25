@@ -56,3 +56,53 @@ export const applyLevel = (profile: app.SensitivityForm, level: SensitivityLevel
     minimumContourArea: sensitivityPresets[level].minimumContourArea,
     thresholdValue: sensitivityPresets[level].thresholdValue,
 });
+
+// The live view costs CPU on the machine doing the watching, which is often an
+// old laptop. Frames per second and JPEG quality are the two dials; neither is
+// a phrase anyone wants in a settings screen, so the same named-level treatment
+// applies here.
+
+export type LiveViewLevel = 'light' | 'balanced' | 'smooth';
+
+type LiveViewPreset = {
+    previewFPS: number;
+    previewQuality: number;
+    label: string;
+    description: string;
+};
+
+export const liveViewPresets: Record<LiveViewLevel, LiveViewPreset> = {
+    light: {
+        previewFPS: 5,
+        previewQuality: 65,
+        label: 'Easy on the laptop',
+        description: 'A slower, softer picture. Choose this on an older machine or over remote desktop.',
+    },
+    balanced: {
+        previewFPS: 12,
+        previewQuality: 80,
+        label: 'Recommended',
+        description: 'Keeps up with a typical webcam without working the machine hard.',
+    },
+    smooth: {
+        previewFPS: 25,
+        previewQuality: 90,
+        label: 'Smoothest picture',
+        description: 'As fast and sharp as the camera allows. Uses noticeably more processor.',
+    },
+};
+
+export const liveViewOrder: LiveViewLevel[] = ['light', 'balanced', 'smooth'];
+
+// Banded like levelFor, so a value nudged under Advanced still shows as the
+// nearest level rather than falling through to nothing selected.
+export const liveViewLevelFor = (framesPerSecond: number): LiveViewLevel => {
+    if (framesPerSecond <= 8) {
+        return 'light';
+    }
+    if (framesPerSecond <= 18) {
+        return 'balanced';
+    }
+
+    return 'smooth';
+};

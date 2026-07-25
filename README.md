@@ -21,10 +21,19 @@ The detection engine is finished and tested — clips, snapshots, Telegram
 alerts, remote commands, and camera enumeration all work and have been verified
 on Linux.
 
-The desktop user interface is **in progress**. Until it lands, the way to run
-the detector is the headless command-line tool described below, which is real
-and works today. Configuration values that the UI will eventually expose as
-controls are editable now by hand in `config.json`.
+The desktop app is built and published for both Windows and Linux by CI. Its
+screens cover Telegram setup, arming and disarming, the live view and its
+speed and quality, both sensitivity profiles, the day/night schedule, how long
+recordings are kept, and a browser for saved clips and snapshots. Every one of
+those is a real control, so editing `config.json` by hand is a fallback rather
+than the way in — `storage.mediaDirectory` is the only setting the UI shows
+without letting you change it.
+
+One caveat, stated plainly: **the Windows desktop app currently starts and then
+exits immediately.** The Linux desktop app runs correctly. The Windows failure
+is an open bug under active investigation; until it is fixed, Windows users
+should run the headless command-line tool described below, which works on both
+platforms.
 
 Telegram is the only alerting channel. See
 [Why only Telegram](#why-only-telegram).
@@ -54,7 +63,7 @@ Two consequences worth stating plainly:
 | | |
 |---|---|
 | Platforms | Windows and Linux |
-| Go | 1.24.4 (pinned in `go.mod`) |
+| Go | Whatever `go.mod` pins — that file is the single source of truth |
 | OpenCV | 4.6.0, to match gocv v0.31.0 |
 | Camera | A webcam that is not already in use by another program |
 | Telegram | Your own bot — one per installation |
@@ -99,6 +108,13 @@ index 0, pushing the real webcam to a higher index.
 
 ### 3. Run it
 
+On Linux, launch the desktop app, paste the token and chat ID into the Setup
+screen, press Test to confirm they work, pick your camera, and arm it. Nothing
+else needs a terminal.
+
+On Windows, use the command-line tool below until the desktop build's
+immediate-exit bug is fixed.
+
 With credentials in the environment:
 
 ```
@@ -114,8 +130,9 @@ Ctrl+C to stop; a clip in progress is finished and closed properly before exit.
 ## The headless command-line tool
 
 `cmd/kaa-rada-cli` is the detector without a window. It exists so the engine can be
-run on a machine with no display, and it is the supported way to use the app
-until the desktop UI is finished.
+run on a machine with no display, such as a laptop with the lid shut or a box
+reached over SSH, and it is currently the way to run the app on Windows while
+the desktop build's immediate-exit bug is open.
 
 | Flag | Meaning |
 |---|---|
@@ -205,10 +222,13 @@ for them, which is how the listing tells them apart.
 
 ## Configuration
 
-Settings live in `config.json` in the directory above, and will be editable
-from the desktop UI. Durations are written as readable strings — `"15s"`,
-`"5m0s"` — so the file stays sensible to edit by hand. Any field you leave out
-keeps its default, so an older `config.json` remains loadable after an upgrade.
+Settings live in `config.json` in the directory above. Almost all of them are
+editable from the desktop app's settings screens, and the tables below are the
+reference for what each one means and for editing the file directly — on a
+headless machine, or on Windows while the desktop build is unusable. Durations
+are written as readable strings — `"15s"`, `"5m0s"` — so the file stays sensible
+to edit by hand. Any field you leave out keeps its default, so an older
+`config.json` remains loadable after an upgrade.
 
 ### Telegram
 
@@ -228,6 +248,13 @@ keeps its default, so an older `config.json` remains loadable after an upgrade.
 | `detection.motionPersist` | `"5s"` | How long movement must continue before a clip is started |
 | `detection.prebufferLead` | `"3s"` | How much footage from *before* the trigger is prepended to a clip |
 | `detection.clipDuration` | `"15s"` | Length of an automatic clip. Manual clips ignore this and run until `/stop` |
+| `detection.previewFPS` | `12` | How many times a second the live view on screen is refreshed, 1 to 60. A ceiling, not a rate: a camera delivering fewer frames than this is shown at its own speed |
+| `detection.previewQuality` | `80` | Picture quality of the live view on screen, 30 to 95. Lower is blurrier and reaches the window sooner |
+
+Both preview fields change only what you see on screen while the app is open.
+Snapshots and clips written to disk, and anything sent to Telegram, are always
+encoded at full quality regardless of what these are set to. Lowering them is
+how you buy back CPU on a slow machine without making detection less sensitive.
 
 ### Sensitivity profiles
 
@@ -264,6 +291,13 @@ a configured one. A guessed rate is what makes recordings play back too fast or
 too slow, so the rate is not exposed as a setting.
 
 ## Troubleshooting
+
+**The Windows desktop app opens and closes immediately**
+
+This is a known bug, not something wrong with your machine, and it is being
+investigated. There is no workaround inside the app; run
+`kaa-rada-cli` instead, which is unaffected. The Linux desktop app does not have
+this problem.
 
 **"no usable camera found", or a second launch fails**
 

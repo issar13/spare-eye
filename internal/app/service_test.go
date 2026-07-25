@@ -158,6 +158,8 @@ func TestValidateTuningRejectsUnusableValues(t *testing.T) {
 		PrebufferLeadSeconds: 3,
 		ClipDurationSeconds:  15,
 		RetentionDays:        30,
+		PreviewFPS:           12,
+		PreviewQuality:       80,
 	}
 
 	if problem := validateTuning(usable); problem != nil {
@@ -171,6 +173,10 @@ func TestValidateTuningRejectsUnusableValues(t *testing.T) {
 		"night start past midnight in minutes": func(form *TuningForm) { form.NightStartMinutes = 1440 },
 		"zero clip duration":                   func(form *TuningForm) { form.ClipDurationSeconds = 0 },
 		"negative retention":                   func(form *TuningForm) { form.RetentionDays = -1 },
+		"zero live-view frame rate":            func(form *TuningForm) { form.PreviewFPS = 0 },
+		"live-view frame rate above 60":        func(form *TuningForm) { form.PreviewFPS = 61 },
+		"live-view quality below 30":           func(form *TuningForm) { form.PreviewQuality = 29 },
+		"live-view quality above 95":           func(form *TuningForm) { form.PreviewQuality = 96 },
 	}
 
 	for name, corrupt := range rejected {

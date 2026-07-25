@@ -154,6 +154,96 @@ func TestNewPrebufferRejectsNonPositiveLimit(t *testing.T) {
 	}
 }
 
+// TestPreviewIntervalClampsAHandEditedFrameRate matters because config.json is
+// hand-editable and the interval is a division: a frames-per-second of zero
+// would divide by zero inside the capture loop and take the whole watch down.
+func TestPreviewIntervalClampsAHandEditedFrameRate(t *testing.T) {
+	cases := []struct {
+		name            string
+		framesPerSecond int
+		expected        time.Duration
+	}{
+		{"the default of 12 frames per second", 12, time.Second / 12},
+		{"zero is raised to the minimum", 0, time.Second / minPreviewFPS},
+		{"a negative is raised to the minimum", -30, time.Second / minPreviewFPS},
+		{"exactly the minimum is kept", minPreviewFPS, time.Second / minPreviewFPS},
+		{"exactly the maximum is kept", maxPreviewFPS, time.Second / maxPreviewFPS},
+		{"above the maximum is lowered", 240, time.Second / maxPreviewFPS},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			settings := config.Default()
+			settings.Detection.PreviewFPS = testCase.framesPerSecond
+
+			subject := New(settings)
+
+			if got := subject.previewInterval(); got != testCase.expected {
+				t.Errorf("previewInterval() with %d FPS = %v, want %v",
+					testCase.framesPerSecond, got, testCase.expected)
+			}
+		})
+	}
+}
+
+// TestPreviewQualityClampsAHandEditedQuality guards the value handed to libjpeg,
+// which accepts 0 to 100 and rejects anything outside it: an out-of-range
+// quality would fail every encode and leave the live view permanently blank.
+func TestPreviewQualityClampsAHandEditedQuality(t *testing.T) {
+	cases := []struct {
+		name       string
+		configured int
+		expected   int
+	}{
+		{"the default of 80", 80, 80},
+		{"zero is raised to the minimum", 0, minPreviewQuality},
+		{"a negative is raised to the minimum", -10, minPreviewQuality},
+		{"exactly the minimum is kept", minPreviewQuality, minPreviewQuality},
+		{"exactly the maximum is kept", maxPreviewQuality, maxPreviewQuality},
+		{"a value libjpeg would reject is lowered", 200, maxPreviewQuality},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			settings := config.Default()
+			settings.Detection.PreviewQuality = testCase.configured
+
+			subject := New(settings)
+
+			if got := subject.previewQuality(); got != testCase.expected {
+				t.Errorf("previewQuality() with %d = %d, want %d",
+					testCase.configured, got, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestClampIntKeepsTheBoundsInclusive(t *testing.T) {
+	cases := []struct {
+		name     string
+		value    int
+		lowest   int
+		highest  int
+		expected int
+	}{
+		{"inside the range is untouched", 5, 1, 10, 5},
+		{"the lower bound is a legal value", 1, 1, 10, 1},
+		{"the upper bound is a legal value", 10, 1, 10, 10},
+		{"below the range becomes the lower bound", 0, 1, 10, 1},
+		{"above the range becomes the upper bound", 11, 1, 10, 10},
+	}
+
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			got := clampInt(testCase.value, testCase.lowest, testCase.highest)
+			if got != testCase.expected {
+				t.Errorf("clampInt(%d, %d, %d) = %d, want %d",
+					testCase.value, testCase.lowest, testCase.highest, got, testCase.expected)
+			}
+		})
+	}
+}
+
 func at(hour, minute int) time.Time {
 	return time.Date(2026, time.July, 25, hour, minute, 0, 0, time.UTC)
 }
