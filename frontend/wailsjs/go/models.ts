@@ -131,6 +131,20 @@ export namespace app {
 	        this.alertCooldownSeconds = source["alertCooldownSeconds"];
 	    }
 	}
+	export class StartupForm {
+	    launchAtLogin: boolean;
+	    watchOnLaunch: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new StartupForm(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.launchAtLogin = source["launchAtLogin"];
+	        this.watchOnLaunch = source["watchOnLaunch"];
+	    }
+	}
 	export class TuningForm {
 	    day: SensitivityForm;
 	    night: SensitivityForm;
@@ -195,6 +209,7 @@ export namespace app {
 	    telegram: TelegramForm;
 	    tuning: TuningForm;
 	    liveView: LiveViewForm;
+	    startup: StartupForm;
 	    cameraIndex: number;
 	    mediaDirectory: string;
 	
@@ -207,6 +222,7 @@ export namespace app {
 	        this.telegram = this.convertValues(source["telegram"], TelegramForm);
 	        this.tuning = this.convertValues(source["tuning"], TuningForm);
 	        this.liveView = this.convertValues(source["liveView"], LiveViewForm);
+	        this.startup = this.convertValues(source["startup"], StartupForm);
 	        this.cameraIndex = source["cameraIndex"];
 	        this.mediaDirectory = source["mediaDirectory"];
 	    }
@@ -229,6 +245,7 @@ export namespace app {
 		    return a;
 		}
 	}
+	
 	export class StatusView {
 	    headline: string;
 	    tone: string;
@@ -246,6 +263,8 @@ export namespace app {
 	    alertsEnabled: boolean;
 	    alertsConfigured: boolean;
 	    telegramConnected: boolean;
+	    launchAtLogin: boolean;
+	    launchAtLoginRegistered: boolean;
 	    canArm: boolean;
 	    lastFailure: string;
 	    logPath: string;
@@ -273,6 +292,8 @@ export namespace app {
 	        this.alertsEnabled = source["alertsEnabled"];
 	        this.alertsConfigured = source["alertsConfigured"];
 	        this.telegramConnected = source["telegramConnected"];
+	        this.launchAtLogin = source["launchAtLogin"];
+	        this.launchAtLoginRegistered = source["launchAtLoginRegistered"];
 	        this.canArm = source["canArm"];
 	        this.lastFailure = source["lastFailure"];
 	        this.logPath = source["logPath"];

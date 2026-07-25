@@ -295,6 +295,40 @@ Clips are written at the frame rate measured from the camera on startup, not at
 a configured one. A guessed rate is what makes recordings play back too fast or
 too slow, so the rate is not exposed as a setting.
 
+### Startup
+
+| Field | Default | Meaning |
+|---|---|---|
+| `startup.launchAtLogin` | `false` | Register the app with your operating system so it opens when you log in |
+| `startup.watchOnLaunch` | `false` | Begin watching as soon as the app opens, however it was opened |
+
+The two are deliberately independent. Turning on `launchAtLogin` alone opens the
+app and leaves the camera off until you press Start watching; turning on
+`watchOnLaunch` alone starts watching whenever you open the app yourself. Both
+are off on a fresh install, and on an existing `config.json` that predates them.
+
+Editing `startup.launchAtLogin` in the file by hand only records the preference —
+the registration itself is made when you save the switch in the app, on the
+**Setup** screen. If the two ever disagree, because security software removed
+the registration or because the app was moved after it was made, the Setup
+screen shows what your computer will really do and offers to put it back.
+
+When your computer opens the app at login it passes `--started-at-login`, and
+the window starts minimised so a login is not interrupted by it. Opening the app
+yourself gives you a normal window.
+
+The registration is per-user, needs no administrator rights, and can be removed
+by hand:
+
+| Platform | Where it lives |
+|---|---|
+| Windows | The `KaaRada` value under `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`, editable with `regedit` or from Task Manager's Startup apps tab |
+| Linux | `~/.config/autostart/kaa-rada.desktop`, or `$XDG_CONFIG_HOME/autostart/` if you have moved it. Delete the file, or use your desktop's own startup-applications screen |
+| macOS | Not supported yet — the switch reports that rather than pretending to work |
+
+The headless CLI ignores both settings: running it is already a request to
+watch, and starting it at login is a job for systemd or your shell profile.
+
 ## Troubleshooting
 
 **The Windows desktop app opens and closes immediately**

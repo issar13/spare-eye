@@ -1,10 +1,21 @@
-import {Arm, Cameras, RescanCameras, SaveTelegram, SelectCamera, Settings, TestTelegram} from '../wailsjs/go/main/App';
+import {
+    Arm,
+    Cameras,
+    RescanCameras,
+    SaveStartup,
+    SaveTelegram,
+    SelectCamera,
+    Settings,
+    TestTelegram,
+} from '../wailsjs/go/main/App';
 import type {app, detector} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
 import {requireElement, requireField} from './elements';
-import {telegramSchema} from './schemas';
+import {startupSchema, telegramSchema} from './schemas';
 
 const telegramForm = requireElement<HTMLFormElement>('#telegram-form');
+const startupForm = requireElement<HTMLFormElement>('#startup-form');
+const startupMessage = requireElement<HTMLElement>('#startup-message');
 const setupMessage = requireElement<HTMLElement>('#setup-message');
 const cameraMessage = requireElement<HTMLElement>('#camera-message');
 const startMessage = requireElement<HTMLElement>('#start-message');
@@ -24,12 +35,20 @@ const readTelegramForm = (): app.TelegramForm => telegramSchema.parse({
     enabled: requireField(telegramForm, 'enabled').checked,
 });
 
+const readStartupForm = (): app.StartupForm => startupSchema.parse({
+    launchAtLogin: requireField(startupForm, 'launchAtLogin').checked,
+    watchOnLaunch: requireField(startupForm, 'watchOnLaunch').checked,
+});
+
 export const loadSetup = async (): Promise<void> => {
     const settings = await Settings();
 
     requireField(telegramForm, 'botToken').value = settings.telegram.botToken;
     requireField(telegramForm, 'chatID').value = settings.telegram.chatID;
     requireField(telegramForm, 'enabled').checked = settings.telegram.enabled;
+
+    requireField(startupForm, 'launchAtLogin').checked = settings.startup.launchAtLogin;
+    requireField(startupForm, 'watchOnLaunch').checked = settings.startup.watchOnLaunch;
 
     renderCameraOptions([], settings.cameraIndex);
 };
@@ -107,6 +126,30 @@ export const updateSetupProgress = (status: app.StatusView): void => {
 
     startButton.disabled = status.armed || !status.canArm;
     startButton.textContent = status.armed ? 'Already watching' : 'Start watching';
+
+    showLoginRegistration(status);
+};
+
+// The tick box says what was asked for; the status says what this computer will
+// really do at the next login. Security software removing the registration, and
+// the app being moved since it was made, both leave the two disagreeing, and the
+// one worth showing is the one that decides whether anybody is watched.
+const showLoginRegistration = (status: app.StatusView): void => {
+    if (status.launchAtLogin === status.launchAtLoginRegistered) {
+        return;
+    }
+
+    requireField(startupForm, 'launchAtLogin').checked = status.launchAtLoginRegistered;
+
+    showBanner(
+        startupMessage,
+        status.launchAtLogin
+            ? 'This computer is no longer set to open Kaa Rada when you log in. Security software ' +
+            'sometimes removes that, and so does moving the app. Tick the box and save to put it back.'
+            : 'This computer still opens Kaa Rada when you log in, even though that is switched off ' +
+            'here. Press Save to remove it.',
+        'warn',
+    );
 };
 
 const markStep = (selector: string, done: boolean): void => {
@@ -122,6 +165,13 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         submission.preventDefault();
 
         showResult(setupMessage, await SaveTelegram(readTelegramForm()));
+        onSettingsChanged();
+    });
+
+    startupForm.addEventListener('submit', async (submission) => {
+        submission.preventDefault();
+
+        showResult(startupMessage, await SaveStartup(readStartupForm()));
         onSettingsChanged();
     });
 

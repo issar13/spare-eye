@@ -22,6 +22,24 @@ type Config struct {
 	Telegram  TelegramSettings  `json:"telegram"`
 	Detection DetectionSettings `json:"detection"`
 	Storage   StorageSettings   `json:"storage"`
+	Startup   StartupSettings   `json:"startup"`
+}
+
+// StartupSettings decide what happens without anybody pressing anything.
+//
+// The two are independent because opening the app and pointing a camera at a
+// room are separate commitments: somebody who wants the window waiting for them
+// after a reboot has not thereby agreed to be recorded from the moment they log
+// in.
+type StartupSettings struct {
+	// LaunchAtLogin is registered with the operating system rather than acted
+	// on here, so the value only records what the user asked for. What the
+	// system will actually do is whatever internal/autostart reports.
+	LaunchAtLogin bool `json:"launchAtLogin"`
+
+	// WatchOnLaunch arms the detector during startup, however the app was
+	// started.
+	WatchOnLaunch bool `json:"watchOnLaunch"`
 }
 
 // TelegramSettings holds credentials the user supplies through the UI. They are
@@ -149,6 +167,10 @@ func Default() Config {
 			PreviewQuality:    80,
 		},
 		Storage: StorageSettings{RetentionDays: 30},
+		// Both startup choices stay off until they are asked for. A fresh
+		// install that registered itself with the operating system, or reached
+		// for the webcam on its own, would be doing something nobody agreed to.
+		Startup: StartupSettings{LaunchAtLogin: false, WatchOnLaunch: false},
 	}
 }
 

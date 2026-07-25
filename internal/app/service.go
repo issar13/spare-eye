@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"kaa-rada/internal/autostart"
 	"kaa-rada/internal/config"
 	"kaa-rada/internal/detector"
 	"kaa-rada/internal/media"
@@ -32,6 +33,11 @@ type Service struct {
 	settings config.Config
 	session  *detectorSession
 	lastFail string
+
+	// launchProblem is why watching did not begin by itself, kept so that a
+	// user who asked to be watching on launch, and is not, is told why instead
+	// of finding a screen that simply reads "Not running".
+	launchProblem *Problem
 
 	cameras []detector.Camera
 	// camerasScanned distinguishes "no camera found" from "not looked yet",
@@ -91,8 +97,47 @@ func (s *Service) Startup(ctx context.Context) {
 	s.restartMessenger()
 
 	// Probing opens every device in turn, which takes long enough to be worth
-	// keeping off the path that paints the window.
-	go s.resolveCamera()
+	// keeping off the path that paints the window. Arming waits for it to
+	// finish, because the probe is what settles which device is captured from.
+	go func() {
+		s.resolveCamera()
+		s.armAtLaunch()
+	}()
+}
+
+// armAtLaunch starts watching when the user has asked for that, whether the app
+// was opened by them or by the operating system at login.
+func (s *Service) armAtLaunch() {
+	// Like the probe before it, this runs where a panic would take the window
+	// down with the process and leave the user with nothing to read.
+	defer func() {
+		if panicked := recover(); panicked != nil {
+			s.log.Panicked("starting the watch at launch", panicked)
+		}
+	}()
+
+	s.mutex.Lock()
+	wanted := s.settings.Startup.WatchOnLaunch
+	s.mutex.Unlock()
+
+	if !wanted {
+		return
+	}
+
+	s.log.Info("starting the watch at launch")
+
+	result := s.Arm()
+	if result.OK {
+		return
+	}
+
+	s.mutex.Lock()
+	s.launchProblem = &Problem{
+		Headline: result.Headline,
+		NextStep: result.NextStep,
+		DocPath:  result.DocPath,
+	}
+	s.mutex.Unlock()
 }
 
 // resolveCamera makes the configured index one that actually delivers frames.
@@ -224,16 +269,24 @@ func (s *Service) Status() StatusView {
 	session := s.session
 	settings := s.settings
 	lastFail := s.lastFail
+	launchProblem := s.launchProblem
 	s.mutex.Unlock()
 
+	// A failure to read the registration means the app cannot show that it is
+	// there, which for the user is the same news as its not being there: either
+	// way nothing can be promised about the next login.
+	registered, _ := autostart.Enabled()
+
 	view := StatusView{
-		CameraIndex:       settings.Detection.CameraIndex,
-		AlertsEnabled:     settings.Telegram.Enabled,
-		AlertsConfigured:  settings.ConfiguredForAlerts(),
-		TelegramConnected: s.messenger.connected(),
-		LogPath:           s.log.Path(),
-		MediaDirectory:    settings.Storage.MediaDirectory,
-		LastFailure:       lastFail,
+		CameraIndex:             settings.Detection.CameraIndex,
+		AlertsEnabled:           settings.Telegram.Enabled,
+		AlertsConfigured:        settings.ConfiguredForAlerts(),
+		TelegramConnected:       s.messenger.connected(),
+		LaunchAtLogin:           settings.Startup.LaunchAtLogin,
+		LaunchAtLoginRegistered: registered,
+		LogPath:                 s.log.Path(),
+		MediaDirectory:          settings.Storage.MediaDirectory,
+		LastFailure:             lastFail,
 	}
 
 	blocked := s.armBlockedProblem(settings)
@@ -241,6 +294,12 @@ func (s *Service) Status() StatusView {
 		view.CanArm = true
 	} else {
 		view.Problem = blocked
+	}
+
+	// Nothing stops the user arming by hand, so a watch that failed to start on
+	// its own is described rather than blocked.
+	if blocked == nil && launchProblem != nil {
+		view.Problem = launchProblem
 	}
 
 	if session != nil {
@@ -375,6 +434,7 @@ func (s *Service) Arm() ActionResult {
 	s.mutex.Lock()
 	s.session = session
 	s.lastFail = ""
+	s.launchProblem = nil
 	s.mutex.Unlock()
 
 	select {

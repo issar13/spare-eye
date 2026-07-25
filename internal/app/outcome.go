@@ -58,6 +58,29 @@ func cameraUnavailable() Problem {
 	}
 }
 
+// loginRegistrationRefused is the guidance for an operating system that would
+// not take, or would not give up, the instruction to start this app at login.
+//
+// The reasons are not worth telling apart for a user: security software
+// blocking the change and a locked-down account look the same from here, and
+// the remedy — do it yourself, or allow the app and try again — is the same.
+func loginRegistrationRefused(wanted bool) Problem {
+	if wanted {
+		return Problem{
+			Headline: "Kaa Rada could not be set to open by itself",
+			NextStep: "Your choices were saved, but this computer would not let Kaa Rada add itself to " +
+				"the programs that open when you log in. Security software often blocks that. Open Kaa " +
+				"Rada yourself for now, and try the switch again once you have allowed it.",
+		}
+	}
+
+	return Problem{
+		Headline: "Kaa Rada could not remove itself from your login programs",
+		NextStep: "Your choices were saved, but Kaa Rada may still open when you log in. Turn it off in " +
+			"your computer's own startup settings, or try the switch again.",
+	}
+}
+
 // describeTelegramFailure turns the notify package's error into advice.
 //
 // The match is on message text because notify returns plain fmt.Errorf values,

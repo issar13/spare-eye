@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"kaa-rada/internal/autostart"
 	"kaa-rada/internal/config"
 	"kaa-rada/internal/notify"
 )
@@ -49,6 +50,13 @@ type StatusView struct {
 	AlertsConfigured  bool `json:"alertsConfigured"`
 	TelegramConnected bool `json:"telegramConnected"`
 
+	// LaunchAtLogin is what the user asked for; LaunchAtLoginRegistered is what
+	// the operating system will actually do. They disagree when security
+	// software has removed the registration, or when the binary has moved since
+	// it was made, and the screen has to show the second one.
+	LaunchAtLogin           bool `json:"launchAtLogin"`
+	LaunchAtLoginRegistered bool `json:"launchAtLoginRegistered"`
+
 	CanArm bool `json:"canArm"`
 
 	// LastFailure is the engine's own error text. It is diagnostics only and
@@ -66,6 +74,7 @@ type SettingsView struct {
 	Telegram TelegramForm `json:"telegram"`
 	Tuning   TuningForm   `json:"tuning"`
 	LiveView LiveViewForm `json:"liveView"`
+	Startup  StartupForm  `json:"startup"`
 
 	CameraIndex    int    `json:"cameraIndex"`
 	MediaDirectory string `json:"mediaDirectory"`
@@ -101,6 +110,13 @@ type LiveViewForm struct {
 	PreviewQuality int `json:"previewQuality"`
 }
 
+// StartupForm is the Setup screen's two startup switches. They are saved
+// together because they are read together, but neither implies the other.
+type StartupForm struct {
+	LaunchAtLogin bool `json:"launchAtLogin"`
+	WatchOnLaunch bool `json:"watchOnLaunch"`
+}
+
 // SensitivityForm is one lighting profile.
 type SensitivityForm struct {
 	MinimumContourArea    float64 `json:"minimumContourArea"`
@@ -129,6 +145,10 @@ func settingsView(settings config.Config) SettingsView {
 		LiveView: LiveViewForm{
 			PreviewFPS:     settings.Detection.PreviewFPS,
 			PreviewQuality: settings.Detection.PreviewQuality,
+		},
+		Startup: StartupForm{
+			LaunchAtLogin: settings.Startup.LaunchAtLogin,
+			WatchOnLaunch: settings.Startup.WatchOnLaunch,
 		},
 		CameraIndex:    settings.Detection.CameraIndex,
 		MediaDirectory: settings.Storage.MediaDirectory,
@@ -281,6 +301,42 @@ func (s *Service) SaveLiveView(form LiveViewForm) ActionResult {
 	s.log.Info("live view saved", "previewFPS", form.PreviewFPS, "previewQuality", form.PreviewQuality)
 
 	return succeeded("Live view updated")
+}
+
+// SaveStartup stores the two startup switches and makes the operating system
+// agree with the first of them.
+//
+// The settings are written before the registration is attempted, so that a
+// refusal from the operating system does not also lose the choice about
+// watching on launch. What the system will really do is read back by Status,
+// which is what the screen shows.
+func (s *Service) SaveStartup(form StartupForm) ActionResult {
+	s.mutex.Lock()
+	updated := s.settings
+	updated.Startup = config.StartupSettings{
+		LaunchAtLogin: form.LaunchAtLogin,
+		WatchOnLaunch: form.WatchOnLaunch,
+	}
+	s.mutex.Unlock()
+
+	if s.persist(updated) != nil {
+		return couldNotSave()
+	}
+
+	s.log.Info("startup settings saved",
+		"launchAtLogin", form.LaunchAtLogin, "watchOnLaunch", form.WatchOnLaunch)
+
+	register := autostart.Disable
+	if form.LaunchAtLogin {
+		register = autostart.Enable
+	}
+
+	if err := register(); err != nil {
+		s.log.Error("registering for login failed", "wanted", form.LaunchAtLogin, "error", err)
+		return loginRegistrationRefused(form.LaunchAtLogin).asResult()
+	}
+
+	return succeeded("Saved")
 }
 
 // validateTuning rejects values that would make the detector behave absurdly.

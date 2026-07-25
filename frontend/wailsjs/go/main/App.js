@@ -42,6 +42,10 @@ export function SaveLiveView(arg1) {
   return window['go']['main']['App']['SaveLiveView'](arg1);
 }
 
+export function SaveStartup(arg1) {
+  return window['go']['main']['App']['SaveStartup'](arg1);
+}
+
 export function SaveTelegram(arg1) {
   return window['go']['main']['App']['SaveTelegram'](arg1);
 }

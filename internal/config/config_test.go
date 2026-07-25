@@ -376,6 +376,8 @@ func TestSaveThenLoadRoundTripsEverySetting(t *testing.T) {
 	original.Detection.PreviewQuality = 45
 	original.Storage.MediaDirectory = filepath.Join(t.TempDir(), "media")
 	original.Storage.RetentionDays = 7
+	original.Startup.LaunchAtLogin = true
+	original.Startup.WatchOnLaunch = true
 
 	if err := Save(original); err != nil {
 		t.Fatalf("Save() returned %v", err)
@@ -407,6 +409,40 @@ func TestSaveThenLoadRoundTripsEverySetting(t *testing.T) {
 	}
 	if reloaded.Detection.PreviewQuality != 45 {
 		t.Errorf("preview quality = %d, want 45", reloaded.Detection.PreviewQuality)
+	}
+
+	if !reloaded.Startup.LaunchAtLogin || !reloaded.Startup.WatchOnLaunch {
+		t.Errorf("startup settings = %+v, want both switched on", reloaded.Startup)
+	}
+}
+
+// TestStartupIsOffUntilItIsAskedFor covers both a fresh install and an upgrade
+// over a config.json written before these settings existed. Either turning
+// itself on would mean a camera watching a room without anybody having said so.
+func TestStartupIsOffUntilItIsAskedFor(t *testing.T) {
+	temporaryHome := isolateConfigDirectory(t)
+
+	if Default().Startup.LaunchAtLogin || Default().Startup.WatchOnLaunch {
+		t.Errorf("Default().Startup = %+v, want both switched off", Default().Startup)
+	}
+
+	olderConfig := []byte(`{"telegram":{"enabled":true},"detection":{"cameraIndex":1}}`)
+	path := filepath.Join(temporaryHome, applicationDirectoryName, configFileName)
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatalf("creating %s: %v", filepath.Dir(path), err)
+	}
+	if err := os.WriteFile(path, olderConfig, 0o600); err != nil {
+		t.Fatalf("writing the older config: %v", err)
+	}
+
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load() returned %v", err)
+	}
+
+	if loaded.Startup.LaunchAtLogin || loaded.Startup.WatchOnLaunch {
+		t.Errorf("a config.json with no startup section loaded as %+v, want both switched off",
+			loaded.Startup)
 	}
 }
 

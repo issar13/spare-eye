@@ -62,6 +62,11 @@ func run(requestedCamera int, disableTelegram bool) error {
 		return err
 	}
 
+	// The startup settings are the desktop app's, and nothing here reads them:
+	// this command has no window to open minimised, and running it at all is a
+	// request to watch, so watching on launch is the only behaviour it has.
+	// Starting it at login is a job for systemd or the shell that invokes it.
+
 	applyEnvironmentCredentials(&settings)
 
 	if requestedCamera >= 0 {

@@ -298,6 +298,36 @@
                     <div class="banner" hidden id="start-message"></div>
                 </li>
             </ol>
+
+            <div class="step startup">
+                <div class="step-head">
+                    <h3>When your computer starts</h3>
+                </div>
+
+                <p class="hint">Kaa Rada cannot see anything while it is closed. These two are separate
+                    on purpose: one opens the app, the other turns the camera on.</p>
+
+                <form id="startup-form">
+                    <label class="checkbox">
+                        <input name="launchAtLogin" type="checkbox"/>
+                        Open Kaa Rada when I log in to this computer
+                    </label>
+
+                    <label class="checkbox">
+                        <input name="watchOnLaunch" type="checkbox"/>
+                        Start watching as soon as Kaa Rada opens
+                    </label>
+
+                    <p class="hint">When your computer opens Kaa Rada for you, the window stays tucked
+                        away in the taskbar. Open it whenever you want to look.</p>
+
+                    <div class="row">
+                        <button class="primary" type="submit">Save</button>
+                    </div>
+                </form>
+
+                <div class="banner" hidden id="startup-message"></div>
+            </div>
         </section>
     </main>
 </div>

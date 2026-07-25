@@ -53,6 +53,11 @@ export const liveViewSchema = z.object({
         .max(95, 'Under Advanced, the live view picture quality has to be between 30 and 95.'),
 });
 
+export const startupSchema = z.object({
+    launchAtLogin: z.boolean(),
+    watchOnLaunch: z.boolean(),
+});
+
 export const telegramSchema = z.object({
     botToken: z.string().trim(),
     chatID: z.string().trim(),

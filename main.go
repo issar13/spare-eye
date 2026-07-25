@@ -7,12 +7,14 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
 	"kaa-rada/internal/app"
+	"kaa-rada/internal/autostart"
 	"kaa-rada/internal/config"
 	"kaa-rada/internal/detector"
 )
@@ -51,6 +53,17 @@ func main() {
 	}
 }
 
+// startedAtLogin reports whether the operating system launched this process,
+// which the autostart registration signals by adding a flag to the command it
+// registers.
+//
+// The arguments are scanned rather than parsed with the flag package, because
+// flag.Parse exits the process on anything it does not recognise and a webview
+// host is entitled to pass arguments of its own.
+func startedAtLogin() bool {
+	return slices.Contains(os.Args[1:], autostart.StartedAtLoginFlag)
+}
+
 // run carries out startup, logging each stage as it is reached. The stages are
 // what makes a crash inside a dependency — OpenCV aborting during a camera
 // probe, a webview refusing to initialise — identifiable from the last record
@@ -84,12 +97,24 @@ func run(log *app.Log) error {
 	service := app.NewService(log, settings, lockError)
 	bound := NewApp(service)
 
-	log.Info("startup: opening the window")
+	// A window that steals the screen during every login is the fastest way to
+	// have the feature turned off again, so a session that started this app
+	// begins in the taskbar. Somebody who opened it themselves is looking at it
+	// on purpose.
+	startedByTheSystem := startedAtLogin()
+
+	windowStartState := options.Normal
+	if startedByTheSystem {
+		windowStartState = options.Minimised
+	}
+
+	log.Info("startup: opening the window", "startedAtLogin", startedByTheSystem)
 
 	return wails.Run(&options.App{
-		Title:  "Kaa Rada",
-		Width:  1180,
-		Height: 820,
+		Title:            "Kaa Rada",
+		Width:            1180,
+		Height:           820,
+		WindowStartState: windowStartState,
 		AssetServer: &assetserver.Options{
 			Assets:  assets,
 			Handler: service.AssetHandler(),
