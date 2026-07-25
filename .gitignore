@@ -27,11 +27,10 @@ DISABLED
 frontend/node_modules/
 frontend/package.json.md5
 
-# The Go binary embeds frontend/dist via //go:embed, which fails outright if
-# the directory is absent. Ignore the built assets but keep the directory, so
-# a fresh clone still compiles before the frontend has been built.
-frontend/dist/*
-!frontend/dist/.gitkeep
+# frontend/dist is build output and is never committed. The Go binary embeds
+# it via //go:embed, so it must exist before `go vet`, `go test`, or any build
+# that compiles the root package: run `make frontend` on a fresh clone.
+frontend/dist/
 
 build/bin/
 
@@ -49,3 +48,6 @@ desktop.ini
 
 # Logs
 *.log
+
+# Internal working notes: planning, status, and release gates stay local.
+ROADMAP.md
