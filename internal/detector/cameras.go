@@ -77,6 +77,15 @@ func FirstUsableCamera() (int, bool) {
 	return 0, false
 }
 
+// ProbeCamera tests a single device. Exported so a caller that already knows
+// which index it wants can avoid opening the others: every open is a chance for
+// a bad driver to end the process.
+func ProbeCamera(index int) (Camera, error) {
+	defer pinCameraThread()()
+
+	return probeCamera(index)
+}
+
 func probeCamera(index int) (Camera, error) {
 	capture, err := openCapture(index)
 	if err != nil {
