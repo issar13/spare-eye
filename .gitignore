@@ -11,8 +11,15 @@ DISABLED
 # Go build output
 /motion-detector
 /motion-detector.exe
-/build/
 /dist/
+
+# Build output only — packaging metadata under build/ must stay tracked.
+# git will not descend into an excluded directory, so the parent is /build/*
+# rather than /build/, otherwise the negations below can never match.
+/build/*
+!/build/linux/
+!/build/windows/
+!/build/appicon.png
 *.test
 *.out
 

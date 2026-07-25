@@ -1,0 +1,303 @@
+name: CI
+
+# gocv needs cgo linked against OpenCV, which makes cross-compilation
+# impractical, so every job runs on a native runner for its target. There are
+# deliberately no GOOS/GOARCH builds anywhere in this file. macOS is out of
+# scope for this release.
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['v*'] # tagged builds are release.yml's job, not CI's
+  pull_request:
+
+# A force-push or a quick second push should cancel the previous run rather
+# than queue behind it. The Windows job is slow enough that this matters.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # gocv v0.31.0 is welded to OpenCV 4.6.0: its cgo directives link
+  # -lopencv_core460 and friends by explicit version suffix. See
+  # docs/DEVELOPMENT.md for why neither version may be bumped independently.
+  OPENCV_VERSION: 4.6.0
+
+jobs:
+  # Runs on its own, first and fast, so a leaked credential is reported in
+  # seconds instead of behind an hour of Windows OpenCV compilation.
+  credential-scan:
+    name: Credential scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The scan reads tracked files only, but a full history makes the
+          # failure message accurate about what has been published.
+          fetch-depth: 0
+
+      - name: Fail if a credential is committed
+        run: ./scripts/check-no-credentials.sh
+
+  linux:
+    name: Linux (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # go-version-file reads the `go` directive from go.mod so CI cannot
+      # become a third answer to "which Go version is this project on". Two
+      # Go installs are visible on the main development machine already.
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true # caches the module and build caches, keyed on go.sum
+
+      - name: Install OpenCV and GTK/WebKit development packages
+        run: |
+          sudo apt-get update
+          # Ubuntu 24.04 ships exactly OpenCV 4.6.0, which is the version gocv
+          # v0.31.0 requires, so no pinning or source build is needed here.
+          # libwebkit2gtk-4.1-dev: 24.04 dropped the 4.0 series that Wails v2
+          # looks for by default; see the build tag below.
+          sudo apt-get install --no-install-recommends -y \
+            build-essential \
+            pkg-config \
+            libopencv-dev \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev
+
+      - name: Verify OpenCV is the version gocv expects
+        run: |
+          installed_version="$(pkg-config --modversion opencv4)"
+          echo "OpenCV: ${installed_version}"
+          if [ "${installed_version}" != "${OPENCV_VERSION}" ]; then
+            echo "::error::Expected OpenCV ${OPENCV_VERSION} to match gocv v0.31.0, got ${installed_version}."
+            echo "gocv v0.31.0 does not compile against newer OpenCV: the aruco C++ API changed"
+            echo "and the build fails with \"expected primary-expression before 'bool'\"."
+            exit 1
+          fi
+
+      - name: Check formatting
+        run: |
+          # gofmt -l prints files needing formatting and exits 0 either way,
+          # so the output itself has to be the failure condition.
+          unformatted_files="$(gofmt -l .)"
+          if [ -n "${unformatted_files}" ]; then
+            echo "::error::These files are not gofmt-clean. Run 'make fmt'."
+            echo "${unformatted_files}"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      # Camera integration tests sit behind `-tags camera` and are excluded
+      # here by design: GitHub runners have no webcam. Verified locally that a
+      # plain `go test ./...` skips all three of them.
+      - name: Test
+        run: go test ./...
+
+      - name: Build CLI
+        run: |
+          mkdir -p build/bin
+          go build -o build/bin/motiond ./cmd/motiond
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+
+      - name: Build desktop app
+        run: |
+          # The Wails project files are landing in a separate change. Skip
+          # rather than fail so this workflow is useful before they arrive;
+          # the step starts exercising the desktop build automatically once
+          # wails.json is committed.
+          if [ ! -f wails.json ]; then
+            echo "::notice::wails.json not present yet, skipping the desktop build."
+            exit 0
+          fi
+          # -tags webkit2gtk_4_1 is mandatory on Ubuntu 24.04. Without it the
+          # build fails looking for webkit2gtk-4.0, which 24.04 removed. This
+          # matches `make build-desktop`.
+          wails build -tags webkit2gtk_4_1 -clean
+
+      # Runs after the build so it inspects real output, not an empty tree.
+      - name: Fail if a credential reached the build output
+        run: ./scripts/check-no-credentials.sh build/bin
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: motion-detector-linux-amd64
+          path: build/bin/
+          if-no-files-found: error
+          retention-days: 7
+
+  windows:
+    name: Windows (windows-2022)
+    # Pinned rather than windows-latest so the image cannot move to 2025 and
+    # change the MinGW toolchain underneath a cached OpenCV build.
+    runs-on: windows-2022
+    # UNVALIDATED. Nobody has built this project on Windows, by hand or in CI.
+    # This job is written from gocv's own upstream Windows workflow and is
+    # expected to need iteration on its first real run. It is a separate job
+    # from `linux` precisely so that its failure cannot mask or block a
+    # perfectly good Linux result. See docs/DEVELOPMENT.md.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Two caches, not one. A cold OpenCV build is over an hour; if the build
+      # fails, the download should still be reusable on the retry, which a
+      # single combined cache entry would not give.
+      - name: Cache OpenCV source
+        id: cache-opencv-source
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}\opencv\opencv-${{ env.OPENCV_VERSION }}
+            ${{ github.workspace }}\opencv\opencv_contrib-${{ env.OPENCV_VERSION }}
+          key: opencv-source-${{ env.OPENCV_VERSION }}-windows-v1
+
+      - name: Download OpenCV source
+        if: steps.cache-opencv-source.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $openCvRoot = "${env:GITHUB_WORKSPACE}\opencv"
+          New-Item -ItemType Directory -Force -Path $openCvRoot | Out-Null
+          # opencv_contrib is not optional: gocv links xfeatures2d, tracking,
+          # face, aruco, bgsegm, plot, img_hash, wechat_qrcode and ximgproc,
+          # all of which live in contrib.
+          foreach ($repository in @('opencv', 'opencv_contrib')) {
+            $archivePath = "$openCvRoot\$repository.zip"
+            Invoke-WebRequest -Uri "https://github.com/opencv/$repository/archive/${env:OPENCV_VERSION}.zip" -OutFile $archivePath
+            Expand-Archive -Path $archivePath -DestinationPath $openCvRoot -Force
+            Remove-Item $archivePath
+          }
+
+      - name: Cache OpenCV build
+        id: cache-opencv-build
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\opencv\build
+          # Bump the trailing version when the cmake flags below change,
+          # otherwise a stale build tree is restored and the flag edit is
+          # silently ignored.
+          key: opencv-build-${{ env.OPENCV_VERSION }}-windows-v1
+
+      - name: Build OpenCV with MinGW
+        if: steps.cache-opencv-build.outputs.cache-hit != 'true'
+        shell: cmd
+        # No MinGW install step: the runner image ships mingw-w64 and puts
+        # C:\mingw64\bin on PATH, which is how cmake finds mingw32-make and
+        # g++. gocv's own Windows workflow relies on the same thing.
+        #
+        # Flags follow gocv's win_build_opencv.cmd for this version, with
+        # NONFREE on and gapi off taken from its appveyor script: gocv links
+        # xfeatures2d (nonfree) and G-API is a known MinGW build failure.
+        # The script itself is not invoked because it hardcodes C:\opencv and
+        # ends with a chdir into a GOPATH layout this project does not use.
+        run: |
+          cmake "%GITHUB_WORKSPACE%\opencv\opencv-%OPENCV_VERSION%" ^
+            -G "MinGW Makefiles" ^
+            -B"%GITHUB_WORKSPACE%\opencv\build" ^
+            -DCMAKE_INSTALL_PREFIX="%GITHUB_WORKSPACE%\opencv\build\install" ^
+            -DOPENCV_EXTRA_MODULES_PATH="%GITHUB_WORKSPACE%\opencv\opencv_contrib-%OPENCV_VERSION%\modules" ^
+            -DENABLE_CXX11=ON ^
+            -DBUILD_SHARED_LIBS=ON ^
+            -DOPENCV_ENABLE_NONFREE=ON ^
+            -DBUILD_opencv_gapi=OFF ^
+            -DWITH_IPP=OFF ^
+            -DWITH_MSMF=OFF ^
+            -DWITH_OPENCL_D3D11_NV=OFF ^
+            -DBUILD_EXAMPLES=OFF ^
+            -DBUILD_TESTS=OFF ^
+            -DBUILD_PERF_TESTS=OFF ^
+            -DBUILD_DOCS=OFF ^
+            -DBUILD_opencv_java=OFF ^
+            -DBUILD_opencv_python=OFF ^
+            -DBUILD_opencv_python2=OFF ^
+            -DBUILD_opencv_python3=OFF ^
+            -DBUILD_opencv_saliency=OFF ^
+            -DBUILD_opencv_wechat_qrcode=ON ^
+            -DENABLE_PRECOMPILED_HEADERS=OFF ^
+            -DCPU_DISPATCH= ^
+            -DOPENCV_GENERATE_PKGCONFIG=ON ^
+            -DOPENCV_ALLOCATOR_STATS_COUNTER_TYPE=int64_t ^
+            -Wno-dev
+          if errorlevel 1 exit /b 1
+          cd "%GITHUB_WORKSPACE%\opencv\build"
+          mingw32-make -j%NUMBER_OF_PROCESSORS%
+          if errorlevel 1 exit /b 1
+          mingw32-make install
+
+      - name: Point cgo at the OpenCV install
+        shell: pwsh
+        # The `customenv` build tag tells gocv to ignore its baked-in cgo
+        # directives, which hardcode C:\opencv\build\install, and use these
+        # variables instead. The library list is gocv v0.31.0's own, with the
+        # 460 suffixes that tie it to OpenCV 4.6.0.
+        run: |
+          $installRoot = "${env:GITHUB_WORKSPACE}\opencv\build\install"
+          $openCvLibraries = @(
+            'core', 'face', 'videoio', 'imgproc', 'highgui', 'imgcodecs',
+            'objdetect', 'features2d', 'video', 'dnn', 'xfeatures2d', 'plot',
+            'tracking', 'img_hash', 'calib3d', 'bgsegm', 'photo', 'aruco',
+            'wechat_qrcode', 'ximgproc'
+          ) | ForEach-Object { "-lopencv_${_}460" }
+
+          "CGO_CXXFLAGS=--std=c++11 -DNDEBUG" >> $env:GITHUB_ENV
+          "CGO_CPPFLAGS=-I$installRoot\include" >> $env:GITHUB_ENV
+          "CGO_LDFLAGS=-L$installRoot\x64\mingw\lib $($openCvLibraries -join ' ')" >> $env:GITHUB_ENV
+          # The DLLs live beside the import libraries and are needed at run
+          # time, not just link time, or `go test` fails with exit status 3221225781.
+          "$installRoot\x64\mingw\bin" >> $env:GITHUB_PATH
+
+      - name: Vet
+        run: go vet -tags customenv ./...
+
+      - name: Test
+        run: go test -tags customenv ./...
+
+      - name: Build CLI
+        run: |
+          New-Item -ItemType Directory -Force -Path build\bin | Out-Null
+          go build -tags customenv -o build\bin\motiond.exe .\cmd\motiond
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
+
+      - name: Build desktop app
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'wails.json')) {
+            Write-Host '::notice::wails.json not present yet, skipping the desktop build.'
+            exit 0
+          }
+          # No webkit tag on Windows: it uses the system WebView2 runtime.
+          wails build -tags customenv -clean
+
+      - name: Fail if a credential reached the build output
+        shell: bash
+        run: ./scripts/check-no-credentials.sh build/bin
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: motion-detector-windows-amd64
+          path: build/bin/
+          if-no-files-found: error
+          retention-days: 7

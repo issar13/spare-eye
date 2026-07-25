@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AppStream metadata. Software centres and AppImage tooling read this to
+  describe the application; without it the app shows up as a bare name with no
+  summary. The component id must match the .desktop filename.
+-->
+<component type="desktop-application">
+  <id>motion-detector.desktop</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>Motion Detector</name>
+  <summary>Watch a camera for motion and send alerts to Telegram</summary>
+
+  <description>
+    <p>
+      Motion Detector watches a webcam for movement and sends a snapshot and a
+      short video clip to a Telegram chat when it sees any. Sensitivity,
+      recording length and a separate night-time profile are all configurable
+      from the application itself.
+    </p>
+    <p>
+      Recordings are kept locally and pruned on a retention schedule. Note that
+      alert footage is uploaded to Telegram's servers, so consider who might
+      appear in view of the camera.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">motion-detector.desktop</launchable>
+
+  <categories>
+    <category>Utility</category>
+    <category>Security</category>
+  </categories>
+
+  <provides>
+    <binary>motion-detector</binary>
+    <binary>motiond</binary>
+  </provides>
+
+  <content_rating type="oars-1.1"/>
+</component>
