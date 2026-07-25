@@ -59,6 +59,20 @@ export namespace app {
 		    return a;
 		}
 	}
+	export class LiveViewForm {
+	    previewFPS: number;
+	    previewQuality: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new LiveViewForm(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.previewFPS = source["previewFPS"];
+	        this.previewQuality = source["previewQuality"];
+	    }
+	}
 	export class Problem {
 	    headline: string;
 	    nextStep: string;
@@ -126,8 +140,6 @@ export namespace app {
 	    prebufferLeadSeconds: number;
 	    clipDurationSeconds: number;
 	    retentionDays: number;
-	    previewFPS: number;
-	    previewQuality: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new TuningForm(source);
@@ -143,8 +155,6 @@ export namespace app {
 	        this.prebufferLeadSeconds = source["prebufferLeadSeconds"];
 	        this.clipDurationSeconds = source["clipDurationSeconds"];
 	        this.retentionDays = source["retentionDays"];
-	        this.previewFPS = source["previewFPS"];
-	        this.previewQuality = source["previewQuality"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -184,6 +194,7 @@ export namespace app {
 	export class SettingsView {
 	    telegram: TelegramForm;
 	    tuning: TuningForm;
+	    liveView: LiveViewForm;
 	    cameraIndex: number;
 	    mediaDirectory: string;
 	
@@ -195,6 +206,7 @@ export namespace app {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.telegram = this.convertValues(source["telegram"], TelegramForm);
 	        this.tuning = this.convertValues(source["tuning"], TuningForm);
+	        this.liveView = this.convertValues(source["liveView"], LiveViewForm);
 	        this.cameraIndex = source["cameraIndex"];
 	        this.mediaDirectory = source["mediaDirectory"];
 	    }

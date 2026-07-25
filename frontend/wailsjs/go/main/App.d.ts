@@ -21,6 +21,8 @@ export function RecentEvents():Promise<Array<app.EventView>>;
 
 export function RescanCameras():Promise<Array<detector.Camera>>;
 
+export function SaveLiveView(arg1:app.LiveViewForm):Promise<app.ActionResult>;
+
 export function SaveTelegram(arg1:app.TelegramForm):Promise<app.ActionResult>;
 
 export function SaveTuning(arg1:app.TuningForm):Promise<app.ActionResult>;

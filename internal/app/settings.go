@@ -65,6 +65,7 @@ type StatusView struct {
 type SettingsView struct {
 	Telegram TelegramForm `json:"telegram"`
 	Tuning   TuningForm   `json:"tuning"`
+	LiveView LiveViewForm `json:"liveView"`
 
 	CameraIndex    int    `json:"cameraIndex"`
 	MediaDirectory string `json:"mediaDirectory"`
@@ -90,9 +91,12 @@ type TuningForm struct {
 	ClipDurationSeconds  float64 `json:"clipDurationSeconds"`
 
 	RetentionDays int `json:"retentionDays"`
+}
 
-	// PreviewFPS and PreviewQuality govern the live view only; neither touches
-	// what is written to disk.
+// LiveViewForm is the Live view screen's speed and sharpness. Both govern the
+// picture on screen only; neither touches what is written to disk, which is why
+// they belong to their own form and their own save.
+type LiveViewForm struct {
 	PreviewFPS     int `json:"previewFPS"`
 	PreviewQuality int `json:"previewQuality"`
 }
@@ -121,8 +125,10 @@ func settingsView(settings config.Config) SettingsView {
 			PrebufferLeadSeconds: settings.Detection.PrebufferLead.AsDuration().Seconds(),
 			ClipDurationSeconds:  settings.Detection.ClipDuration.AsDuration().Seconds(),
 			RetentionDays:        settings.Storage.RetentionDays,
-			PreviewFPS:           settings.Detection.PreviewFPS,
-			PreviewQuality:       settings.Detection.PreviewQuality,
+		},
+		LiveView: LiveViewForm{
+			PreviewFPS:     settings.Detection.PreviewFPS,
+			PreviewQuality: settings.Detection.PreviewQuality,
 		},
 		CameraIndex:    settings.Detection.CameraIndex,
 		MediaDirectory: settings.Storage.MediaDirectory,
@@ -229,8 +235,6 @@ func (s *Service) SaveTuning(form TuningForm) ActionResult {
 	updated.Detection.PrebufferLead = seconds(form.PrebufferLeadSeconds)
 	updated.Detection.ClipDuration = seconds(form.ClipDurationSeconds)
 	updated.Storage.RetentionDays = form.RetentionDays
-	updated.Detection.PreviewFPS = form.PreviewFPS
-	updated.Detection.PreviewQuality = form.PreviewQuality
 	s.mutex.Unlock()
 
 	if s.persist(updated) != nil {
@@ -249,6 +253,34 @@ func (s *Service) SaveTuning(form TuningForm) ActionResult {
 	}
 
 	return succeeded("Settings saved")
+}
+
+// SaveLiveView stores the live-view speed and sharpness and hands them straight
+// to a running detector. Nothing about the picture on screen depends on how the
+// camera was opened, so this applies without interrupting the watch.
+func (s *Service) SaveLiveView(form LiveViewForm) ActionResult {
+	if problem := validateLiveView(form); problem != nil {
+		return problem.asResult()
+	}
+
+	s.mutex.Lock()
+	updated := s.settings
+	updated.Detection.PreviewFPS = form.PreviewFPS
+	updated.Detection.PreviewQuality = form.PreviewQuality
+	session := s.session
+	s.mutex.Unlock()
+
+	if s.persist(updated) != nil {
+		return couldNotSave()
+	}
+
+	if session != nil {
+		session.engine.SetPreview(form.PreviewFPS, form.PreviewQuality)
+	}
+
+	s.log.Info("live view saved", "previewFPS", form.PreviewFPS, "previewQuality", form.PreviewQuality)
+
+	return succeeded("Live view updated")
 }
 
 // validateTuning rejects values that would make the detector behave absurdly.
@@ -292,6 +324,11 @@ func validateTuning(form TuningForm) *Problem {
 			NextStep: "Set how long to keep recordings to 0 or more days. 0 keeps them forever.",
 		}
 	}
+
+	return nil
+}
+
+func validateLiveView(form LiveViewForm) *Problem {
 	if form.PreviewFPS < config.MinPreviewFPS || form.PreviewFPS > config.MaxPreviewFPS {
 		return &Problem{
 			Headline: "That live-view speed is out of range",

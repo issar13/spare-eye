@@ -5,7 +5,7 @@ import type {app} from '../wailsjs/go/models';
 import {loadDetectionForm, registerDetectionHandlers} from './detection';
 import {requireElement} from './elements';
 import {refreshActivity, registerHomeHandlers, updateHome} from './home';
-import {startPreview, stopPreview, updatePreview} from './preview';
+import {loadLiveViewForm, registerLiveViewHandlers, startPreview, stopPreview, updatePreview} from './preview';
 import {refreshRecordings, registerRecordingHandlers} from './recordings';
 import {activateSetup, loadSetup, registerSetupHandlers, updateSetupProgress} from './setup';
 
@@ -34,6 +34,7 @@ const showPanel = (name: PanelName): void => {
 
     if (name === 'preview') {
         startPreview();
+        void loadLiveViewForm();
     } else {
         stopPreview();
     }
@@ -85,6 +86,7 @@ const start = async (): Promise<void> => {
     registerHomeHandlers(() => void pollStatus());
     registerSetupHandlers(() => void pollStatus(), () => showPanel('home'));
     registerDetectionHandlers(() => void pollStatus());
+    registerLiveViewHandlers();
     registerRecordingHandlers();
 
     await loadSetup();

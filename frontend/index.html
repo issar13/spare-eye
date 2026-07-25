@@ -60,6 +60,34 @@
             <div class="banner" hidden id="preview-idle"></div>
             <div class="viewport"><img alt="Live view from your camera" id="preview-image"/></div>
             <p class="hint" id="preview-caption"></p>
+
+            <div class="banner" hidden id="live-view-message"></div>
+
+            <form id="live-view-form">
+                <fieldset>
+                    <legend>How the picture is drawn</legend>
+                    <div class="segmented" id="live-view-quality"></div>
+                    <p class="hint">This changes only the picture on this screen, and how hard the
+                        machine works to draw it. Saved recordings are always full quality.</p>
+                </fieldset>
+
+                <details>
+                    <summary>Advanced numbers</summary>
+                    <p class="hint">These are the values behind the choices above. Picking one of those
+                        will overwrite them.</p>
+
+                    <label>Picture updates per second, 1–60
+                        <input max="60" min="1" name="previewFPS" step="1" type="number"/>
+                    </label>
+                    <label>Picture quality, 30–95
+                        <input max="95" min="30" name="previewQuality" step="1" type="number"/>
+                    </label>
+                </details>
+
+                <div class="row">
+                    <button class="primary" type="submit">Save live view</button>
+                </div>
+            </form>
         </section>
 
         <section class="panel" hidden id="panel-recordings">
@@ -155,13 +183,6 @@
                         each time the app starts.</p>
                 </fieldset>
 
-                <fieldset>
-                    <legend>Live view</legend>
-                    <div class="segmented" id="live-view-quality"></div>
-                    <p class="hint">This changes only the picture on the Live view screen, and how hard
-                        the machine works to draw it. Saved recordings are always full quality.</p>
-                </fieldset>
-
                 <details>
                     <summary>Advanced numbers</summary>
                     <p class="hint">These are the values behind the sensitivity choices above. Picking a
@@ -194,16 +215,6 @@
                             </label>
                         </fieldset>
                     </div>
-
-                    <fieldset>
-                        <legend>Live view</legend>
-                        <label>Picture updates per second, 1–60
-                            <input max="60" min="1" name="previewFPS" step="1" type="number"/>
-                        </label>
-                        <label>Picture quality, 30–95
-                            <input max="95" min="30" name="previewQuality" step="1" type="number"/>
-                        </label>
-                    </fieldset>
                 </details>
 
                 <div class="row">

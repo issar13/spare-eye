@@ -42,6 +42,9 @@ export const tuningSchema = z.object({
     retentionDays: z.coerce.number().int().nonnegative(
         'The number of days to keep recordings cannot be negative. Use 0 to keep them forever.',
     ),
+});
+
+export const liveViewSchema = z.object({
     previewFPS: z.coerce.number().int()
         .min(1, 'Under Advanced, the live view has to update between 1 and 60 times a second.')
         .max(60, 'Under Advanced, the live view has to update between 1 and 60 times a second.'),

@@ -38,6 +38,10 @@ export function RescanCameras() {
   return window['go']['main']['App']['RescanCameras']();
 }
 
+export function SaveLiveView(arg1) {
+  return window['go']['main']['App']['SaveLiveView'](arg1);
+}
+
 export function SaveTelegram(arg1) {
   return window['go']['main']['App']['SaveTelegram'](arg1);
 }
