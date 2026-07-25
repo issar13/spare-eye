@@ -2,14 +2,17 @@
 
 Turn a spare laptop into a home security camera.
 
-Leave a laptop at home, arm it, and it watches the room through the built-in
-webcam. When something moves it saves a snapshot, records a clip if the movement
-continues, and sends both to your phone on Telegram. You can message it back to
-start a recording on demand or pull up an earlier clip.
+Leave a laptop at home, arm it, and it watches the room. When something moves it
+saves a snapshot, records a clip if the movement continues, and sends both to
+your phone on Telegram. You can message it back to start a recording on demand
+or pull up an earlier clip.
+
+It works with any camera your machine can see: the built-in webcam, a USB camera
+you plugged in, or a better camera you already own. You pick which one on the
+Setup screen.
 
 No cameras to buy, no subscription, no cloud account. It runs on hardware most
-people already have sitting in a drawer, which is the point: home monitoring
-that costs nothing beyond a laptop you were not using.
+people already have in a drawer, which is the point.
 
 Detection sensitivity switches between a day profile and a night profile on a
 schedule you set, because a room at 19:00 and the same room at noon do not need
@@ -17,105 +20,101 @@ the same thresholds.
 
 ## Status
 
-The detection engine is finished and tested — clips, snapshots, Telegram
-alerts, remote commands, and camera enumeration all work and have been verified
-on Linux.
+The detection engine is finished and tested. Clips, snapshots, Telegram alerts,
+remote commands, and camera enumeration all work and are verified on Linux.
 
-The desktop app is built and published for both Windows and Linux by CI. Its
-screens cover Telegram setup, arming and disarming, the live view and its
-speed and quality, both sensitivity profiles, the day/night schedule, how long
-recordings are kept, and a browser for saved clips and snapshots. Every one of
-those is a real control, so editing `config.json` by hand is a fallback rather
-than the way in — `storage.mediaDirectory` is the only setting the UI shows
-without letting you change it.
+CI builds and publishes the desktop app for Windows and Linux. Its screens cover
+Telegram setup, arming and disarming, the live view and its speed and quality,
+both sensitivity profiles, the day/night schedule, retention, and a browser for
+saved clips and snapshots. Every one is a real control, so editing `config.json`
+by hand is a fallback rather than the way in. `storage.mediaDirectory` is the
+only setting the UI shows without letting you change it.
 
-One caveat, stated plainly: **the Windows desktop app currently starts and then
-exits immediately.** The Linux desktop app runs correctly. The Windows failure
-is an open bug under active investigation; until it is fixed, Windows users
-should run the headless command-line tool described below, which works on both
-platforms.
+**Known issue on Windows:** the desktop app has been observed starting and then
+exiting immediately while enumerating cameras. Camera enumeration now runs in a
+separate process so that a misbehaving camera driver cannot take the app down
+with it, which should remove that failure. This has not yet been confirmed on
+the affected machine. The Linux desktop app runs correctly. If Windows still
+exits on you, the headless command-line tool below is unaffected.
 
-Telegram is the only alerting channel. See
-[Why only Telegram](#why-only-telegram).
+Telegram is the only alerting channel. See [Why only Telegram](#why-only-telegram).
 
-## Privacy — read this first
+## Privacy, read this first
 
-This app records video of whatever the camera can see, and it uploads those
-clips and snapshots to Telegram's servers as part of delivering them to you.
-Footage leaves your machine.
+This app records video of whatever the camera can see, and it uploads clips and
+snapshots to Telegram's servers to deliver them to you. Footage leaves your
+machine.
 
-If you point the camera at a space that other people use — a shared flat, an
-office, a room with guests in it — those people are being recorded and their
-footage is being uploaded, and they have not agreed to either. Depending on
-where you live, recording other people without telling them may be illegal
-regardless of whose camera it is or whose home it is in.
-
-Two consequences worth stating plainly:
+If you point the camera at a space other people use, a shared flat or an office
+or a room with guests in it, those people are being recorded and their footage
+is being uploaded, and they have not agreed to either. Depending on where you
+live, recording other people without telling them may be illegal regardless of
+whose camera or whose home it is.
 
 - Anyone who obtains your bot token can receive your footage and command your
   camera. Treat it like a password. See
   [docs/SETUP-TELEGRAM.md](docs/SETUP-TELEGRAM.md).
-- Clips are kept on local disk as well, for 30 days by default. Anyone with
-  access to your user account can watch them.
+- Clips are also kept on local disk, for 30 days by default. Anyone with access
+  to your user account can watch them.
 
 ## Requirements
 
 | | |
 |---|---|
 | Platforms | Windows and Linux |
-| Go | Whatever `go.mod` pins — that file is the single source of truth |
+| Go | Whatever `go.mod` pins, which is the single source of truth |
 | OpenCV | 4.6.0, to match gocv v0.31.0 |
-| Camera | A webcam that is not already in use by another program |
-| Telegram | Your own bot — one per installation |
+| Camera | One that is not already in use by another program |
+| Telegram | Your own bot, one per installation |
 
-macOS is deliberately not supported. Distributing a macOS build that will open
-at all requires paid Apple Developer enrollment, so it is deferred rather than
-half-done.
+macOS is not supported. Shipping a macOS build that will open at all requires
+paid Apple Developer enrollment, so it is deferred rather than half-done.
 
-Windows and Linux binaries ship **unsigned**. On Windows, SmartScreen will warn
-you that the publisher is unknown and you will have to choose to run it anyway.
-That is expected; code-signing certificates are an ongoing cost the project has
-not taken on.
+Binaries ship **unsigned**. On Windows, SmartScreen will warn that the publisher
+is unknown and you will have to choose to run it anyway. Code-signing
+certificates are an ongoing cost the project has not taken on.
 
 ## Getting started
 
 ### 1. Create your own Telegram bot
 
-There is no shared bot and no bot token baked into the binary. Every
-installation talks to a bot you create, so your footage only ever reaches your
-own chat.
+There is no shared bot and no token baked into the binary. Every installation
+talks to a bot you create, so your footage only reaches your own chat.
 
-Follow [docs/SETUP-TELEGRAM.md](docs/SETUP-TELEGRAM.md). It walks through
-creating the bot with @BotFather, copying the token, and finding your chat ID.
-It takes about five minutes and needs no technical background.
+Follow [docs/SETUP-TELEGRAM.md](docs/SETUP-TELEGRAM.md), which covers creating
+the bot with @BotFather, copying the token, and finding your chat ID. It takes
+about five minutes and needs no technical background.
 
-### 2. Find your camera
+### 2. Pick your camera
+
+In the desktop app this is the Setup screen: it lists the cameras it found and
+you choose one. The app does not pick for you, because the right camera is not
+something it can guess.
+
+From a terminal:
 
 ```
 go run ./cmd/kaa-rada-cli -list-cameras
 ```
 
-This prints only the devices that both open *and* hand over a real frame:
+This prints only devices that both open *and* hand over a real frame:
 
 ```
 Usable cameras (1):
-  index 1 — 640x480
+  index 1 = 640x480
 ```
 
 Do not assume index 0. A virtual camera driver such as Iriun or OBS registers a
 device that opens successfully and then delivers nothing, and it commonly takes
-index 0, pushing the real webcam to a higher index.
+index 0, pushing the real webcam higher.
 
 ### 3. Run it
 
-On Linux, launch the desktop app, paste the token and chat ID into the Setup
-screen, press Test to confirm they work, pick your camera, and arm it. Nothing
-else needs a terminal.
+Launch the desktop app, paste the token and chat ID into Setup, press Test to
+confirm they work, choose your camera, and arm it. Nothing else needs a
+terminal.
 
-On Windows, use the command-line tool below until the desktop build's
-immediate-exit bug is fixed.
-
-With credentials in the environment:
+With credentials in the environment instead:
 
 ```
 export TELEGRAM_BOT_TOKEN=...
@@ -123,28 +122,25 @@ export TELEGRAM_CHAT_ID=...
 go run ./cmd/kaa-rada-cli -camera 1
 ```
 
-On start it prints the media directory and camera index, prunes recordings past
-their retention age, verifies the Telegram credentials, and then watches. Press
-Ctrl+C to stop; a clip in progress is finished and closed properly before exit.
+On start it prints the media directory and camera, prunes recordings past their
+retention age, verifies the Telegram credentials, then watches. Ctrl+C stops it;
+a clip in progress is finished and closed properly first.
 
 ## The headless command-line tool
 
-`cmd/kaa-rada-cli` is the detector without a window. It exists so the engine can be
-run on a machine with no display, such as a laptop with the lid shut or a box
-reached over SSH, and it is currently the way to run the app on Windows while
-the desktop build's immediate-exit bug is open.
+`cmd/kaa-rada-cli` is the detector without a window, for a machine with no
+display: a laptop with the lid shut, or a box reached over SSH.
 
 | Flag | Meaning |
 |---|---|
 | `-list-cameras` | Print every usable camera with its resolution, then exit |
-| `-camera N` | Use device index `N`. Default is `-1`, which picks the first usable device |
+| `-camera N` | Use device index `N`. Default `-1` picks the first usable device |
 | `-no-telegram` | Run detection and write files, but send nothing |
 
 Credentials come from `config.json` first. When that file has no token or chat
 ID, `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are read from the environment
-instead — see [.env.example](.env.example). If neither supplies credentials,
-the detector still runs and still writes snapshots and clips to disk; it just
-does not send them.
+instead, see [.env.example](.env.example). If neither supplies credentials the
+detector still runs and still writes snapshots and clips; it just sends nothing.
 
 Convenience targets in the `Makefile`:
 
@@ -158,9 +154,8 @@ make help         # every target
 
 ## Telegram commands
 
-Message your bot to control the detector while it is running. Only messages
-from the chat ID you configured are acted on; anything from another chat is
-discarded.
+Message your bot to control the detector while it runs. Only messages from the
+chat ID you configured are acted on; anything else is discarded.
 
 | Command | Effect |
 |---|---|
@@ -168,13 +163,12 @@ discarded.
 | `/stop` | End the manual recording |
 | `/get` | List saved clips, newest first, numbered |
 
-The leading slash is optional — `record`, `stop`, and `get` work identically,
-and `list` is accepted as a synonym for `get`. Commands are case-insensitive
-and surrounding whitespace is ignored.
+The leading slash is optional. `record`, `stop`, and `get` work identically,
+`list` is a synonym for `get`, commands are case-insensitive, and surrounding
+whitespace is ignored.
 
 `/get` replies with a numbered list showing each clip's name, timestamp, and
-size in megabytes, newest first. **Reply with just the number** to have that
-clip sent to you:
+size, newest first. **Reply with just the number** to have that clip sent:
 
 ```
 📹 Recordings, newest first:
@@ -204,166 +198,73 @@ Settings and media live in a per-user directory, not next to the binary:
 | Clips | `~/.config/kaa-rada/media/videos/` | `%AppData%\kaa-rada\media\videos\` |
 | Log | `~/.config/kaa-rada/kaa-rada.log` | `%AppData%\kaa-rada\kaa-rada.log` |
 
-The exact base directory is whatever the operating system reports as the user
+The base directory is whatever the operating system reports as the user
 configuration directory.
 
-The reason for this, rather than a folder beside the executable: an app
-installed into `C:\Program Files` cannot write to its own directory without
-administrator rights. Anything that tried would fail on a normal user account,
-and it would also mean two users on one machine sharing one person's
-credentials and footage.
+The reason for this rather than a folder beside the executable: an app installed
+into `C:\Program Files` cannot write to its own directory without administrator
+rights, so anything that tried would fail on a normal account. It would also
+mean two users on one machine sharing one person's credentials and footage.
 
 `config.json` is written with owner-only permissions, because it holds your bot
 token. Saves go to a temporary file and are then renamed, so an interrupted
 write cannot leave you with a truncated config and no credentials.
 
-Snapshots are named `motion_YYYY-MM-DD_HH-MM-SS.jpg`. Clips are
-`motion_...mp4` when triggered by movement and `manual_...mp4` when you asked
-for them, which is how the listing tells them apart.
+Snapshots are named `motion_YYYY-MM-DD_HH-MM-SS.jpg`. Clips are `motion_...mp4`
+when triggered by movement and `manual_...mp4` when you asked for them, which is
+how the listing tells them apart.
 
 ## Configuration
 
-Settings live in `config.json` in the directory above. Almost all of them are
-editable from the desktop app's settings screens, and the tables below are the
-reference for what each one means and for editing the file directly — on a
-headless machine, or on Windows while the desktop build is unusable. Durations
-are written as readable strings — `"15s"`, `"5m0s"` — so the file stays sensible
-to edit by hand. Any field you leave out keeps its default, so an older
-`config.json` remains loadable after an upgrade.
+Settings live in `config.json` in the directory above, and almost all of them are
+editable from the desktop app, so you should rarely need to open the file.
 
-### Telegram
+The ones people actually change:
 
 | Field | Default | Meaning |
 |---|---|---|
-| `telegram.botToken` | empty | Your bot's token from @BotFather |
-| `telegram.chatID` | empty | The only chat that receives alerts and may send commands |
-| `telegram.enabled` | `true` | Turn alerting off without deleting your credentials |
-
-### Detection
-
-| Field | Default | Meaning |
-|---|---|---|
-| `detection.cameraIndex` | `0` | Device index to capture from. Confirm yours with `-list-cameras` before trusting the default |
-| `detection.nightStartMinutes` | `1140` (19:00) | Start of the night profile, minutes since midnight |
-| `detection.nightEndMinutes` | `360` (06:00) | End of the night profile, minutes since midnight |
-| `detection.motionPersist` | `"5s"` | How long movement must continue before a clip is started |
-| `detection.prebufferLead` | `"3s"` | How much footage from *before* the trigger is prepended to a clip |
-| `detection.clipDuration` | `"15s"` | Length of an automatic clip. Manual clips ignore this and run until `/stop` |
-| `detection.previewFPS` | `12` | How many times a second the live view on screen is refreshed, 1 to 60. A ceiling, not a rate: a camera delivering fewer frames than this is shown at its own speed |
-| `detection.previewQuality` | `80` | Picture quality of the live view on screen, 30 to 95. Lower is blurrier and reaches the window sooner |
-
-Both preview fields change only what you see on screen while the app is open.
-Snapshots and clips written to disk, and anything sent to Telegram, are always
-encoded at full quality regardless of what these are set to. Lowering them is
-how you buy back CPU on a slow machine without making detection less sensitive.
-
-The desktop app edits these two on the **Live view** screen, under the picture
-they affect, rather than with the motion settings. Saving them applies at once:
-the camera keeps running and a clip in progress is not interrupted.
-
-### Sensitivity profiles
-
-`detection.day` and `detection.night` hold the same four fields, applied
-depending on the time of day.
-
-| Field | Day default | Night default | Meaning |
-|---|---|---|---|
-| `minimumContourArea` | `8000` | `9000` | Pixel area a moving region must exceed to count. Raise it to ignore smaller movement |
-| `thresholdValue` | `30` | `30` | Per-pixel brightness change treated as movement. Raise it to ignore gradual light changes |
-| `sampleInterval` | `"1s"` | `"1s"` | Gap between frames examined for motion while idle |
-| `alertCooldown` | `"5m0s"` | `"5m0s"` | Minimum gap between snapshot alerts, so one long event does not produce a stream of messages |
-
-Night is slightly less sensitive by default: a dim, noisy image produces more
-spurious pixel change, so a larger region is required before it counts.
-
-### Why the night window is in minutes
-
-The boundaries are minutes since midnight rather than whole hours, so a schedule
-that turns over at `21:30` or `06:30` is expressible instead of being rounded to
-something you did not mean. Multiply hours by 60 and add the minutes: `1140` is
-`19 × 60`, `360` is `6 × 60`. A window that wraps past midnight is handled
-correctly, and setting start equal to end disables the night profile entirely.
-
-### Storage
-
-| Field | Default | Meaning |
-|---|---|---|
-| `storage.mediaDirectory` | per-user media directory | Where snapshots and clips are written |
+| `detection.cameraIndex` | `0` | Which camera to capture from. Confirm yours with `-list-cameras` before trusting the default |
 | `storage.retentionDays` | `30` | Recordings older than this are deleted at startup. `0` keeps everything, which will eventually fill the disk |
+| `startup.launchAtLogin` | `false` | Open the app when you log in |
+| `startup.watchOnLaunch` | `false` | Begin watching as soon as the app opens |
 
-Clips are written at the frame rate measured from the camera on startup, not at
-a configured one. A guessed rate is what makes recordings play back too fast or
-too slow, so the rate is not exposed as a setting.
+`launchAtLogin` and `watchOnLaunch` are independent: the first opens the app and
+leaves the camera off until you press Start watching, the second starts watching
+whenever the app opens. Set the login switch on the **Setup** screen rather than
+in the file, because the file only records the preference while the screen makes
+the actual registration with your operating system.
 
-### Startup
-
-| Field | Default | Meaning |
-|---|---|---|
-| `startup.launchAtLogin` | `false` | Register the app with your operating system so it opens when you log in |
-| `startup.watchOnLaunch` | `false` | Begin watching as soon as the app opens, however it was opened |
-
-The two are deliberately independent. Turning on `launchAtLogin` alone opens the
-app and leaves the camera off until you press Start watching; turning on
-`watchOnLaunch` alone starts watching whenever you open the app yourself. Both
-are off on a fresh install, and on an existing `config.json` that predates them.
-
-Editing `startup.launchAtLogin` in the file by hand only records the preference —
-the registration itself is made when you save the switch in the app, on the
-**Setup** screen. If the two ever disagree, because security software removed
-the registration or because the app was moved after it was made, the Setup
-screen shows what your computer will really do and offers to put it back.
-
-When your computer opens the app at login it passes `--started-at-login`, and
-the window starts minimised so a login is not interrupted by it. Opening the app
-yourself gives you a normal window.
-
-The registration is per-user, needs no administrator rights, and can be removed
-by hand:
-
-| Platform | Where it lives |
-|---|---|
-| Windows | The `KaaRada` value under `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`, editable with `regedit` or from Task Manager's Startup apps tab |
-| Linux | `~/.config/autostart/kaa-rada.desktop`, or `$XDG_CONFIG_HOME/autostart/` if you have moved it. Delete the file, or use your desktop's own startup-applications screen |
-| macOS | Not supported yet — the switch reports that rather than pretending to work |
-
-The headless CLI ignores both settings: running it is already a request to
-watch, and starting it at login is a job for systemd or your shell profile.
+Full reference for every field, including both sensitivity profiles and the
+day/night schedule: [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
 ## Troubleshooting
 
-**The Windows desktop app opens and closes immediately**
-
-This is a known bug, not something wrong with your machine, and it is being
-investigated. There is no workaround inside the app; run
-`kaa-rada-cli` instead, which is unaffected. The Linux desktop app does not have
-this problem.
-
 **"no usable camera found", or a second launch fails**
 
-Only one process can hold a camera. If the detector is already running — or a
-previous run has not fully exited, or a video-conferencing app has the webcam —
-a second instance cannot open the device and fails with a backend error that
-does not say so. Close the other user of the camera first.
+Only one process can hold a camera. If the detector is already running, or a
+previous run has not fully exited, or a video call has the webcam, a second
+instance cannot open the device and fails with a backend error that does not say
+so. Close the other user of the camera first.
 
 **A camera is listed but the detector sees nothing, or index 0 does nothing**
 
 Index 0 is frequently a virtual camera (Iriun, OBS) that opens successfully and
 then delivers no frames. Run `go run ./cmd/kaa-rada-cli -list-cameras`, which
-requires each device to hand over a real frame before reporting it, and pass
-the index it gives you with `-camera N`.
+requires each device to hand over a real frame before reporting it, and pass the
+index it gives you with `-camera N`.
 
 **The bot token is rejected even though it looks correct**
 
-A `.env` file written on Windows ends each line with a carriage return, which is
-invisible in an editor but becomes part of the value and makes the request URL
-invalid. Credentials are trimmed on the way in, so this case is handled — but if
-you are pasting a token anywhere else, watch for trailing whitespace.
+A `.env` file written on Windows ends each line with a carriage return, invisible
+in an editor but part of the value, which makes the request URL invalid.
+Credentials are trimmed on the way in, so this case is handled, but watch for
+trailing whitespace when pasting a token anywhere else.
 
 **The window opens and closes again immediately, or never appears**
 
-Open `%AppData%\kaa-rada\kaa-rada.log` — the same path the app shows on its
+Open `%AppData%\kaa-rada\kaa-rada.log`, the same path the app shows on its
 diagnostics screen. The log is opened before any other startup work and written
-straight to disk, so the last record in it is the stage that failed:
+straight to disk, so its last record is the stage that failed:
 
 | Last record | What it means |
 |---|---|
@@ -371,25 +272,25 @@ straight to disk, so the last record in it is the stage that failed:
 | `startup: loading settings` | `config.json` is unreadable, or `storage.mediaDirectory` names a drive or share that no longer exists |
 | `startup: opening the window` | the webview failed to start; install the Microsoft Edge WebView2 runtime |
 | `startup: window opened` | the window appeared, then something failed while it was being prepared |
-| `probing capture devices` | a camera driver crashed the process while its devices were being enumerated. Unplug or disable the camera named in Device Manager, or set `detection.cameraIndex` by hand |
+| `probing capture devices` | a camera driver misbehaved during enumeration. Enumeration runs in a separate process, so this should no longer end the app; if it does, disable the camera named in Device Manager or set `detection.cameraIndex` by hand |
 | `panic` | a bug. The record carries the stack; please attach it to an issue |
 
-A failure that Go can report at all now also raises a message box naming this
-file, so an empty log means the process died before it could write one.
+Any failure Go can report also raises a message box naming this file, so an empty
+log means the process died before it could write one.
 
 **A wall of OpenCV warnings on Linux**
 
-Lines like `can't open camera by index` from `cap_v4l.cpp` are harmless. They
-are OpenCV reporting each device index that is not a capture device while
-enumerating. Linux asks for the V4L2 backend directly, which already avoids a
-much longer page of GStreamer pipeline warnings.
+Lines like `can't open camera by index` from `cap_v4l.cpp` are harmless. They are
+OpenCV reporting each index that is not a capture device while enumerating. Linux
+asks for the V4L2 backend directly, which already avoids a much longer page of
+GStreamer pipeline warnings.
 
 **A clip reports dropped frames**
 
 A finished clip may note that frames were dropped because the encoder could not
-keep up. Frames are dropped deliberately rather than allowed to accumulate, so
-that a slow disk cannot stall capture or grow memory without limit. Persistent
-dropping means the machine cannot encode at the camera's rate.
+keep up. Frames are dropped deliberately rather than allowed to accumulate, so a
+slow disk cannot stall capture or grow memory without limit. Persistent dropping
+means the machine cannot encode at the camera's rate.
 
 ## Building from source
 
@@ -401,23 +302,20 @@ For how the code is organised and why, see
 
 ## Why only Telegram
 
-Telegram is the only supported channel, and WhatsApp is deferred on purpose.
-
 WhatsApp's official Cloud API cannot do what this app needs without
-infrastructure a local desktop app does not have. Sending an unprompted message
-— which is exactly what a motion alert is — requires a Meta Business account
-and message templates approved in advance, so an alert cannot simply be composed
-and sent. Receiving commands requires a publicly reachable HTTPS webhook, which
-a program running on someone's home PC does not have and should not need.
+infrastructure a local desktop app does not have. Sending an unprompted message,
+which is exactly what a motion alert is, requires a Meta Business account and
+message templates approved in advance, so an alert cannot simply be composed and
+sent. Receiving commands requires a publicly reachable HTTPS webhook, which a
+program on someone's home PC does not have and should not need.
 
-The unofficial route works around both by driving WhatsApp's own protocol, but
-it carries a terms-of-service and account-ban risk that belongs in front of a
-user as an explicit choice, not shipped quietly in a release.
+The unofficial route works around both by driving WhatsApp's own protocol, but it
+carries a terms-of-service and account-ban risk that belongs in front of a user
+as an explicit choice, not shipped quietly in a release.
 
 The `notify.Notifier` interface exists so another provider can be added without
 touching the detector. See
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#adding-a-notifier) for what that
-involves.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#adding-a-notifier).
 
 ## License
 
