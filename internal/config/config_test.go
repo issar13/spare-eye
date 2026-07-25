@@ -446,6 +446,58 @@ func TestStartupIsOffUntilItIsAskedFor(t *testing.T) {
 	}
 }
 
+// TestAnUpgradeKeepsTheCameraItWasAlreadyUsing covers the migration signal.
+// A file with no cameraChosen key was written before anybody was asked, and the
+// index in it is the one that installation has been watching with, so sending it
+// back to the Setup screen would undo a working setup.
+func TestAnUpgradeKeepsTheCameraItWasAlreadyUsing(t *testing.T) {
+	temporaryHome := isolateConfigDirectory(t)
+	path := filepath.Join(temporaryHome, applicationDirectoryName, configFileName)
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatalf("creating %s: %v", filepath.Dir(path), err)
+	}
+
+	olderConfig := []byte(`{"telegram":{"enabled":true},"detection":{"cameraIndex":1}}`)
+	if err := os.WriteFile(path, olderConfig, 0o600); err != nil {
+		t.Fatalf("writing the older config: %v", err)
+	}
+
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load() returned %v", err)
+	}
+	if !loaded.Detection.CameraChosen || loaded.Detection.CameraIndex != 1 {
+		t.Errorf("an upgraded config loaded as %+v, want camera 1 already chosen", loaded.Detection)
+	}
+	if loaded.Detection.CameraURL != "" {
+		t.Errorf("an upgraded config gained a stream address: %q", loaded.Detection.CameraURL)
+	}
+}
+
+// TestAFreshInstallHasNotChosenACamera is the other side of that signal: a file
+// this build wrote says so explicitly, and its answer has to survive a reload
+// even when it is "not yet".
+func TestAFreshInstallHasNotChosenACamera(t *testing.T) {
+	isolateConfigDirectory(t)
+
+	if Default().Detection.CameraChosen {
+		t.Error("a fresh install claims a camera was chosen")
+	}
+
+	if err := Save(Default()); err != nil {
+		t.Fatalf("Save() returned %v", err)
+	}
+
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load() returned %v", err)
+	}
+	if loaded.Detection.CameraChosen {
+		t.Error("reloading a config that says no camera was chosen decided one had been")
+	}
+}
+
 // TestSaveLeavesNoTemporaryFileBehind covers the atomic write. Save writes a
 // .tmp and renames it so an interrupted save cannot leave a truncated
 // config.json with no credentials in it; a surviving .tmp means the rename step

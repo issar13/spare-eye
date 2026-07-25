@@ -31,6 +31,8 @@ export function SaveTuning(arg1:app.TuningForm):Promise<app.ActionResult>;
 
 export function SelectCamera(arg1:number):Promise<app.ActionResult>;
 
+export function SelectCameraURL(arg1:string):Promise<app.ActionResult>;
+
 export function SendRecording(arg1:string):Promise<app.ActionResult>;
 
 export function Settings():Promise<app.SettingsView>;
@@ -42,5 +44,7 @@ export function StartManualRecording():Promise<app.ActionResult>;
 export function Status():Promise<app.StatusView>;
 
 export function StopManualRecording():Promise<app.ActionResult>;
+
+export function TestCameraURL(arg1:string):Promise<app.ActionResult>;
 
 export function TestTelegram(arg1:app.TelegramForm):Promise<app.ActionResult>;

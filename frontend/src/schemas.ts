@@ -64,4 +64,27 @@ export const telegramSchema = z.object({
     enabled: z.boolean(),
 });
 
+// A network camera's address goes straight to a capture backend, so the shape
+// of it is checked before anything is asked to open it. The Go service checks
+// the same four schemes again; this one only saves the round trip.
+const openableSchemes = ['rtsp:', 'rtsps:', 'http:', 'https:'];
+
+const openableAddress = (address: string): boolean => {
+    try {
+        return openableSchemes.includes(new URL(address).protocol);
+    } catch {
+        return false;
+    }
+};
+
+export const cameraStreamSchema = z.object({
+    cameraURL: z.string().trim()
+        .min(1, 'Type the address of your network camera first.')
+        .refine(
+            openableAddress,
+            'That address will not work. It has to start with rtsp://, rtsps://, http:// or https:// and ' +
+            'then name the camera, as in rtsp://192.168.1.50:554/stream.',
+        ),
+});
+
 export const describeIssue = (error: z.ZodError): string => error.issues[0].message;

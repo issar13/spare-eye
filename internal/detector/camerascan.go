@@ -24,6 +24,15 @@ import (
 // another copy of itself.
 const CameraScanFlag = "--scan-cameras"
 
+// CameraTestFlag puts this executable into single-source mode, carrying the
+// network address to open, as in --test-camera=rtsp://camera.lan/stream.
+//
+// A stream can wedge a capture backend exactly as a local driver can, so it is
+// opened where that costs a child process rather than the window. One source is
+// the degenerate case of a sweep, so it reports on the same protocol and is read
+// back by the same parser.
+const CameraTestFlag = "--test-camera"
+
 // cameraScanTimeout bounds one helper invocation. A driver that hangs never
 // returns from the open call, so without a deadline the app would wait forever
 // with a window that cannot arm.
@@ -92,6 +101,51 @@ func CameraScanStart(arguments []string) (int, bool) {
 	return 0, false
 }
 
+// CameraTestArgument is the argument that asks this executable to open one
+// network address.
+func CameraTestArgument(address string) string {
+	return fmt.Sprintf("%s=%s", CameraTestFlag, address)
+}
+
+// CameraTestSource reports whether the given arguments ask for a single stream
+// to be opened, and which one.
+//
+// Like CameraScanStart it walks the arguments rather than using the flag
+// package, which exits the process on anything it does not recognise.
+func CameraTestSource(arguments []string) (string, bool) {
+	for _, argument := range arguments {
+		if !strings.HasPrefix(argument, CameraTestFlag+"=") {
+			continue
+		}
+
+		address := strings.TrimPrefix(argument, CameraTestFlag+"=")
+		if address == "" {
+			return "", false
+		}
+
+		return address, true
+	}
+
+	return "", false
+}
+
+// WriteCameraTest opens one network stream and reports what it saw on the same
+// line protocol the sweep uses. This is what the executable does in test mode.
+func WriteCameraTest(output io.Writer, address string) {
+	defer pinCameraThread()()
+
+	encoder := json.NewEncoder(output)
+
+	announced := 0
+	encoder.Encode(cameraScanLine{Probing: &announced})
+
+	if stream, err := probeStream(address); err == nil {
+		encoder.Encode(cameraScanLine{Camera: &stream})
+	}
+
+	encoder.Encode(cameraScanLine{Done: true})
+}
+
 // WriteCameraScan probes devices from startIndex onwards and reports each step
 // on the writer. This is what the executable does in scan mode.
 //
@@ -136,6 +190,55 @@ func AvailableCamerasIsolated(log *slog.Logger) []Camera {
 	return AvailableCameras(func(index int) {
 		log.Info("opening capture device", "index", index)
 	})
+}
+
+// TestStreamIsolated opens one network stream in a child process and reports
+// the picture it delivered, so an address that hangs or crashes the capture
+// backend does that somewhere disposable.
+//
+// The fallback matches AvailableCamerasIsolated's: a helper that cannot be
+// started at all leaves opening it here as the only way to answer at all, and a
+// Setup screen that cannot test anything is worse off than one that risks it.
+func TestStreamIsolated(log *slog.Logger, address string) (Camera, error) {
+	stream, err := testStreamOutOfProcess(address)
+	if err == nil {
+		log.Info("tested a network stream out of process", "size", stream.Label)
+		return stream, nil
+	}
+
+	if errors.Is(err, errStreamSentNoPicture) {
+		return Camera{}, err
+	}
+
+	log.Warn("the camera scan helper could not run; testing this stream in this process instead", "error", err)
+
+	return probeStream(address)
+}
+
+// errStreamSentNoPicture separates a helper that ran and found nothing from one
+// that never ran, since only the second is worth retrying in this process.
+var errStreamSentNoPicture = errors.New("the stream did not send a picture")
+
+func testStreamOutOfProcess(address string) (Camera, error) {
+	executable, err := scanHelperPath()
+	if err != nil {
+		return Camera{}, err
+	}
+
+	// The start index is meaningless for a single source and the helper ignores
+	// it; what is being reused is the spawn, the deadline and the reader.
+	outcome, err := runCameraScan(0, func(ctx context.Context, _ int) *exec.Cmd {
+		return exec.CommandContext(ctx, executable, CameraTestArgument(address))
+	})
+	if err != nil {
+		return Camera{}, err
+	}
+
+	if len(outcome.found) == 0 {
+		return Camera{}, errStreamSentNoPicture
+	}
+
+	return outcome.found[0], nil
 }
 
 func scanCamerasOutOfProcess(log *slog.Logger) ([]Camera, error) {

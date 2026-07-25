@@ -58,6 +58,40 @@ func cameraUnavailable() Problem {
 	}
 }
 
+// noCameraChosen is what a first run says. The app deliberately does not pick
+// for the user: the lowest working index on a laptop is as often a virtual
+// webcam as the built-in one, and a security camera nobody chose is watching a
+// room nobody agreed to have watched.
+func noCameraChosen() Problem {
+	return Problem{
+		Headline: "You have not chosen a camera yet",
+		NextStep: "Go to Setup and pick one from the list, or enter the address of a camera on your network.",
+	}
+}
+
+// chosenCameraMissing is what a camera that used to work says once it stops.
+// Quietly moving to a different one would point the app at another room without
+// anybody being told.
+func chosenCameraMissing() Problem {
+	return Problem{
+		Headline: "The camera you chose is not responding",
+		NextStep: "It may have been unplugged, or another program may have it. Close Zoom, Teams or OBS, " +
+			"then go to Setup and press Look again. You can also pick a different camera there.",
+	}
+}
+
+// streamUnavailable covers every way a network camera can refuse. The reasons —
+// wrong address, wrong password, camera asleep, nothing at that address — are
+// not worth telling apart, because the backend reports most of them as the same
+// silence and the first thing to check is the same in each case.
+func streamUnavailable() Problem {
+	return Problem{
+		Headline: "That camera did not send a picture",
+		NextStep: "Check the address, and that any user name and password in it are right. Make sure the " +
+			"camera is switched on and this computer is on the same network as it.",
+	}
+}
+
 // loginRegistrationRefused is the guidance for an operating system that would
 // not take, or would not give up, the instruction to start this app at login.
 //

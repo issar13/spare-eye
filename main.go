@@ -39,6 +39,11 @@ func main() {
 		return
 	}
 
+	if address, testing := detector.CameraTestSource(os.Args[1:]); testing {
+		detector.WriteCameraTest(os.Stdout, address)
+		return
+	}
+
 	log, err := app.OpenEarlyLog()
 	if err != nil {
 		app.ReportFatalError(err.Error(), "")

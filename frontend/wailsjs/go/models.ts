@@ -211,6 +211,8 @@ export namespace app {
 	    liveView: LiveViewForm;
 	    startup: StartupForm;
 	    cameraIndex: number;
+	    cameraURL: string;
+	    cameraChosen: boolean;
 	    mediaDirectory: string;
 	
 	    static createFrom(source: any = {}) {
@@ -224,6 +226,8 @@ export namespace app {
 	        this.liveView = this.convertValues(source["liveView"], LiveViewForm);
 	        this.startup = this.convertValues(source["startup"], StartupForm);
 	        this.cameraIndex = source["cameraIndex"];
+	        this.cameraURL = source["cameraURL"];
+	        this.cameraChosen = source["cameraChosen"];
 	        this.mediaDirectory = source["mediaDirectory"];
 	    }
 	
@@ -259,7 +263,7 @@ export namespace app {
 	    captureFPS: number;
 	    frameWidth: number;
 	    frameHeight: number;
-	    cameraIndex: number;
+	    cameraSource: string;
 	    alertsEnabled: boolean;
 	    alertsConfigured: boolean;
 	    telegramConnected: boolean;
@@ -288,7 +292,7 @@ export namespace app {
 	        this.captureFPS = source["captureFPS"];
 	        this.frameWidth = source["frameWidth"];
 	        this.frameHeight = source["frameHeight"];
-	        this.cameraIndex = source["cameraIndex"];
+	        this.cameraSource = source["cameraSource"];
 	        this.alertsEnabled = source["alertsEnabled"];
 	        this.alertsConfigured = source["alertsConfigured"];
 	        this.telegramConnected = source["telegramConnected"];

@@ -2,10 +2,15 @@ package app
 
 import (
 	"context"
+	"fmt"
+	"net/url"
+	"slices"
+	"strings"
 	"time"
 
 	"kaa-rada/internal/autostart"
 	"kaa-rada/internal/config"
+	"kaa-rada/internal/detector"
 	"kaa-rada/internal/notify"
 )
 
@@ -41,7 +46,10 @@ type StatusView struct {
 	FrameWidth  int     `json:"frameWidth"`
 	FrameHeight int     `json:"frameHeight"`
 
-	CameraIndex int `json:"cameraIndex"`
+	// CameraSource names the camera in words rather than as a number, because a
+	// bare index says nothing about an installation watching a stream and an
+	// address says nothing about one watching a webcam.
+	CameraSource string `json:"cameraSource"`
 
 	// AlertsEnabled is what the user asked for; AlertsConfigured is whether the
 	// credentials to honour it are actually present. Setup needs both, so that
@@ -76,7 +84,13 @@ type SettingsView struct {
 	LiveView LiveViewForm `json:"liveView"`
 	Startup  StartupForm  `json:"startup"`
 
-	CameraIndex    int    `json:"cameraIndex"`
+	CameraIndex int    `json:"cameraIndex"`
+	CameraURL   string `json:"cameraURL"`
+
+	// CameraChosen is what tells Setup to wait for an answer instead of showing
+	// the shipped default as though somebody had picked it.
+	CameraChosen bool `json:"cameraChosen"`
+
 	MediaDirectory string `json:"mediaDirectory"`
 }
 
@@ -151,8 +165,34 @@ func settingsView(settings config.Config) SettingsView {
 			WatchOnLaunch: settings.Startup.WatchOnLaunch,
 		},
 		CameraIndex:    settings.Detection.CameraIndex,
+		CameraURL:      settings.Detection.CameraURL,
+		CameraChosen:   settings.Detection.CameraChosen,
 		MediaDirectory: settings.Storage.MediaDirectory,
 	}
+}
+
+// describeCameraSource is the camera as the diagnostics panel shows it.
+func describeCameraSource(settings config.DetectionSettings) string {
+	if !settings.CameraChosen {
+		return "Not chosen yet"
+	}
+	if settings.CameraURL != "" {
+		return settings.CameraURL
+	}
+
+	return fmt.Sprintf("Camera %d", settings.CameraIndex)
+}
+
+// loggableCameraSource names the camera for the log file, which is the one
+// place the address must not appear: a stream address commonly carries the
+// camera's user name and password in front of the host, and the log is what
+// gets pasted into a bug report.
+func loggableCameraSource(settings config.DetectionSettings) string {
+	if settings.CameraURL != "" {
+		return "a network stream"
+	}
+
+	return fmt.Sprintf("camera %d", settings.CameraIndex)
 }
 
 func sensitivityForm(profile config.SensitivityProfile) SensitivityForm {
@@ -218,10 +258,16 @@ func (s *Service) TestTelegram(form TelegramForm) ActionResult {
 
 // SelectCamera changes the capture device, restarting the detector when armed
 // because the device is chosen once, at open time.
+//
+// Choosing a device puts aside any network stream: the two are alternatives, and
+// leaving an address behind would mean the picker on screen no longer named what
+// was being watched.
 func (s *Service) SelectCamera(index int) ActionResult {
 	s.mutex.Lock()
 	updated := s.settings
 	updated.Detection.CameraIndex = index
+	updated.Detection.CameraURL = ""
+	updated.Detection.CameraChosen = true
 	s.mutex.Unlock()
 
 	if s.persist(updated) != nil {
@@ -235,6 +281,67 @@ func (s *Service) SelectCamera(index int) ActionResult {
 	}
 
 	return succeeded("Camera selected")
+}
+
+// TestCameraURL opens an address the user has typed but not saved, so a wrong
+// one is caught before it becomes the camera a house is watched by.
+func (s *Service) TestCameraURL(address string) ActionResult {
+	stream, problem := s.openStreamForTesting(address)
+	if problem != nil {
+		return problem.asResult()
+	}
+
+	return succeeded(fmt.Sprintf("It works — that camera is sending a %d × %d picture.", stream.Width, stream.Height))
+}
+
+// SelectCameraURL adopts a network stream as the camera. It is opened first: an
+// address that has never delivered a frame is not something to persist as the
+// source a watch will be started from.
+func (s *Service) SelectCameraURL(address string) ActionResult {
+	if _, problem := s.openStreamForTesting(address); problem != nil {
+		return problem.asResult()
+	}
+
+	s.mutex.Lock()
+	updated := s.settings
+	updated.Detection.CameraURL = strings.TrimSpace(address)
+	updated.Detection.CameraChosen = true
+	s.mutex.Unlock()
+
+	if s.persist(updated) != nil {
+		return couldNotSave()
+	}
+
+	// The address itself is kept out of the log: a stream address commonly
+	// carries the camera's user name and password in front of the host.
+	s.log.Info("network stream selected")
+
+	if problem := s.restartDetector(); problem != nil {
+		return problem.asResult()
+	}
+
+	return succeeded("Network stream selected")
+}
+
+// openStreamForTesting checks the address and then opens it in a child process,
+// which is the same isolation device enumeration gets and for the same reason: a
+// stream can hang or crash the capture backend, and the app has a window open.
+func (s *Service) openStreamForTesting(address string) (detector.Camera, *Problem) {
+	if problem := validateCameraURL(address); problem != nil {
+		return detector.Camera{}, problem
+	}
+
+	stream, err := detector.TestStreamIsolated(s.log.Logger, strings.TrimSpace(address))
+	if err != nil {
+		// Only that it failed, never why: the backend's message quotes the
+		// address back, and an address commonly has a password in it.
+		s.log.Warn("a network stream did not send a picture")
+
+		problem := streamUnavailable()
+		return detector.Camera{}, &problem
+	}
+
+	return stream, nil
 }
 
 // SaveTuning stores the sensitivity and schedule settings. The prebuffer is
@@ -378,6 +485,36 @@ func validateTuning(form TuningForm) *Problem {
 		return &Problem{
 			Headline: "That is not a number of days",
 			NextStep: "Set how long to keep recordings to 0 or more days. 0 keeps them forever.",
+		}
+	}
+
+	return nil
+}
+
+// cameraURLSchemes are the ones a capture backend can actually open. Anything
+// else — a local file path, a device node, a scheme FFMPEG does not speak — is
+// turned away here rather than at the point where it would hang a driver.
+var cameraURLSchemes = []string{"rtsp", "rtsps", "http", "https"}
+
+// validateCameraURL is the boundary where an address somebody typed becomes
+// something a capture backend is asked to open.
+func validateCameraURL(address string) *Problem {
+	trimmed := strings.TrimSpace(address)
+	if trimmed == "" {
+		return &Problem{
+			Headline: "You have not entered an address yet",
+			NextStep: "Type the address of your network camera, then try again. It usually looks like " +
+				"rtsp://192.168.1.50:554/stream.",
+		}
+	}
+
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.Host == "" || !slices.Contains(cameraURLSchemes, strings.ToLower(parsed.Scheme)) {
+		return &Problem{
+			Headline: "That is not an address Kaa Rada can use",
+			NextStep: "A network camera address has to begin with rtsp://, rtsps://, http:// or https:// and " +
+				"name the camera after it, as in rtsp://192.168.1.50:554/stream. Your camera's manual or " +
+				"its own settings page will tell you the exact address.",
 		}
 	}
 
