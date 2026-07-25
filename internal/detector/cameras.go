@@ -31,8 +31,10 @@ func openCapture(index int) (*gocv.VideoCapture, error) {
 	return gocv.OpenVideoCapture(index)
 }
 
-// AvailableCameras returns every index that opens *and* produces a frame. Use
-// it to populate a camera picker.
+// AvailableCameras returns every index that opens *and* produces a frame,
+// probing in this process. A console program can call it directly, because a
+// driver that takes the process down there takes down something the user is
+// watching; a windowed app should use AvailableCamerasIsolated instead.
 //
 // Opening alone is not enough to prove a device is usable: virtual camera
 // drivers such as Iriun or OBS present a device node even when nothing is
@@ -75,15 +77,6 @@ func FirstUsableCamera() (int, bool) {
 	}
 
 	return 0, false
-}
-
-// ProbeCamera tests a single device. Exported so a caller that already knows
-// which index it wants can avoid opening the others: every open is a chance for
-// a bad driver to end the process.
-func ProbeCamera(index int) (Camera, error) {
-	defer pinCameraThread()()
-
-	return probeCamera(index)
 }
 
 func probeCamera(index int) (Camera, error) {

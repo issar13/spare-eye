@@ -22,13 +22,23 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-// main opens the log before anything else, then reports whatever startup does
-// to both the log and the user.
+// main opens the log before any startup work, then reports whatever that work
+// does to both the log and the user.
 //
 // The order matters on Windows, where this binary is linked for the GUI
 // subsystem: os.Stderr is not connected to anything, so a failure before the
 // window exists is invisible unless it has already been given a file to go to.
 func main() {
+	// Scan mode is answered before anything else, including the log. This
+	// process is a child of another copy of itself, spawned only to open capture
+	// devices somewhere a driver can end it harmlessly; it reports through
+	// stdout, and appending to the log file its parent already holds open would
+	// interleave two processes' records in one file.
+	if startIndex, scanning := detector.CameraScanStart(os.Args[1:]); scanning {
+		detector.WriteCameraScan(os.Stdout, startIndex)
+		return
+	}
+
 	log, err := app.OpenEarlyLog()
 	if err != nil {
 		app.ReportFatalError(err.Error(), "")
