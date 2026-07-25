@@ -66,10 +66,16 @@ jobs:
 
       - name: Build
         run: |
-          mkdir -p build/bin
-          go build -o build/bin/kaa-rada-cli ./cmd/kaa-rada-cli
           # -tags webkit2_41 is mandatory on Ubuntu 24.04; see the Makefile.
           wails build -tags webkit2_41 -clean -platform linux/amd64
+          # After the desktop build, never before: -clean empties build/bin and
+          # would delete a CLI built first, so the tarball copy would fail.
+          go build -o build/bin/kaa-rada-cli ./cmd/kaa-rada-cli
+
+      # A successful link does not prove the binary can load libopencv at
+      # runtime. -list-cameras exits 0 on a machine with no webcam.
+      - name: Smoke test the CLI
+        run: ./build/bin/kaa-rada-cli -list-cameras
 
       - name: Fail if a credential reached the bundle
         run: ./scripts/check-no-credentials.sh build/bin
@@ -228,11 +234,39 @@ jobs:
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
 
-      - name: Build installer
+      # Three phases, because the NSIS step packages whatever is in build\bin
+      # at the moment it runs, and -clean empties that directory first.
+      - name: Build the app
+        run: wails build -tags customenv -clean -platform windows/amd64
+
+      - name: Build CLI
+        run: go build -tags customenv -o build\bin\kaa-rada-cli.exe .\cmd\kaa-rada-cli
+
+      # OpenCV is built with BUILD_SHARED_LIBS=ON, so neither binary starts
+      # without libopencv_*460.dll beside it, and the MinGW runtime is needed
+      # because OpenCV is compiled with g++ rather than MSVC. Staged before the
+      # installer is generated so project.nsi can bundle them.
+      - name: Stage the runtime DLLs
+        shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path build\bin | Out-Null
-          go build -tags customenv -o build\bin\kaa-rada-cli.exe .\cmd\kaa-rada-cli
-          wails build -tags customenv -clean -platform windows/amd64 -nsis
+          $openCvBin = "${env:GITHUB_WORKSPACE}\opencv\build\install\x64\mingw\bin"
+          Copy-Item "$openCvBin\*.dll" -Destination build\bin -Force
+
+          foreach ($runtime in @('libgcc_s_seh-1.dll', 'libstdc++-6.dll', 'libwinpthread-1.dll')) {
+            $found = Get-Command $runtime -ErrorAction SilentlyContinue
+            if ($found) {
+              Copy-Item $found.Source -Destination build\bin -Force
+            } else {
+              Write-Host "::warning::$runtime not found on PATH; the binaries may not start on a clean machine."
+            }
+          }
+
+      - name: Smoke test the CLI
+        run: .\build\bin\kaa-rada-cli.exe -list-cameras
+
+      # No -clean here: the DLLs staged above have to survive into the bundle.
+      - name: Build installer
+        run: wails build -tags customenv -platform windows/amd64 -nsis
 
       - name: Fail if a credential reached the bundle
         shell: bash
@@ -251,10 +285,20 @@ jobs:
             exit 1
           }
           Copy-Item $installer.FullName "staging\kaa-rada-$version-windows-amd64-installer.exe"
-          Copy-Item build\bin\kaa-rada-cli.exe "staging\kaa-rada-cli-$version-windows-amd64.exe"
-          Get-ChildItem staging | ForEach-Object {
-            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
-            "$hash  $($_.Name)" | Out-File -FilePath "$($_.FullName).sha256" -Encoding ascii
+          # The CLI is published zipped with its DLLs, not as a bare .exe: on its
+          # own it cannot start, and a lone executable in a release invites
+          # exactly that.
+          New-Item -ItemType Directory -Force -Path cli-portable | Out-Null
+          Copy-Item build\bin\kaa-rada-cli.exe -Destination cli-portable -Force
+          Copy-Item build\bin\*.dll -Destination cli-portable -Force
+          Copy-Item README.md, LICENSE -Destination cli-portable -Force
+          Compress-Archive -Path cli-portable\* -DestinationPath "staging\kaa-rada-cli-$version-windows-amd64.zip" -Force
+          # The list is materialised with @() before the loop writes anything.
+          # A streaming Get-ChildItem would hand the loop the .sha256 files it
+          # is itself creating, and they would get checksums of their own.
+          foreach ($asset in @(Get-ChildItem staging -File)) {
+            $hash = (Get-FileHash $asset.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($asset.Name)" | Out-File -FilePath "$($asset.FullName).sha256" -Encoding ascii
           }
 
       - uses: actions/upload-artifact@v4
@@ -296,7 +340,12 @@ jobs:
             Requires OpenCV 4.6 at run time: `sudo apt install libopencv-dev`
             on Ubuntu 24.04.
 
-            **Windows** — download and run the installer.
+            **Windows** — download and run the installer. It bundles the OpenCV
+            libraries the app needs, so nothing else has to be installed.
+
+            The `kaa-rada-cli` zip is the headless detector for a machine with
+            no display. Extract the whole archive and keep the DLLs next to the
+            executable; the CLI will not start without them.
 
             ### A note on the SmartScreen warning
 
