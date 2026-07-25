@@ -159,6 +159,11 @@ func (d *Detector) publish(event Event) {
 
 // Run opens the camera and processes frames until ctx is cancelled.
 func (d *Detector) Run(ctx context.Context) error {
+	// Held for the whole run, not just the open: the capture handle is used
+	// and finally released from this goroutine, and on Windows all three have
+	// to happen on the same OS thread.
+	defer pinCameraThread()()
+
 	// Deferred calls run in reverse order, so the wait happens before the
 	// close. Both are needed: see the recordings field.
 	defer close(d.events)

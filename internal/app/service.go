@@ -158,7 +158,9 @@ func (s *Service) resolveCamera() {
 	// diagnosable: a log that ends at "probing capture devices" says the backend
 	// died on a device, which no amount of Go error handling would have caught.
 	s.log.Info("probing capture devices")
-	found := detector.AvailableCameras()
+	found := detector.AvailableCameras(func(index int) {
+		s.log.Info("opening capture device", "index", index)
+	})
 	s.log.Info("probed cameras", "count", len(found))
 
 	s.mutex.Lock()
@@ -252,7 +254,7 @@ func (s *Service) RescanCameras() []detector.Camera {
 		return cached
 	}
 
-	found := detector.AvailableCameras()
+	found := detector.AvailableCameras(nil)
 	s.log.Info("probed cameras", "count", len(found))
 
 	s.mutex.Lock()

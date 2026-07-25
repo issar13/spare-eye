@@ -193,7 +193,7 @@ func settingsInTempDirectory(t *testing.T) config.Config {
 	// The default index is not assumed to work. Virtual webcam drivers occupy
 	// low indices without streaming, so the first genuinely usable device is
 	// discovered rather than guessed.
-	cameras := AvailableCameras()
+	cameras := AvailableCameras(nil)
 	if len(cameras) == 0 {
 		t.Skip("no usable camera on this machine")
 	}
