@@ -1,0 +1,37 @@
+# Credentials — never commit, and never bundle into an installer.
+# Each user supplies their own bot token through the UI.
+.env
+config.json
+
+# Generated media
+snapshots/
+videos/
+DISABLED
+
+# Go build output
+/motion-detector
+/motion-detector.exe
+/build/
+/dist/
+*.test
+*.out
+
+# Webview frontend build artifacts
+frontend/node_modules/
+frontend/dist/
+build/bin/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
