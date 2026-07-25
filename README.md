@@ -21,7 +21,8 @@ the same thresholds.
 ## Status
 
 The detection engine is finished and tested. Clips, snapshots, Telegram alerts,
-remote commands, and camera enumeration all work and are verified on Linux.
+remote commands, and camera enumeration all work, and the desktop app runs on
+both Windows and Linux.
 
 CI builds and publishes the desktop app for Windows and Linux. Its screens cover
 Telegram setup, arming and disarming, the live view and its speed and quality,
@@ -30,12 +31,13 @@ saved clips and snapshots. Every one is a real control, so editing `config.json`
 by hand is a fallback rather than the way in. `storage.mediaDirectory` is the
 only setting the UI shows without letting you change it.
 
-**Known issue on Windows:** the desktop app has been observed starting and then
-exiting immediately while enumerating cameras. Camera enumeration now runs in a
-separate process so that a misbehaving camera driver cannot take the app down
-with it, which should remove that failure. This has not yet been confirmed on
-the affected machine. The Linux desktop app runs correctly. If Windows still
-exits on you, the headless command-line tool below is unaffected.
+Some camera drivers crash when their device is opened, and on Windows that used
+to take the whole app down during startup: it would appear and vanish with
+nothing in the log after `probing capture devices`. Enumeration now runs in a
+separate process, so a driver that crashes takes down only that process. The app
+notes which device killed it, carries on with the next one, and still finds your
+working camera. Virtual camera drivers such as Iriun and OBS are the usual
+culprits, and they commonly sit at index 0.
 
 Telegram is the only alerting channel. See [Why only Telegram](#why-only-telegram).
 
@@ -272,7 +274,7 @@ straight to disk, so its last record is the stage that failed:
 | `startup: loading settings` | `config.json` is unreadable, or `storage.mediaDirectory` names a drive or share that no longer exists |
 | `startup: opening the window` | the webview failed to start; install the Microsoft Edge WebView2 runtime |
 | `startup: window opened` | the window appeared, then something failed while it was being prepared |
-| `probing capture devices` | a camera driver misbehaved during enumeration. Enumeration runs in a separate process, so this should no longer end the app; if it does, disable the camera named in Device Manager or set `detection.cameraIndex` by hand |
+| `probing capture devices` | enumeration was interrupted. It runs in a separate process, so a crashing driver should no longer end the app. If it does, disable the camera named in Device Manager or set `detection.cameraIndex` by hand |
 | `panic` | a bug. The record carries the stack; please attach it to an issue |
 
 Any failure Go can report also raises a message box naming this file, so an empty
