@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -17,7 +18,12 @@ func isolateConfigDirectory(t *testing.T) string {
 	t.Helper()
 
 	temporaryHome := t.TempDir()
+
+	// os.UserConfigDir reads a different variable per platform, and setting only
+	// the Unix one let the Windows tests write to the real roaming profile.
+	// Setting both keeps this helper honest everywhere.
 	t.Setenv("XDG_CONFIG_HOME", temporaryHome)
+	t.Setenv("AppData", temporaryHome)
 
 	return temporaryHome
 }
@@ -407,6 +413,14 @@ func TestSaveLeavesNoTemporaryFileBehind(t *testing.T) {
 // TestSaveWritesOwnerOnlyPermissions matters because config.json holds a
 // Telegram bot token: anyone who can read it can post as the user's bot.
 func TestSaveWritesOwnerOnlyPermissions(t *testing.T) {
+	// Windows has no Unix mode bits. Go's Chmod there only toggles the
+	// read-only flag, so a file created with 0600 still reports 0666 and the
+	// assertion below cannot mean anything. Confidentiality on Windows comes
+	// from the ACL the file inherits from the user's roaming profile instead.
+	if runtime.GOOS == "windows" {
+		t.Skip("file mode bits are not enforced on Windows")
+	}
+
 	isolateConfigDirectory(t)
 
 	settings := Default()

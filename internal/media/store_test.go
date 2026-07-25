@@ -188,7 +188,10 @@ func TestManualFlagFollowsTheFilenamePrefix(t *testing.T) {
 		{"motion_20260725_120000.mp4", false},
 		{"manual.mp4", false},
 		{"a_manual_clip.mp4", false},
-		{"Manual_20260725_120000.mp4", false},
+		// A distinct timestamp, not a case-flipped twin of the first entry:
+		// NTFS is case-insensitive, so "Manual_20260725_120000.mp4" would
+		// overwrite "manual_20260725_120000.mp4" and only one would be listed.
+		{"Manual_20260725_130000.mp4", false},
 	}
 
 	directory := t.TempDir()
