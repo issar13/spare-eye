@@ -38,10 +38,20 @@ func openCapture(index int) (*gocv.VideoCapture, error) {
 // drivers such as Iriun or OBS present a device node even when nothing is
 // streaming through it, so a naive probe reports a camera that then fails at
 // first read. Each candidate is required to hand over a real frame.
-func AvailableCameras() []Camera {
+// onProbe, when supplied, is called with each index just before it is opened.
+// A failure inside the capture backend can take the whole process down without
+// surfacing as a Go error, so the caller's log is the only record of which
+// device was being opened at the time.
+func AvailableCameras(onProbe func(index int)) []Camera {
+	defer pinCameraThread()()
+
 	found := make([]Camera, 0, 1)
 
 	for index := 0; index < cameraProbeLimit; index++ {
+		if onProbe != nil {
+			onProbe(index)
+		}
+
 		camera, err := probeCamera(index)
 		if err != nil {
 			continue
@@ -56,6 +66,8 @@ func AvailableCameras() []Camera {
 // found. Preferred over AvailableCameras when only a default is needed, since it
 // avoids probing — and noisily failing on — every remaining device.
 func FirstUsableCamera() (int, bool) {
+	defer pinCameraThread()()
+
 	for index := 0; index < cameraProbeLimit; index++ {
 		if camera, err := probeCamera(index); err == nil {
 			return camera.Index, true

@@ -42,7 +42,7 @@ func main() {
 }
 
 func reportCameras() {
-	cameras := detector.AvailableCameras()
+	cameras := detector.AvailableCameras(nil)
 	if len(cameras) == 0 {
 		fmt.Println("No usable cameras found.")
 		fmt.Println("A device node can exist without being able to capture — virtual")
