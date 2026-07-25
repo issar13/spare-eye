@@ -264,9 +264,64 @@ jobs:
       - name: Smoke test the CLI
         run: .\build\bin\kaa-rada-cli.exe -list-cameras
 
+      # Signing is optional and absent by default: these builds ship unsigned.
+      # Add the two secrets and every asset is signed with no further change.
+      # WINDOWS_CERTIFICATE_BASE64 is a .pfx encoded with
+      #   certutil -encode cert.pfx cert.txt
+      # and WINDOWS_CERTIFICATE_PASSWORD is its password.
+      #
+      # The timestamp is not optional when signing: without /tr the signature
+      # stops verifying the day the certificate expires, and everything already
+      # downloaded starts warning again.
+      - name: Sign the binaries
+        if: env.CERTIFICATE != ''
+        shell: pwsh
+        env:
+          CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERTIFICATE))
+          try {
+            foreach ($binary in @('build\bin\kaa-rada.exe', 'build\bin\kaa-rada-cli.exe')) {
+              & signtool sign /f $pfx /p $env:CERTIFICATE_PASSWORD `
+                /tr http://timestamp.digicert.com /td sha256 /fd sha256 $binary
+              if ($LASTEXITCODE -ne 0) { throw "signing $binary failed" }
+            }
+          } finally {
+            Remove-Item $pfx -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Note that the binaries are unsigned
+        if: env.CERTIFICATE == ''
+        env:
+          CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+        run: echo "::notice::No signing certificate configured. Windows will report an unknown publisher and SmartScreen will warn on first run."
+
       # No -clean here: the DLLs staged above have to survive into the bundle.
       - name: Build installer
         run: wails build -tags customenv -platform windows/amd64 -nsis
+
+      # The installer is a separate executable and needs its own signature; the
+      # signatures on the binaries inside it do not cover the wrapper the user
+      # actually double-clicks.
+      - name: Sign the installer
+        if: env.CERTIFICATE != ''
+        shell: pwsh
+        env:
+          CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERTIFICATE))
+          try {
+            $installer = Get-ChildItem -Path build\bin -Filter '*-installer.exe' -Recurse | Select-Object -First 1
+            & signtool sign /f $pfx /p $env:CERTIFICATE_PASSWORD `
+              /tr http://timestamp.digicert.com /td sha256 /fd sha256 $installer.FullName
+            if ($LASTEXITCODE -ne 0) { throw 'signing the installer failed' }
+          } finally {
+            Remove-Item $pfx -Force -ErrorAction SilentlyContinue
+          }
 
       - name: Fail if a credential reached the bundle
         shell: bash
@@ -360,7 +415,7 @@ jobs:
 
             | Platform | Architecture | Download | How to install |
             |---|---|---|---|
-            | Windows 10/11 | x64 (Intel/AMD) | `kaa-rada-*-windows-amd64-installer.exe` | Run it and follow the wizard |
+            | Windows 10/11 | x64 (Intel/AMD) | `kaa-rada-*-windows-amd64-installer.exe` | Run it and follow the wizard. Installs for your user only, so it never asks for administrator rights |
             | Linux | x64 (amd64) | `kaa-rada-*-linux-amd64.tar.gz` | Extract, then `./install.sh` |
             | Windows, headless | x64 (Intel/AMD) | `kaa-rada-cli-*-windows-amd64.zip` | Extract the whole folder, keep the DLLs beside the .exe |
 
@@ -398,10 +453,14 @@ jobs:
 
             ## The unsigned-binary warning
 
-            These builds are **not code-signed**, so Windows SmartScreen will
-            say the publisher is unknown — choose *More info*, then *Run
-            anyway*. A signing certificate is a few hundred dollars a year and
-            this project has not taken that on.
+            These builds are **not code-signed**. On first run SmartScreen shows
+            "Windows protected your PC" — choose *More info*, then *Run anyway*.
+            The installer requests no administrator rights, so there is no
+            separate red "Unknown publisher" elevation prompt.
+
+            This is not a verdict on the file. SmartScreen is about reputation,
+            and a binary nobody has downloaded yet has none. Verify the
+            `.sha256` if you want certainty about what you received.
 
             Every asset ships with a `.sha256` file. Check your download against
             it before running it.
