@@ -87,7 +87,10 @@ jobs:
       # fails with "no matching files found".
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node 20 reached end of life in April 2026. 24 is the current LTS and
+          # is what development machines run, so CI and a developer build the
+          # same frontend with the same toolchain.
+          node-version: '24'
 
       - name: Build the frontend the binary embeds
         run: npm ci && npm run build
@@ -297,7 +300,10 @@ jobs:
       # fails with "no matching files found".
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node 20 reached end of life in April 2026. 24 is the current LTS and
+          # is what development machines run, so CI and a developer build the
+          # same frontend with the same toolchain.
+          node-version: '24'
 
       - name: Build the frontend the binary embeds
         run: npm ci && npm run build

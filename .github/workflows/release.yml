@@ -52,7 +52,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node 20 reached end of life in April 2026. 24 is the current LTS and
+          # is what development machines run, so CI and a developer build the
+          # same frontend with the same toolchain.
+          node-version: '24'
 
       - name: Install OpenCV and GTK/WebKit development packages
         run: |
@@ -133,7 +136,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          # Node 20 reached end of life in April 2026. 24 is the current LTS and
+          # is what development machines run, so CI and a developer build the
+          # same frontend with the same toolchain.
+          node-version: '24'
 
       # Restore/save pairs, not actions/cache: its save runs in a post step
       # guarded by success(), so any later failure discards the OpenCV build
