@@ -73,6 +73,14 @@ type Detector struct {
 	activeRecorder  *recorder
 	recordingManual bool
 
+	// recordings tracks the goroutines awaiting each clip. Run must not close
+	// the event channel until they have all published their final event,
+	// otherwise a clip finishing during shutdown sends on a closed channel and
+	// panics. Waiting on the recorder alone is not enough: the recorder and the
+	// goroutine awaiting it wake on the same signal, so the publish can lose
+	// the race against the close.
+	recordings sync.WaitGroup
+
 	status atomic.Pointer[Status]
 }
 
@@ -136,7 +144,10 @@ func (d *Detector) publish(event Event) {
 
 // Run opens the camera and processes frames until ctx is cancelled.
 func (d *Detector) Run(ctx context.Context) error {
+	// Deferred calls run in reverse order, so the wait happens before the
+	// close. Both are needed: see the recordings field.
 	defer close(d.events)
+	defer d.recordings.Wait()
 
 	camera, err := openCapture(d.settings.Detection.CameraIndex)
 	if err != nil {
@@ -481,10 +492,13 @@ func (d *Detector) beginClip(frameSize image.Point, captureFPS float64, history 
 
 	// Clearing the active recorder happens off the capture path so a slow
 	// encoder finishing never stalls frame reads.
+	d.recordings.Add(1)
 	go d.awaitRecording(active, path, manual)
 }
 
 func (d *Detector) awaitRecording(active *recorder, path string, manual bool) {
+	defer d.recordings.Done()
+
 	err := active.wait()
 
 	d.mutex.Lock()

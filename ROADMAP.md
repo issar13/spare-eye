@@ -96,7 +96,7 @@ Their useful content moves into `docs/DEVELOPMENT.md`.
 
 - `Makefile` targets: `test`, `test-camera`, `vet`, `run`, `build`,
   `build-desktop`, `package-linux`, `package-windows`. The
-  `-tags webkit2gtk_4_1` requirement lives here, not in anyone's memory.
+  `-tags webkit2_41` requirement lives here, not in anyone's memory.
 - Pin the Go toolchain in `go.mod` with a `toolchain` directive. Two Go
   installs are currently visible on this machine (1.24.4 and 1.25.12) and CI
   must not be a third answer.

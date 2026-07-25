@@ -80,7 +80,7 @@ make dev            # desktop app with hot reload
 make package-linux  # release build for linux/amd64
 ```
 
-### Why `-tags webkit2gtk_4_1`
+### Why `-tags webkit2_41`
 
 Ubuntu 24.04 dropped `webkit2gtk-4.0`. Wails v2.13 still looks for the 4.0
 series by default, so on 24.04 an untagged build fails at the pkg-config stage.
@@ -90,7 +90,7 @@ The tag switches it to the 4.1 packages that 24.04 actually ships.
 you invoke Wails yourself, you must pass it:
 
 ```sh
-wails build -tags webkit2gtk_4_1 -clean
+wails build -tags webkit2_41 -clean
 ```
 
 ### `wails doctor` says libwebkit is "Not Found" — this is expected
@@ -326,7 +326,7 @@ Configuring the token through the application UI avoids this entirely; the
 ### `wails doctor` reports libwebkit "Not Found"
 
 Expected on Ubuntu 24.04. See the Linux section above — build with
-`-tags webkit2gtk_4_1` and ignore the report.
+`-tags webkit2_41` and ignore the report.
 
 ### Link errors mentioning `opencv_core460`
 

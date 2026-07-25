@@ -1,7 +1,7 @@
 # Build tasks. Platform-specific flags live here so nobody has to remember them.
 #
 # Ubuntu 24.04 dropped webkit2gtk-4.0, which Wails v2 still looks for by
-# default, so Linux builds need the webkit2gtk_4_1 tag. `wails doctor` reports
+# default, so Linux builds need the webkit2_41 tag. `wails doctor` reports
 # libwebkit as "Not Found" on this machine for that reason; it is not a problem.
 
 BINARY_CLI     := motiond
@@ -11,7 +11,7 @@ WAILS          := $(shell go env GOPATH)/bin/wails
 
 UNAME := $(shell uname -s)
 ifeq ($(UNAME),Linux)
-	WAILS_TAGS := webkit2gtk_4_1
+	WAILS_TAGS := webkit2_41
 else
 	WAILS_TAGS :=
 endif
@@ -67,7 +67,7 @@ build-desktop: ## Build the desktop app for the current platform
 
 .PHONY: package-linux
 package-linux: ## Build a Linux desktop binary
-	$(WAILS) build -tags webkit2gtk_4_1 -clean -platform linux/amd64
+	$(WAILS) build -tags webkit2_41 -clean -platform linux/amd64
 
 .PHONY: package-windows
 package-windows: ## Build a Windows installer (run on Windows)

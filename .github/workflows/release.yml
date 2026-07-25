@@ -68,8 +68,8 @@ jobs:
         run: |
           mkdir -p build/bin
           go build -o build/bin/motiond ./cmd/motiond
-          # -tags webkit2gtk_4_1 is mandatory on Ubuntu 24.04; see the Makefile.
-          wails build -tags webkit2gtk_4_1 -clean -platform linux/amd64
+          # -tags webkit2_41 is mandatory on Ubuntu 24.04; see the Makefile.
+          wails build -tags webkit2_41 -clean -platform linux/amd64
 
       - name: Fail if a credential reached the bundle
         run: ./scripts/check-no-credentials.sh build/bin
