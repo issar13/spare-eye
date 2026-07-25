@@ -63,9 +63,9 @@ const showCameras = async (look: () => Promise<detector.Camera[]>): Promise<void
     showBanner(cameraMessage, 'Looking for cameras…');
 
     const [cameras, settings] = await Promise.all([look(), Settings()]);
-    renderCameraOptions(cameras, settings.cameraIndex);
 
     if (cameras.length === 0) {
+        renderCameraOptions(cameras, settings.cameraIndex);
         showBanner(
             cameraMessage,
             'No camera responded. Another program is probably using it — close Zoom, Teams or OBS, ' +
@@ -75,9 +75,25 @@ const showCameras = async (look: () => Promise<detector.Camera[]>): Promise<void
         return;
     }
 
+    // The saved index is a default until a scan proves it, and the shipped
+    // default of 0 is very often a virtual device that never sends a picture.
+    // Adopting a working camera rather than waiting to be told avoids the state
+    // where the step reports itself unfinished directly underneath a message
+    // saying the camera was found.
+    const configuredWorks = cameras.some((camera) => camera.index === settings.cameraIndex);
+    const chosen = configuredWorks ? settings.cameraIndex : cameras[0].index;
+
+    if (!configuredWorks) {
+        await SelectCamera(chosen);
+    }
+
+    renderCameraOptions(cameras, chosen);
+
     showBanner(
         cameraMessage,
-        cameras.length === 1 ? 'Found your camera.' : `Found ${cameras.length} cameras. Pick the one you want.`,
+        cameras.length === 1
+            ? 'Found your camera and selected it.'
+            : `Found ${cameras.length} cameras, using camera ${chosen}. Pick a different one below if you want.`,
         'good',
     );
 };
