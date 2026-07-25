@@ -1,172 +1,338 @@
-# Motion Detection Security Camera System
+# Motion Detector
 
-A Python-based motion detection system that monitors a webcam and sends alerts via Telegram. Features automated motion-triggered recording and manual recording via Telegram commands.
+A desktop motion detector for a webcam. It watches a camera, saves a snapshot
+when something moves, records a clip when the movement persists, and sends both
+to you on Telegram. You can also message the bot to start a recording on demand
+or pull back an earlier clip.
 
-## Features
+Detection sensitivity switches between a day profile and a night profile on a
+schedule you set, because a room at 19:00 and the same room at noon do not need
+the same thresholds.
 
-- **Automated Motion Detection**: Detects motion and captures snapshots
-- **Video Recording**: Records 15-second videos after sustained motion (5+ seconds)
-- **Telegram Integration**: 
-  - Receive instant motion alerts with snapshots
-  - Send commands to start/stop manual recording
-  - Retrieve recorded videos on demand
-- **Day/Night Mode**: Adjustable sensitivity for different lighting conditions
-- **Manual Recording**: High-quality 15 FPS recording on demand via Telegram
-- **Efficient Resource Usage**: 8 FPS for automated recordings to save resources
-- **Heartbeat Monitoring**: Daily status updates
+## Status
+
+The detection engine is finished and tested — clips, snapshots, Telegram
+alerts, remote commands, and camera enumeration all work and have been verified
+on Linux.
+
+The desktop user interface is **in progress**. Until it lands, the way to run
+the detector is the headless command-line tool described below, which is real
+and works today. Configuration values that the UI will eventually expose as
+controls are editable now by hand in `config.json`.
+
+Telegram is the only alerting channel. See
+[Why only Telegram](#why-only-telegram).
+
+## Privacy — read this first
+
+This app records video of whatever the camera can see, and it uploads those
+clips and snapshots to Telegram's servers as part of delivering them to you.
+Footage leaves your machine.
+
+If you point the camera at a space that other people use — a shared flat, an
+office, a room with guests in it — those people are being recorded and their
+footage is being uploaded, and they have not agreed to either. Depending on
+where you live, recording other people without telling them may be illegal
+regardless of whose camera it is or whose home it is in.
+
+Two consequences worth stating plainly:
+
+- Anyone who obtains your bot token can receive your footage and command your
+  camera. Treat it like a password. See
+  [docs/SETUP-TELEGRAM.md](docs/SETUP-TELEGRAM.md).
+- Clips are kept on local disk as well, for 30 days by default. Anyone with
+  access to your user account can watch them.
 
 ## Requirements
 
-- Python 3.7+
-- Webcam
-- Telegram Bot Token and Chat ID
+| | |
+|---|---|
+| Platforms | Windows and Linux |
+| Go | 1.24.4 (pinned in `go.mod`) |
+| OpenCV | 4.6.0, to match gocv v0.31.0 |
+| Camera | A webcam that is not already in use by another program |
+| Telegram | Your own bot — one per installation |
 
-## Installation
+macOS is deliberately not supported. Distributing a macOS build that will open
+at all requires paid Apple Developer enrollment, so it is deferred rather than
+half-done.
 
-1. Clone this repository:
-```bash
-git clone https://github.com/yourusername/motion-detector.git
-cd motion-detector
+Windows and Linux binaries ship **unsigned**. On Windows, SmartScreen will warn
+you that the publisher is unknown and you will have to choose to run it anyway.
+That is expected; code-signing certificates are an ongoing cost the project has
+not taken on. Nobody has yet produced a Windows build of this app, so treat the
+Windows path as unproven until that changes.
+
+## Getting started
+
+### 1. Create your own Telegram bot
+
+There is no shared bot and no bot token baked into the binary. Every
+installation talks to a bot you create, so your footage only ever reaches your
+own chat.
+
+Follow [docs/SETUP-TELEGRAM.md](docs/SETUP-TELEGRAM.md). It walks through
+creating the bot with @BotFather, copying the token, and finding your chat ID.
+It takes about five minutes and needs no technical background.
+
+### 2. Find your camera
+
+```
+go run ./cmd/motiond -list-cameras
 ```
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
+This prints only the devices that both open *and* hand over a real frame:
+
+```
+Usable cameras (1):
+  index 1 — 640x480
 ```
 
-3. Configure Telegram credentials:
-```bash
-# Copy the example file
-copy .env.example .env
+Do not assume index 0. A virtual camera driver such as Iriun or OBS registers a
+device that opens successfully and then delivers nothing, and it commonly takes
+index 0. On the development machine, index 0 is exactly that and the real webcam
+is index 1.
 
-# Edit .env file and add your credentials:
-# TELEGRAM_BOT_TOKEN=your_bot_token_here
-# TELEGRAM_CHAT_ID=your_chat_id_here
+### 3. Run it
+
+With credentials in the environment:
+
+```
+export TELEGRAM_BOT_TOKEN=...
+export TELEGRAM_CHAT_ID=...
+go run ./cmd/motiond -camera 1
 ```
 
-4. Run the application:
-```bash
-python motion_detector.py
+On start it prints the media directory and camera index, prunes recordings past
+their retention age, verifies the Telegram credentials, and then watches. Press
+Ctrl+C to stop; a clip in progress is finished and closed properly before exit.
+
+## The headless command-line tool
+
+`cmd/motiond` is the detector without a window. It exists so the engine can be
+run on a machine with no display, and it is the supported way to use the app
+until the desktop UI is finished.
+
+| Flag | Meaning |
+|---|---|
+| `-list-cameras` | Print every usable camera with its resolution, then exit |
+| `-camera N` | Use device index `N`. Default is `-1`, which picks the first usable device |
+| `-no-telegram` | Run detection and write files, but send nothing |
+
+Credentials come from `config.json` first. When that file has no token or chat
+ID, `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are read from the environment
+instead — see [.env.example](.env.example). If neither supplies credentials,
+the detector still runs and still writes snapshots and clips to disk; it just
+does not send them.
+
+Convenience targets in the `Makefile`:
+
+```
+make cameras      # go run ./cmd/motiond -list-cameras
+make run          # go run ./cmd/motiond
+make test         # tests that need no camera
+make test-camera  # camera integration tests, needs a free webcam
+make help         # every target
 ```
 
-## Usage
+## Telegram commands
 
-### Running the System
+Message your bot to control the detector while it is running. Only messages
+from the chat ID you configured are acted on; anything from another chat is
+discarded.
 
-```bash
-python motion_detector.py
+| Command | Effect |
+|---|---|
+| `/record` | Start a manual recording. It runs until you stop it |
+| `/stop` | End the manual recording |
+| `/get` | List saved clips, newest first, numbered |
+
+The leading slash is optional — `record`, `stop`, and `get` work identically,
+and `list` is accepted as a synonym for `get`. Commands are case-insensitive
+and surrounding whitespace is ignored.
+
+`/get` replies with a numbered list showing each clip's name, timestamp, and
+size in megabytes, newest first. **Reply with just the number** to have that
+clip sent to you:
+
+```
+📹 Recordings, newest first:
+
+1. manual_2026-07-25_21-04-11.mp4
+   2026-07-25 21:04:11 (1.8 MB)
+
+2. motion_2026-07-25_19-52-03.mp4
+   2026-07-25 19:52:03 (0.9 MB)
+
+Reply with a number from 1 to 2 to receive it.
 ```
 
-On Windows, you can also use the provided batch file:
-```bash
-start_motion.cmd
-```
+`/stop` only ends a *manual* recording. An automatic clip runs for its
+configured duration and finishes on its own; a `/stop` arriving during one is
+ignored rather than remembered, so it cannot silently cancel the next manual
+recording you ask for.
 
-### Telegram Commands
+## Where your data lives
 
-- `/record` or `record` - Start manual recording
-- `/stop` or `stop` - Stop manual recording and receive the video
-- `/get` or `get` - List all manual recordings and select one to download
+Settings and media live in a per-user directory, not next to the binary:
+
+| | Linux | Windows |
+|---|---|---|
+| Settings | `~/.config/motion-detector/config.json` | `%AppData%\motion-detector\config.json` |
+| Snapshots | `~/.config/motion-detector/media/snapshots/` | `%AppData%\motion-detector\media\snapshots\` |
+| Clips | `~/.config/motion-detector/media/videos/` | `%AppData%\motion-detector\media\videos\` |
+
+The exact base directory is whatever the operating system reports as the user
+configuration directory.
+
+The reason for this, rather than a folder beside the executable: an app
+installed into `C:\Program Files` cannot write to its own directory without
+administrator rights. Anything that tried would fail on a normal user account,
+and it would also mean two users on one machine sharing one person's
+credentials and footage.
+
+`config.json` is written with owner-only permissions, because it holds your bot
+token. Saves go to a temporary file and are then renamed, so an interrupted
+write cannot leave you with a truncated config and no credentials.
+
+Snapshots are named `motion_YYYY-MM-DD_HH-MM-SS.jpg`. Clips are
+`motion_...mp4` when triggered by movement and `manual_...mp4` when you asked
+for them, which is how the listing tells them apart.
 
 ## Configuration
 
-Edit these variables in `motion_detector.py` to customize:
+Settings live in `config.json` in the directory above, and will be editable
+from the desktop UI. Durations are written as readable strings — `"15s"`,
+`"5m0s"` — so the file stays sensible to edit by hand. Any field you leave out
+keeps its default, so an older `config.json` remains loadable after an upgrade.
 
-```python
-# Camera
-CAMERA_INDEX = 0  # Change if using external webcam
+### Telegram
 
-# Motion Detection Timing
-MOTION_PERSIST_SECONDS = 5   # Seconds of motion before video recording starts
-VIDEO_DURATION_SECONDS = 15  # Length of automatic recordings
+| Field | Default | Meaning |
+|---|---|---|
+| `telegram.botToken` | empty | Your bot's token from @BotFather |
+| `telegram.chatID` | empty | The only chat that receives alerts and may send commands |
+| `telegram.enabled` | `true` | Turn alerting off without deleting your credentials |
 
-# Alert Cooldowns (seconds between snapshots)
-COOLDOWN_DAY = 15
-COOLDOWN_NIGHT = 30
+### Detection
 
-# Day Detection Thresholds
-DAY_MIN_CONTOUR_AREA = 8000
-DAY_THRESH_VALUE = 30
-DAY_FRAME_INTERVAL = 1  # Check every 1 second
+| Field | Default | Meaning |
+|---|---|---|
+| `detection.cameraIndex` | `0` | Device index to capture from. Confirm yours with `-list-cameras` before trusting the default |
+| `detection.nightStartMinutes` | `1125` (18:45) | Start of the night profile, minutes since midnight |
+| `detection.nightEndMinutes` | `360` (06:00) | End of the night profile, minutes since midnight |
+| `detection.motionPersist` | `"5s"` | How long movement must continue before a clip is started |
+| `detection.prebufferLead` | `"3s"` | How much footage from *before* the trigger is prepended to a clip |
+| `detection.clipDuration` | `"15s"` | Length of an automatic clip. Manual clips ignore this and run until `/stop` |
 
-# Night Detection Thresholds
-NIGHT_MIN_CONTOUR_AREA = 12000
-NIGHT_THRESH_VALUE = 40
-NIGHT_FRAME_INTERVAL = 2  # Check every 2 seconds
+### Sensitivity profiles
 
-# Day/Night Hours
-NIGHT_START = 20  # 8 PM
-NIGHT_END = 6     # 6 AM
-```
+`detection.day` and `detection.night` hold the same four fields, applied
+depending on the time of day.
 
-## File Structure
+| Field | Day default | Night default | Meaning |
+|---|---|---|---|
+| `minimumContourArea` | `8000` | `9000` | Pixel area a moving region must exceed to count. Raise it to ignore smaller movement |
+| `thresholdValue` | `30` | `30` | Per-pixel brightness change treated as movement. Raise it to ignore gradual light changes |
+| `sampleInterval` | `"1s"` | `"1s"` | Gap between frames examined for motion while idle |
+| `alertCooldown` | `"5m0s"` | `"5m0s"` | Minimum gap between snapshot alerts, so one long event does not produce a stream of messages |
 
-```
-motion/
-├── motion_detector.py    # Main application
-├── start_motion.cmd      # Windows launcher
-├── snapshots/           # Motion snapshots (created automatically)
-├── videos/              # Recorded videos (created automatically)
-├── DISABLED             # Create this file to disable alerts
-└── README.md            # This file
-```
+Night is slightly less sensitive by default: a dim, noisy image produces more
+spurious pixel change, so a larger region is required before it counts.
 
-## How It Works
+### Why the night window is in minutes
 
-1. **Motion Detection**: Continuously monitors camera feed for motion using OpenCV
-2. **Snapshot Alerts**: When motion detected, saves snapshot and sends to Telegram
-3. **Persistent Motion**: If motion continues for 5+ seconds, starts recording video
-4. **Automatic Recording**: Records for 15 seconds at 8 FPS, sends to Telegram
-5. **Manual Recording**: On-demand recording at 15 FPS until stopped
+The night boundary is stored as minutes since midnight rather than an hour,
+because the schedule this was built for starts at **18:45**. An hour-only
+setting cannot express that. `1125` is `18 × 60 + 45`; `360` is `6 × 60`. A
+window that wraps past midnight is handled correctly, and setting start equal to
+end disables the night profile entirely.
 
-## Disabling Alerts
+### Storage
 
-To temporarily disable Telegram alerts (but keep recording):
-```bash
-# Create DISABLED file
-echo. > DISABLED
+| Field | Default | Meaning |
+|---|---|---|
+| `storage.mediaDirectory` | per-user media directory | Where snapshots and clips are written |
+| `storage.retentionDays` | `30` | Recordings older than this are deleted at startup. `0` keeps everything, which will eventually fill the disk |
 
-# To re-enable, delete the file
-del DISABLED
-```
+### Fields with no effect yet
 
-## Video Quality
-
-- **Manual Recordings**: 15 FPS, full quality, runs until you stop it
-- **Automatic Recordings**: 8 FPS, efficient quality, 15 seconds duration
+`detection.automaticClipFPS` (`8`) and `detection.manualClipFPS` (`15`) are
+persisted but currently unused. Clips are written at the frame rate actually
+measured from the camera on startup, because writing at a guessed rate is what
+made an earlier build's recordings play back too fast. The fields remain for a
+future option to override the measured rate.
 
 ## Troubleshooting
 
-### Camera not working
-- Check `CAMERA_INDEX` value (try 0, 1, 2)
-- Ensure camera permissions are granted
-- Close other applications using the camera
+**"no usable camera found", or a second launch fails**
 
-### Telegram not working
-- Verify `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are correct
-- Test by sending a message directly to your bot
-- Check internet connection
+Only one process can hold a camera. If the detector is already running — or a
+previous run has not fully exited, or a video-conferencing app has the webcam —
+a second instance cannot open the device and fails with a backend error that
+does not say so. Close the other user of the camera first.
 
-### Videos play too fast
-- This is tuned for typical webcams with processing overhead
-- If still fast, reduce FPS values in the code
+**A camera is listed but the detector sees nothing, or index 0 does nothing**
 
-## Security Notes
+Index 0 is frequently a virtual camera (Iriun, OBS) that opens successfully and
+then delivers no frames. Run `go run ./cmd/motiond -list-cameras`, which
+requires each device to hand over a real frame before reporting it, and pass
+the index it gives you with `-camera N`.
 
-⚠️ **Important**: Never commit your Telegram credentials to GitHub!
-- Use environment variables for tokens
-- Add credentials to `.gitignore` if stored in a config file
+**The bot token is rejected even though it looks correct**
+
+A `.env` file written on Windows ends each line with a carriage return, which is
+invisible in an editor but becomes part of the value and makes the request URL
+invalid. Credentials are now trimmed on the way in, so this is handled — but if
+you are pasting a token anywhere else, watch for trailing whitespace.
+
+**A wall of OpenCV warnings on Linux**
+
+Lines like `can't open camera by index` from `cap_v4l.cpp` are harmless. They
+are OpenCV reporting each device index that is not a capture device while
+enumerating. Linux asks for the V4L2 backend directly, which already avoids a
+much longer page of GStreamer pipeline warnings.
+
+**A clip reports dropped frames**
+
+A finished clip may note that frames were dropped because the encoder could not
+keep up. Frames are dropped deliberately rather than allowed to accumulate, so
+that a slow disk cannot stall capture or grow memory without limit. Persistent
+dropping means the machine cannot encode at the camera's rate.
+
+## Building from source
+
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for toolchain setup, OpenCV
+installation per platform, and the build and packaging targets.
+
+For how the code is organised and why, see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## Why only Telegram
+
+Telegram is the only supported channel, and WhatsApp is deferred on purpose.
+
+WhatsApp's official Cloud API cannot do what this app needs without
+infrastructure a local desktop app does not have. Sending an unprompted message
+— which is exactly what a motion alert is — requires a Meta Business account
+and message templates approved in advance, so an alert cannot simply be composed
+and sent. Receiving commands requires a publicly reachable HTTPS webhook, which
+a program running on someone's home PC does not have and should not need.
+
+The unofficial route works around both by driving WhatsApp's own protocol, but
+it carries a terms-of-service and account-ban risk that belongs in front of a
+user as an explicit choice, not shipped quietly in a release.
+
+The `notify.Notifier` interface exists so another provider can be added without
+touching the detector. See
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#adding-a-notifier) for what that
+involves.
+
+## Roadmap
+
+[ROADMAP.md](ROADMAP.md) tracks what is done, what is in progress, and what has
+been deferred, including an honest assessment of the remaining work.
 
 ## License
 
-MIT License - Feel free to use and modify for your needs.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## Acknowledgments
-
-- Built with OpenCV for motion detection
-- Telegram Bot API for notifications
-- Inspired by home security needs
+MIT. See [LICENSE](LICENSE).
