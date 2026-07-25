@@ -8,7 +8,7 @@
   "frontend:dev:serverUrl": "auto",
   "info": {
     "companyName": "Issa Suleiman",
-    "productName": "Motion Detector",
+    "productName": "Kaa Rada",
     "productVersion": "1.0.0",
     "copyright": "Copyright © 2025 Issa Suleiman. MIT licensed.",
     "comments": "Watches a camera for motion and alerts you on Telegram."

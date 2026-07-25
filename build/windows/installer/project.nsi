@@ -1,7 +1,7 @@
 Unicode true
 
 ####
-## Motion Detector NSIS installer.
+## Kaa Rada NSIS installer.
 ##
 ## Adapted from the Wails v2 default template. Local changes are marked with
 ## "PROJECT:" comments so a future Wails upgrade can be diffed against the
@@ -17,10 +17,10 @@ Unicode true
 ####
 
 ## PROJECT: defined explicitly because wails.json sets no companyName. Left
-## undefined, INSTALLDIR below expands to "C:\Program Files\\Motion Detector"
+## undefined, INSTALLDIR below expands to "C:\Program Files\\Kaa Rada"
 ## with an empty path component, and the uninstall registry key collides with
 ## any other product of the same name.
-!define INFO_COMPANYNAME "Motion Detector"
+!define INFO_COMPANYNAME "Kaa Rada"
 
 ## PROJECT: pinned so the installer does not silently follow a rename of the
 ## Wails project name.
@@ -62,7 +62,7 @@ ManifestDPIAware true
 ## the user enters their Telegram bot token, so getting them into the app
 ## matters more than usual here.
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${PRODUCT_EXECUTABLE}"
-!define MUI_FINISHPAGE_RUN_TEXT "Start Motion Detector"
+!define MUI_FINISHPAGE_RUN_TEXT "Start Kaa Rada"
 
 ## PROJECT: Start Menu folder selection. The stock template drops a single
 ## loose .lnk into the Programs root; a folder lets us also ship an uninstall
