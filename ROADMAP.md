@@ -6,7 +6,10 @@ without touching a config file.
 
 ## Where things stand
 
-**Done and verified**
+Repository: `github.com/issar13/kaa-rada` (private), branch `main`.
+Commits use Conventional Commits format.
+
+**Done, verified, and pushed**
 
 - Detection engine in Go, replacing the Python original
 - Clips contain real frames, written at the camera's *measured* frame rate
@@ -14,19 +17,52 @@ without touching a config file.
 - Camera enumeration that requires a real frame, not just a successful open
 - Telegram delivery with sender authentication
 - Settings persisted per-user instead of compiled in as constants
-- 16 unit tests plus 3 camera integration tests; `go vet` and `gofmt` clean
+- 34 unit tests plus 3 camera integration tests, passing under `-race`
+- Documentation rewritten from source: README, ARCHITECTURE, SETUP-TELEGRAM,
+  DEVELOPMENT
+- CI on every push. Linux and the credential scan are green.
+- A credential scan that fails the build on a token-shaped string in tracked
+  source. Tested adversarially; reports line numbers without echoing the match.
 
-**Not yet verified**
+**In progress**
+
+- Desktop UI (Wails). Written but uncommitted: `main.go`, `app.go`,
+  `internal/app/`, `frontend/`, `wails.json`, and a `go.mod` bump to 1.25.0
+  that Wails requires. Held back deliberately so CI keeps skipping the desktop
+  build while the UI is still moving.
+- Windows CI has never completed a run. Three attempts: two cancelled by
+  pushes, one superseded by the `BUILD_LIST` change.
+
+**Not verified by anyone**
 
 - The motion trigger end-to-end. Needs a human in front of the camera.
+- Any UI interaction. The webview has been compiled, never clicked.
+- Every Telegram path in the desktop app. No credentials were used.
+- The Windows build, at all.
 
-**Not started**
+**Known issues**
 
-- Desktop UI, Windows build, CI, installers, user-facing docs
+- Clips are `mp4v`, which WebKit cannot decode, so in-app playback will not
+  work. An "Open externally" button is the working path. Fixing it properly
+  means moving the recorder to H.264.
+- `wails.json` lacks `companyName`, `productVersion`, and `copyright`, which
+  yields `C:\Program Files\\Motion Detector` and a colliding uninstall
+  registry key.
+- `Detector.Status()` reports zero values for the first two sample intervals,
+  because `storeStatus` sits after the analysis throttle.
 
-Honest assessment: the engine is the finished part. The UI and the Windows
-toolchain are each comparable in size to what has been built so far, and the
-Windows gocv build is the single biggest unknown in the project.
+**Release gate for v0.1.0**
+
+1. UI lands, is committed and pushed
+2. Windows CI completes once, pass or fail
+3. Pass -> tag `v0.1.0` with both platforms.
+   Fail twice more -> tag Linux and CLI only, mark Windows experimental.
+
+Note: pushing cancels an in-flight CI run via the concurrency group. Avoid
+pushing while a Windows build is running unless the cache key changed anyway.
+
+Honest assessment: the engine is the finished part. The Windows gocv build
+remains the single biggest unknown.
 
 ## Phase 0 — arrange the project
 

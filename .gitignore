@@ -25,6 +25,7 @@ DISABLED
 
 # Webview frontend build artifacts
 frontend/node_modules/
+frontend/package.json.md5
 
 # The Go binary embeds frontend/dist via //go:embed, which fails outright if
 # the directory is absent. Ignore the built assets but keep the directory, so
