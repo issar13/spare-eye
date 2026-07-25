@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"motion-detector/internal/media"
-	"motion-detector/internal/notify"
+	"kaa-rada/internal/media"
+	"kaa-rada/internal/notify"
 )
 
 // RecordingView is one file on disk, described for the browser screen. It adds

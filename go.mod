@@ -1,4 +1,4 @@
-module motion-detector
+module kaa-rada
 
 go 1.25.0
 

@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"motion-detector/internal/config"
-	"motion-detector/internal/notify"
+	"kaa-rada/internal/config"
+	"kaa-rada/internal/notify"
 )
 
 // verifyTimeout bounds the Telegram round trip so a wrong host cannot leave the

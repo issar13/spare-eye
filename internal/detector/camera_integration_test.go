@@ -17,7 +17,7 @@ import (
 
 	"gocv.io/x/gocv"
 
-	"motion-detector/internal/config"
+	"kaa-rada/internal/config"
 )
 
 // TestManualClipContainsFrames is the regression test for the defect that made

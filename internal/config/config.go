@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	applicationDirectoryName = "motion-detector"
+	applicationDirectoryName = "kaa-rada"
 	configFileName           = "config.json"
 )
 

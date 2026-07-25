@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"motion-detector/internal/config"
-	"motion-detector/internal/detector"
+	"kaa-rada/internal/config"
+	"kaa-rada/internal/detector"
 )
 
 // newTestService builds a service whose media directories are throwaway

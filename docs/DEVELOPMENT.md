@@ -74,8 +74,8 @@ The Makefile holds the platform flags so nobody has to remember them:
 
 ```sh
 make check          # gofmt, go vet, go test
-make build-cli      # headless CLI       -> build/bin/motiond
-make build-desktop  # desktop app        -> build/bin/motion-detector
+make build-cli      # headless CLI       -> build/bin/kaa-rada-cli
+make build-desktop  # desktop app        -> build/bin/kaa-rada
 make dev            # desktop app with hot reload
 make package-linux  # release build for linux/amd64
 ```
@@ -212,7 +212,7 @@ the binary links fine and then dies immediately with exit status `3221225781`
 ### Build
 
 ```bat
-go build -tags customenv -o build\bin\motiond.exe .\cmd\motiond
+go build -tags customenv -o build\bin\kaa-rada-cli.exe .\cmd\kaa-rada-cli
 wails build -tags customenv -clean -platform windows/amd64 -nsis
 ```
 
@@ -288,7 +288,7 @@ backend error rather than a clean "device busy". If the detector will not
 start, or camera tests fail immediately, check for another instance:
 
 ```sh
-pgrep -a 'motion-detector|motiond'
+pgrep -a 'kaa-rada'
 fuser -v /dev/video*
 ```
 

@@ -7,8 +7,8 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
-	"motion-detector/internal/app"
-	"motion-detector/internal/detector"
+	"kaa-rada/internal/app"
+	"kaa-rada/internal/detector"
 )
 
 // App is the surface bound into the webview. It holds no state of its own: the

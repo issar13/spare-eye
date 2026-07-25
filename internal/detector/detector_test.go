@@ -6,7 +6,7 @@ import (
 
 	"gocv.io/x/gocv"
 
-	"motion-detector/internal/config"
+	"kaa-rada/internal/config"
 )
 
 func TestIsNightHandlesWindowCrossingMidnight(t *testing.T) {

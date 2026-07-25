@@ -99,7 +99,7 @@ running:
 ```
 export TELEGRAM_BOT_TOKEN=123456789:YOUR_BOT_TOKEN_HERE
 export TELEGRAM_CHAT_ID=123456789
-go run ./cmd/motiond
+go run ./cmd/kaa-rada-cli
 ```
 
 On Windows PowerShell:
@@ -107,7 +107,7 @@ On Windows PowerShell:
 ```
 $env:TELEGRAM_BOT_TOKEN = "123456789:YOUR_BOT_TOKEN_HERE"
 $env:TELEGRAM_CHAT_ID = "123456789"
-go run ./cmd/motiond
+go run ./cmd/kaa-rada-cli
 ```
 
 The tool prints `Telegram connected` and sends a confirmation message once the

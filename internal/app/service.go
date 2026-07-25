@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
-	"motion-detector/internal/config"
-	"motion-detector/internal/detector"
-	"motion-detector/internal/media"
+	"kaa-rada/internal/config"
+	"kaa-rada/internal/detector"
+	"kaa-rada/internal/media"
 )
 
 // cameraOpenTimeout bounds how long Arm waits for the first frame before giving

@@ -79,7 +79,7 @@ motion/
 ├── main.go                      Wails application entry point
 ├── app.go                       methods bound to the frontend
 ├── cmd/
-│   └── motiond/                 headless CLI (no display required)
+│   └── kaa-rada-cli/                 headless CLI (no display required)
 ├── internal/
 │   ├── app/                     service layer bound to the UI
 │   ├── config/                  settings persistence
@@ -107,7 +107,7 @@ motion/
 
 ### Moves
 
-- `cmd/motion-detector/` becomes `cmd/motiond/`. The desktop app takes the
+- `cmd/kaa-rada/` becomes `cmd/kaa-rada-cli/`. The desktop app takes the
   product name; the CLI gets the daemon-style short name.
 - Snapshot and clip retention already lives in `internal/media`; the UI will
   call it on start rather than only the CLI.

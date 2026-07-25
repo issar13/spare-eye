@@ -13,7 +13,7 @@ Unicode true
 ##
 ## To iterate on the installer without a full Wails build, run a Wails NSIS
 ## build once to generate wails_tools.nsh, then:
-##   makensis -DARG_WAILS_AMD64_BINARY=..\..\bin\motion-detector.exe
+##   makensis -DARG_WAILS_AMD64_BINARY=..\..\bin\kaa-rada.exe
 ####
 
 ## PROJECT: defined explicitly because wails.json sets no companyName. Left
@@ -24,7 +24,7 @@ Unicode true
 
 ## PROJECT: pinned so the installer does not silently follow a rename of the
 ## Wails project name.
-!define PRODUCT_EXECUTABLE "motion-detector.exe"
+!define PRODUCT_EXECUTABLE "kaa-rada.exe"
 
 ## PROJECT: "admin" is the Wails default and is what we want. The application
 ## itself runs asInvoker (see ..\wails.exe.manifest); only installation into

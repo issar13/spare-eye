@@ -13,7 +13,7 @@ behaviour see the [README](../README.md).
 ```
 main.go            Wails desktop entry point          (in progress)
 app.go             methods bound to the frontend      (in progress)
-cmd/motiond/       headless CLI — no display needed
+cmd/kaa-rada-cli/       headless CLI — no display needed
 internal/app/      service layer bound to the UI      (in progress)
 internal/config/   settings persistence
 internal/detector/ camera, motion analysis, recording
@@ -25,7 +25,7 @@ frontend/          webview UI, Wails-managed          (in progress)
 Dependencies run in one direction only:
 
 ```
-cmd/motiond ─┐
+cmd/kaa-rada-cli ─┐
              ├─> detector ─> config
 internal/app ┤   media    ─> (stdlib only)
              └─> notify   ─> (stdlib only)
@@ -340,7 +340,7 @@ protocol as a linked device. It would satisfy the interface, but it carries a
 terms-of-service and account-ban risk that has to be an explicit user choice
 rather than a shipped default. That is the decision, not an oversight.
 
-## cmd/motiond and internal/app
+## cmd/kaa-rada-cli and internal/app
 
 Both are wiring. They construct a `Detector`, construct a `Notifier`, and connect
 the two. Neither owns any behaviour that the other should have to reimplement,

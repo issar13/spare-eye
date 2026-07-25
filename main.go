@@ -1,5 +1,5 @@
-// Command motion-detector is the desktop build. The headless engine lives in
-// ./cmd/motiond; this package exists at the repository root because Wails v2
+// Command kaa-rada is the desktop build. The headless engine lives in
+// ./cmd/kaa-rada-cli; this package exists at the repository root because Wails v2
 // compiles the main package it finds there.
 package main
 
@@ -12,9 +12,9 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
-	"motion-detector/internal/app"
-	"motion-detector/internal/config"
-	"motion-detector/internal/detector"
+	"kaa-rada/internal/app"
+	"kaa-rada/internal/config"
+	"kaa-rada/internal/detector"
 )
 
 //go:embed all:frontend/dist

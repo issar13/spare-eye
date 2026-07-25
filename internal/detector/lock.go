@@ -55,5 +55,5 @@ func (l *InstanceLock) Release() error {
 var ErrAlreadyRunning = fmt.Errorf(
 	"another copy of the motion detector is already running\n" +
 		"  • only one process can hold the camera at a time\n" +
-		"  • close the other window, or stop a headless motiond run, then try again",
+		"  • close the other window, or stop a headless kaa-rada-cli run, then try again",
 )
