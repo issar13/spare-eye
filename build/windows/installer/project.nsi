@@ -26,11 +26,18 @@ Unicode true
 ## Wails project name.
 !define PRODUCT_EXECUTABLE "kaa-rada.exe"
 
-## PROJECT: "admin" is the Wails default and is what we want. The application
-## itself runs asInvoker (see ..\wails.exe.manifest); only installation into
-## Program Files needs elevation. The app never writes to its install
-## directory, so no post-install ACL changes are required.
-!define REQUEST_EXECUTION_LEVEL "admin"
+## PROJECT: installs for the current user, into %LocalAppData%\Programs, and
+## therefore asks for no elevation.
+##
+## Two reasons. The app is per-user already — settings, recordings and the
+## Telegram token all live under %AppData% precisely so two people sharing a
+## machine do not share one person's footage — so a machine-wide install buys
+## nothing. And these binaries are unsigned: an elevation prompt on an unsigned
+## installer is the dialog that says "Publisher: Unknown" in red, which is the
+## most alarming thing a first-time user sees. Not requesting admin removes
+## that prompt entirely. SmartScreen is separate and still applies.
+!define REQUEST_EXECUTION_LEVEL "user"
+!define WAILS_INSTALL_SCOPE "user"
 
 ####
 ## Include the wails tools
