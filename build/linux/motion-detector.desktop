@@ -1,0 +1,23 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Motion Detector
+GenericName=Motion Detection Camera
+Comment=Watch a camera for motion and send alerts to Telegram
+# No absolute path: install.sh puts the binary on PATH under ~/.local/bin (or
+# /usr/local/bin for a system install), so the same entry works for both.
+Exec=motion-detector
+Icon=motion-detector
+Terminal=false
+# Utility is the single main category, so the app appears exactly once in the
+# menu; Security is the additional category that describes what it does.
+# Deliberately no Video: the spec requires it to be paired with the AudioVideo
+# main category, which would list the app a second time under Sound & Video.
+Categories=Utility;Security;
+Keywords=motion;camera;security;surveillance;telegram;webcam;
+StartupNotify=true
+# Only one process can hold the camera at a time, so launching a second copy
+# fails with an opaque backend error. Ask the desktop to raise the running
+# window instead of starting another instance.
+SingleMainWindow=true
+StartupWMClass=motion-detector

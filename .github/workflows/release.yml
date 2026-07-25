@@ -1,0 +1,294 @@
+name: Release
+
+# Tagged builds. Same native-runner constraint as ci.yml: gocv needs cgo, so
+# each artifact is built on its own platform. macOS is out of scope.
+#
+# Binaries ship UNSIGNED. Windows users will see a SmartScreen warning on
+# first run; the release notes say so explicitly rather than letting people
+# discover it.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  # Allows a dry run against a branch: builds and uploads artifacts but
+  # publishes no release.
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false # never interrupt a half-finished release build
+
+permissions:
+  contents: read
+
+env:
+  OPENCV_VERSION: 4.6.0
+  WAILS_VERSION: v2.13.0
+
+jobs:
+  # A leaked credential must stop a release before any artifact is published.
+  # Once a release asset is public it cannot be unpublished meaningfully.
+  credential-scan:
+    name: Credential scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: ./scripts/check-no-credentials.sh
+
+  linux:
+    name: Build Linux
+    needs: credential-scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install OpenCV and GTK/WebKit development packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            build-essential pkg-config libopencv-dev \
+            libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+
+      - name: Build
+        run: |
+          mkdir -p build/bin
+          go build -o build/bin/motiond ./cmd/motiond
+          # -tags webkit2gtk_4_1 is mandatory on Ubuntu 24.04; see the Makefile.
+          wails build -tags webkit2gtk_4_1 -clean -platform linux/amd64
+
+      - name: Fail if a credential reached the bundle
+        run: ./scripts/check-no-credentials.sh build/bin
+
+      - name: Package tarball
+        id: package
+        run: |
+          version="${GITHUB_REF_NAME}"
+          staging_directory="motion-detector-${version}-linux-amd64"
+          mkdir -p "${staging_directory}"
+
+          # Copy explicitly, never `cp -r build/bin/.`, so that nothing which
+          # happens to be sitting in the output directory can be swept into a
+          # published archive.
+          cp build/bin/motion-detector "${staging_directory}/"
+          cp build/bin/motiond "${staging_directory}/"
+          cp README.md LICENSE "${staging_directory}/"
+          cp build/linux/motion-detector.desktop "${staging_directory}/"
+          cp build/linux/motion-detector.metainfo.xml "${staging_directory}/"
+          cp build/appicon.png "${staging_directory}/"
+          cp build/linux/install.sh "${staging_directory}/"
+          chmod +x "${staging_directory}/install.sh"
+
+          tar -czf "${staging_directory}.tar.gz" "${staging_directory}"
+          sha256sum "${staging_directory}.tar.gz" > "${staging_directory}.tar.gz.sha256"
+          echo "tarball=${staging_directory}.tar.gz" >> "$GITHUB_OUTPUT"
+
+      - name: Verify the tarball contains no credentials
+        run: |
+          extract_directory="$(mktemp -d)"
+          tar -xzf "${{ steps.package.outputs.tarball }}" -C "${extract_directory}"
+          ./scripts/check-no-credentials.sh "${extract_directory}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: |
+            *.tar.gz
+            *.tar.gz.sha256
+          if-no-files-found: error
+
+  windows:
+    name: Build Windows
+    needs: credential-scan
+    runs-on: windows-2022
+    # UNVALIDATED, exactly as in ci.yml. This has never been run. Expect the
+    # first tagged release to need a retry or two on this job.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Cache OpenCV source
+        id: cache-opencv-source
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}\opencv\opencv-${{ env.OPENCV_VERSION }}
+            ${{ github.workspace }}\opencv\opencv_contrib-${{ env.OPENCV_VERSION }}
+          key: opencv-source-${{ env.OPENCV_VERSION }}-windows-v1
+
+      - name: Download OpenCV source
+        if: steps.cache-opencv-source.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $openCvRoot = "${env:GITHUB_WORKSPACE}\opencv"
+          New-Item -ItemType Directory -Force -Path $openCvRoot | Out-Null
+          foreach ($repository in @('opencv', 'opencv_contrib')) {
+            $archivePath = "$openCvRoot\$repository.zip"
+            Invoke-WebRequest -Uri "https://github.com/opencv/$repository/archive/${env:OPENCV_VERSION}.zip" -OutFile $archivePath
+            Expand-Archive -Path $archivePath -DestinationPath $openCvRoot -Force
+            Remove-Item $archivePath
+          }
+
+      # Shares a cache key with ci.yml on purpose: a release tag pushed after a
+      # green CI run reuses that build and finishes in minutes instead of hours.
+      - name: Cache OpenCV build
+        id: cache-opencv-build
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\opencv\build
+          key: opencv-build-${{ env.OPENCV_VERSION }}-windows-v1
+
+      - name: Build OpenCV with MinGW
+        if: steps.cache-opencv-build.outputs.cache-hit != 'true'
+        shell: cmd
+        run: |
+          cmake "%GITHUB_WORKSPACE%\opencv\opencv-%OPENCV_VERSION%" ^
+            -G "MinGW Makefiles" ^
+            -B"%GITHUB_WORKSPACE%\opencv\build" ^
+            -DCMAKE_INSTALL_PREFIX="%GITHUB_WORKSPACE%\opencv\build\install" ^
+            -DOPENCV_EXTRA_MODULES_PATH="%GITHUB_WORKSPACE%\opencv\opencv_contrib-%OPENCV_VERSION%\modules" ^
+            -DENABLE_CXX11=ON -DBUILD_SHARED_LIBS=ON -DOPENCV_ENABLE_NONFREE=ON ^
+            -DBUILD_opencv_gapi=OFF -DWITH_IPP=OFF -DWITH_MSMF=OFF ^
+            -DWITH_OPENCL_D3D11_NV=OFF -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=OFF ^
+            -DBUILD_PERF_TESTS=OFF -DBUILD_DOCS=OFF -DBUILD_opencv_java=OFF ^
+            -DBUILD_opencv_python=OFF -DBUILD_opencv_python2=OFF ^
+            -DBUILD_opencv_python3=OFF -DBUILD_opencv_saliency=OFF ^
+            -DBUILD_opencv_wechat_qrcode=ON -DENABLE_PRECOMPILED_HEADERS=OFF ^
+            -DCPU_DISPATCH= -DOPENCV_GENERATE_PKGCONFIG=ON ^
+            -DOPENCV_ALLOCATOR_STATS_COUNTER_TYPE=int64_t -Wno-dev
+          if errorlevel 1 exit /b 1
+          cd "%GITHUB_WORKSPACE%\opencv\build"
+          mingw32-make -j%NUMBER_OF_PROCESSORS%
+          if errorlevel 1 exit /b 1
+          mingw32-make install
+
+      - name: Point cgo at the OpenCV install
+        shell: pwsh
+        run: |
+          $installRoot = "${env:GITHUB_WORKSPACE}\opencv\build\install"
+          $openCvLibraries = @(
+            'core', 'face', 'videoio', 'imgproc', 'highgui', 'imgcodecs',
+            'objdetect', 'features2d', 'video', 'dnn', 'xfeatures2d', 'plot',
+            'tracking', 'img_hash', 'calib3d', 'bgsegm', 'photo', 'aruco',
+            'wechat_qrcode', 'ximgproc'
+          ) | ForEach-Object { "-lopencv_${_}460" }
+          "CGO_CXXFLAGS=--std=c++11 -DNDEBUG" >> $env:GITHUB_ENV
+          "CGO_CPPFLAGS=-I$installRoot\include" >> $env:GITHUB_ENV
+          "CGO_LDFLAGS=-L$installRoot\x64\mingw\lib $($openCvLibraries -join ' ')" >> $env:GITHUB_ENV
+          "$installRoot\x64\mingw\bin" >> $env:GITHUB_PATH
+
+      - name: Install NSIS
+        # `wails build -nsis` shells out to makensis; it is not on the runner
+        # image by default.
+        run: choco install nsis -y --no-progress
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
+
+      - name: Build installer
+        run: |
+          New-Item -ItemType Directory -Force -Path build\bin | Out-Null
+          go build -tags customenv -o build\bin\motiond.exe .\cmd\motiond
+          wails build -tags customenv -clean -platform windows/amd64 -nsis
+
+      - name: Fail if a credential reached the bundle
+        shell: bash
+        run: ./scripts/check-no-credentials.sh build/bin
+
+      - name: Stage installer
+        shell: pwsh
+        run: |
+          $version = "${env:GITHUB_REF_NAME}"
+          New-Item -ItemType Directory -Force -Path staging | Out-Null
+          # Wails names the installer from build/windows/installer/*.nsi and
+          # the product version; glob rather than guess.
+          $installer = Get-ChildItem -Path build\bin -Filter '*-installer.exe' -Recurse | Select-Object -First 1
+          if (-not $installer) {
+            Write-Error 'No NSIS installer was produced in build\bin.'
+            exit 1
+          }
+          Copy-Item $installer.FullName "staging\motion-detector-$version-windows-amd64-installer.exe"
+          Copy-Item build\bin\motiond.exe "staging\motiond-$version-windows-amd64.exe"
+          Get-ChildItem staging | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower()
+            "$hash  $($_.Name)" | Out-File -FilePath "$($_.FullName).sha256" -Encoding ascii
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: staging/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: [linux, windows]
+    # workflow_dispatch runs are dry runs: they build and upload artifacts but
+    # must not create a release.
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # required to create the release and upload assets
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: List assets
+        run: ls -la release-assets
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          body: |
+            ## Install
+
+            **Linux** — download the `.tar.gz`, extract it, and run `./install.sh`
+            to add the application to your desktop menu, or just run the
+            `motion-detector` binary directly.
+
+            Requires OpenCV 4.6 at run time: `sudo apt install libopencv-dev`
+            on Ubuntu 24.04.
+
+            **Windows** — download and run the installer.
+
+            ### A note on the SmartScreen warning
+
+            These binaries are **not code-signed**, so Windows SmartScreen will
+            warn that the publisher is unknown. Choose *More info* then
+            *Run anyway*. Code signing certificates cost a few hundred dollars a
+            year and have not been purchased for this project yet.
+
+            ### Privacy
+
+            Motion clips and snapshots are uploaded to Telegram's servers when
+            an alert fires. If you point a camera at a room containing other
+            people, that footage leaves your machine.
+
+            ---
+            Verify a download against its `.sha256` file before running it.
