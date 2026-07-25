@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Motion Detector</title>
+</head>
+<body>
+<div class="shell">
+    <nav class="sidebar">
+        <h1 class="wordmark">Motion<span>Detector</span></h1>
+
+        <div class="pill">
+            <span class="dot" id="status-dot"></span>
+            <span id="status-label">Starting…</span>
+        </div>
+
+        <button class="nav" data-panel="home" type="button">Home</button>
+        <button class="nav" data-panel="preview" type="button">Live view</button>
+        <button class="nav" data-panel="recordings" type="button">Recordings</button>
+        <button class="nav" data-panel="detection" type="button">Motion settings</button>
+        <button class="nav" data-panel="setup" type="button">Setup</button>
+    </nav>
+
+    <main class="content">
+        <section class="panel" id="panel-home">
+            <div class="hero" id="hero">
+                <span class="hero-dot" id="hero-dot"></span>
+                <div>
+                    <h2 id="hero-headline">Starting…</h2>
+                    <p id="hero-explanation"></p>
+                    <p class="guide" hidden id="hero-guide"></p>
+                </div>
+            </div>
+
+            <div class="banner" hidden id="home-message"></div>
+
+            <div class="row">
+                <button class="primary big" id="watch-button" type="button">Start watching</button>
+                <button id="record-button" type="button">Record now</button>
+            </div>
+
+            <h3>What has happened</h3>
+            <div class="events" id="event-list"></div>
+
+            <details>
+                <summary>Technical details</summary>
+                <p class="hint">Useful if you are reporting a problem. Nothing here needs changing.</p>
+                <div class="stats" id="diagnostics"></div>
+                <pre class="log" id="log-view"></pre>
+            </details>
+        </section>
+
+        <section class="panel" hidden id="panel-preview">
+            <header>
+                <h2>Live view</h2>
+                <p class="lede">What your camera can see right now.</p>
+            </header>
+
+            <div class="banner" hidden id="preview-idle"></div>
+            <div class="viewport"><img alt="Live view from your camera" id="preview-image"/></div>
+            <p class="hint" id="preview-caption"></p>
+        </section>
+
+        <section class="panel" hidden id="panel-recordings">
+            <header>
+                <h2>Recordings</h2>
+                <p class="lede">Everything your camera has saved, newest first.</p>
+            </header>
+
+            <div class="banner" hidden id="recordings-message"></div>
+
+            <div class="row">
+                <button class="tab selected" data-collection="clips" type="button">Videos</button>
+                <button class="tab" data-collection="snapshots" type="button">Photos</button>
+                <button id="recordings-refresh" type="button">Refresh</button>
+            </div>
+
+            <div class="recordings" id="recording-list"></div>
+        </section>
+
+        <section class="panel" hidden id="panel-detection">
+            <header>
+                <h2>Motion settings</h2>
+                <p class="lede">These are already set up sensibly. Change them only if something is not
+                    working the way you want.</p>
+            </header>
+
+            <div class="banner" hidden id="detection-message"></div>
+
+            <form id="detection-form">
+                <fieldset>
+                    <legend>How much movement should set it off?</legend>
+
+                    <p class="field-label">In daylight</p>
+                    <div class="segmented" id="day-sensitivity"></div>
+
+                    <p class="field-label">At night</p>
+                    <div class="segmented" id="night-sensitivity"></div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Night mode</legend>
+                    <p class="hint">Cameras see differently after dark, so night hours get their own
+                        sensitivity setting.</p>
+                    <div class="grid">
+                        <label>Night mode from
+                            <input name="nightStart" type="time"/>
+                        </label>
+                        <label>Night mode until
+                            <input name="nightEnd" type="time"/>
+                        </label>
+                    </div>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Alerts</legend>
+                    <p class="sentence">
+                        Don’t alert me more than once every
+                        <input min="0" name="alertCooldownMinutes" step="1" type="number"/>
+                        minutes
+                    </p>
+                    <p class="hint">Stops a busy street from filling your phone with messages.</p>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Recording</legend>
+                    <p class="sentence">
+                        Only record if movement lasts longer than
+                        <input min="1" name="motionPersistSeconds" step="1" type="number"/>
+                        seconds
+                    </p>
+                    <p class="sentence">
+                        Record for
+                        <input min="1" name="clipDurationSeconds" step="1" type="number"/>
+                        seconds
+                    </p>
+                    <p class="sentence">
+                        Include
+                        <input min="0" name="prebufferLeadSeconds" step="1" type="number"/>
+                        seconds from before the movement started
+                    </p>
+                    <p class="hint">The last one means you see what led up to the movement, not just the
+                        moment it was noticed.</p>
+                </fieldset>
+
+                <fieldset>
+                    <legend>Storage</legend>
+                    <p class="sentence">
+                        Delete recordings older than
+                        <input min="0" name="retentionDays" step="1" type="number"/>
+                        days
+                    </p>
+                    <p class="hint">Set this to 0 to keep everything forever. Old recordings are tidied up
+                        each time the app starts.</p>
+                </fieldset>
+
+                <details>
+                    <summary>Advanced numbers</summary>
+                    <p class="hint">These are the values behind the sensitivity choices above. Picking a
+                        sensitivity level will overwrite them.</p>
+
+                    <div class="profiles">
+                        <fieldset>
+                            <legend>Daylight</legend>
+                            <label>Smallest movement that counts, in pixels
+                                <input min="1" name="day.minimumContourArea" step="100" type="number"/>
+                            </label>
+                            <label>How much a pixel must change, 1–255
+                                <input max="255" min="1" name="day.thresholdValue" step="1" type="number"/>
+                            </label>
+                            <label>Seconds between checks of the picture
+                                <input min="0.1" name="day.sampleIntervalSeconds" step="0.1" type="number"/>
+                            </label>
+                        </fieldset>
+
+                        <fieldset>
+                            <legend>Night</legend>
+                            <label>Smallest movement that counts, in pixels
+                                <input min="1" name="night.minimumContourArea" step="100" type="number"/>
+                            </label>
+                            <label>How much a pixel must change, 1–255
+                                <input max="255" min="1" name="night.thresholdValue" step="1" type="number"/>
+                            </label>
+                            <label>Seconds between checks of the picture
+                                <input min="0.1" name="night.sampleIntervalSeconds" step="0.1" type="number"/>
+                            </label>
+                        </fieldset>
+                    </div>
+                </details>
+
+                <div class="row">
+                    <button class="primary" type="submit">Save settings</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="panel" hidden id="panel-setup">
+            <header>
+                <h2>Setup</h2>
+                <p class="lede">Three steps and you are watching. Everything you enter stays on this
+                    computer.</p>
+            </header>
+
+            <ol class="steps">
+                <li class="step" id="step-camera">
+                    <div class="step-head">
+                        <span class="step-number">1</span>
+                        <h3>Choose your camera</h3>
+                        <span class="step-state" id="step-camera-state">To do</span>
+                    </div>
+
+                    <p class="hint">Only cameras that actually send a picture are listed. A webcam that is
+                        switched off, or already in use by another app, will not appear.</p>
+
+                    <div class="row">
+                        <select id="camera-picker"></select>
+                        <button id="camera-refresh" type="button">Look again</button>
+                    </div>
+
+                    <div class="banner" hidden id="camera-message"></div>
+                </li>
+
+                <li class="step" id="step-telegram">
+                    <div class="step-head">
+                        <span class="step-number">2</span>
+                        <h3>Get alerts on your phone</h3>
+                        <span class="step-state" id="step-telegram-state">To do</span>
+                    </div>
+
+                    <p class="hint">Motion Detector sends photos and clips to you on Telegram. You need a
+                        bot token and a chat ID — the walkthrough is in docs/SETUP-TELEGRAM.md. You can skip
+                        this and just save recordings to this computer.</p>
+
+                    <form id="telegram-form">
+                        <label class="checkbox">
+                            <input name="enabled" type="checkbox"/>
+                            Send me alerts on Telegram
+                        </label>
+
+                        <label>Bot token <span class="hint">From @BotFather in Telegram</span>
+                            <input autocomplete="off" name="botToken" placeholder="123456789:AAE…" type="password"/>
+                        </label>
+
+                        <label>Chat ID <span class="hint">From @userinfobot in Telegram</span>
+                            <input autocomplete="off" name="chatID" placeholder="123456789" type="text"/>
+                        </label>
+
+                        <div class="row">
+                            <button class="primary" type="submit">Save</button>
+                            <button id="test-telegram" type="button">Test connection</button>
+                        </div>
+                    </form>
+
+                    <div class="banner" hidden id="setup-message"></div>
+                </li>
+
+                <li class="step" id="step-start">
+                    <div class="step-head">
+                        <span class="step-number">3</span>
+                        <h3>Start watching</h3>
+                        <span class="step-state" id="step-start-state">To do</span>
+                    </div>
+
+                    <p class="hint">Your camera turns on and Motion Detector begins watching. You can stop
+                        it again at any time from the Home screen.</p>
+
+                    <button class="primary big" id="setup-start" type="button">Start watching</button>
+
+                    <div class="banner" hidden id="start-message"></div>
+                </li>
+            </ol>
+        </section>
+    </main>
+</div>
+<script src="./src/main.ts" type="module"></script>
+</body>
+</html>
