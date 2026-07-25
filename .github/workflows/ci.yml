@@ -160,9 +160,16 @@ jobs:
       # Two caches, not one. A cold OpenCV build is over an hour; if the build
       # fails, the download should still be reusable on the retry, which a
       # single combined cache entry would not give.
+      #
+      # Both use the restore/save pair rather than actions/cache, whose save
+      # runs in a post step guarded by success(). A failing Go test three steps
+      # later would therefore discard a forty-minute OpenCV build and make every
+      # fix cost a full rebuild, which is exactly what happened on run
+      # 30173327116. Each save instead runs immediately after the step that
+      # produces its content, before anything else can fail the job.
       - name: Cache OpenCV source
         id: cache-opencv-source
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             ${{ github.workspace }}\opencv\opencv-${{ env.OPENCV_VERSION }}
@@ -185,9 +192,18 @@ jobs:
             Remove-Item $archivePath
           }
 
+      - name: Save the OpenCV source cache
+        if: steps.cache-opencv-source.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ github.workspace }}\opencv\opencv-${{ env.OPENCV_VERSION }}
+            ${{ github.workspace }}\opencv\opencv_contrib-${{ env.OPENCV_VERSION }}
+          key: opencv-source-${{ env.OPENCV_VERSION }}-windows-v2
+
       - name: Cache OpenCV build
         id: cache-opencv-build
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}\opencv\build
           # Bump the trailing version when the cmake flags below change,
@@ -241,6 +257,13 @@ jobs:
           mingw32-make -j%NUMBER_OF_PROCESSORS%
           if errorlevel 1 exit /b 1
           mingw32-make install
+
+      - name: Save the OpenCV build cache
+        if: steps.cache-opencv-build.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}\opencv\build
+          key: opencv-build-${{ env.OPENCV_VERSION }}-windows-v2
 
       - name: Point cgo at the OpenCV install
         shell: pwsh
