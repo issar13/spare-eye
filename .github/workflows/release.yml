@@ -340,14 +340,10 @@ jobs:
             exit 1
           }
           Copy-Item $installer.FullName "staging\kaa-rada-$version-windows-amd64-installer.exe"
-          # The CLI is published zipped with its DLLs, not as a bare .exe: on its
-          # own it cannot start, and a lone executable in a release invites
-          # exactly that.
-          New-Item -ItemType Directory -Force -Path cli-portable | Out-Null
-          Copy-Item build\bin\kaa-rada-cli.exe -Destination cli-portable -Force
-          Copy-Item build\bin\*.dll -Destination cli-portable -Force
-          Copy-Item README.md, LICENSE -Destination cli-portable -Force
-          Compress-Archive -Path cli-portable\* -DestinationPath "staging\kaa-rada-cli-$version-windows-amd64.zip" -Force
+          # The headless CLI is deliberately not published on its own. The
+          # installer already places it beside the desktop app with the DLLs it
+          # needs, so a separate download would be the same files a second time
+          # under a name that means nothing to somebody who wants a camera.
           # The list is materialised with @() before the loop writes anything.
           # A streaming Get-ChildItem would hand the loop the .sha256 files it
           # is itself creating, and they would get checksums of their own.
@@ -417,7 +413,11 @@ jobs:
             |---|---|---|---|
             | Windows 10/11 | x64 (Intel/AMD) | `kaa-rada-*-windows-amd64-installer.exe` | Run it and follow the wizard. Installs for your user only, so it never asks for administrator rights |
             | Linux | x64 (amd64) | `kaa-rada-*-linux-amd64.tar.gz` | Extract, then `./install.sh` |
-            | Windows, headless | x64 (Intel/AMD) | `kaa-rada-cli-*-windows-amd64.zip` | Extract the whole folder, keep the DLLs beside the .exe |
+
+            Both downloads also contain `kaa-rada-cli`: the same detector with
+            no window, for a machine with no display or one reached over SSH.
+            Windows installs it beside the app; on Linux it is in the tarball.
+            Neither needs a separate download.
 
             Only x64 is built. Apple Silicon and ARM Linux are not published:
             the app links OpenCV through cgo, so each architecture needs a
