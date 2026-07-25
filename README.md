@@ -202,6 +202,7 @@ Settings and media live in a per-user directory, not next to the binary:
 | Settings | `~/.config/kaa-rada/config.json` | `%AppData%\kaa-rada\config.json` |
 | Snapshots | `~/.config/kaa-rada/media/snapshots/` | `%AppData%\kaa-rada\media\snapshots\` |
 | Clips | `~/.config/kaa-rada/media/videos/` | `%AppData%\kaa-rada\media\videos\` |
+| Log | `~/.config/kaa-rada/kaa-rada.log` | `%AppData%\kaa-rada\kaa-rada.log` |
 
 The exact base directory is whatever the operating system reports as the user
 configuration directory.
@@ -319,6 +320,24 @@ A `.env` file written on Windows ends each line with a carriage return, which is
 invisible in an editor but becomes part of the value and makes the request URL
 invalid. Credentials are trimmed on the way in, so this case is handled — but if
 you are pasting a token anywhere else, watch for trailing whitespace.
+
+**The window opens and closes again immediately, or never appears**
+
+Open `%AppData%\kaa-rada\kaa-rada.log` — the same path the app shows on its
+diagnostics screen. The log is opened before any other startup work and written
+straight to disk, so the last record in it is the stage that failed:
+
+| Last record | What it means |
+|---|---|
+| nothing at all, or a log only in `%Temp%` | `%AppData%` could not be located or written to |
+| `startup: loading settings` | `config.json` is unreadable, or `storage.mediaDirectory` names a drive or share that no longer exists |
+| `startup: opening the window` | the webview failed to start; install the Microsoft Edge WebView2 runtime |
+| `startup: window opened` | the window appeared, then something failed while it was being prepared |
+| `probing capture devices` | a camera driver crashed the process while its devices were being enumerated. Unplug or disable the camera named in Device Manager, or set `detection.cameraIndex` by hand |
+| `panic` | a bug. The record carries the stack; please attach it to an issue |
+
+A failure that Go can report at all now also raises a message box naming this
+file, so an empty log means the process died before it could write one.
 
 **A wall of OpenCV warnings on Linux**
 

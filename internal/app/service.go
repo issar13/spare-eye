@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -71,6 +72,17 @@ func NewService(log *Log, settings config.Config, instanceLockError error) *Serv
 // Startup runs the work that should happen once the app is up: reclaiming disk
 // space and connecting the notifier.
 func (s *Service) Startup(ctx context.Context) {
+	// Wails calls this on its own goroutine, so a panic here would close the
+	// window that has just been painted and end the process before main could
+	// report it. An app that came up without pruning is worth more.
+	defer func() {
+		if panicked := recover(); panicked != nil {
+			s.log.Panicked("preparing the window", panicked)
+		}
+	}()
+
+	s.log.Info("startup: window opened")
+
 	if s.instanceLockError != nil {
 		s.log.Error("camera claim refused", "error", s.instanceLockError)
 	}
@@ -89,7 +101,20 @@ func (s *Service) Startup(ctx context.Context) {
 // likely to be a virtual webcam — Iriun, OBS — that opens cleanly and then
 // hands over nothing. Left alone, a first run would arm, wait, and time out.
 func (s *Service) resolveCamera() {
+	// This runs on its own goroutine, where a panic would take the window down
+	// with the process and leave the user with nothing to read.
+	defer func() {
+		if panicked := recover(); panicked != nil {
+			s.log.Panicked("probing capture devices", panicked)
+		}
+	}()
+
+	// Bracketing the probe is what makes an unrecoverable failure inside OpenCV
+	// diagnosable: a log that ends at "probing capture devices" says the backend
+	// died on a device, which no amount of Go error handling would have caught.
+	s.log.Info("probing capture devices")
 	found := detector.AvailableCameras()
+	s.log.Info("probed cameras", "count", len(found))
 
 	s.mutex.Lock()
 	s.cameras = found
@@ -294,7 +319,12 @@ func explanation(view StatusView) string {
 // would work. The UI shows it instead of letting the user press a button that
 // cannot succeed.
 func (s *Service) armBlockedProblem(settings config.Config) *Problem {
-	if s.instanceLockError != nil {
+	// Only a claim another instance holds is a reason to refuse. Any other
+	// failure means the claim could not be made at all — an unwritable
+	// configuration directory, a lock the filesystem does not support — and the
+	// camera is almost certainly free. Blocking on that would leave the user
+	// permanently unable to arm, told about a second copy that does not exist.
+	if errors.Is(s.instanceLockError, detector.ErrAlreadyRunning) {
 		return &Problem{
 			Headline: "Kaa Rada is already running",
 			NextStep: "Another copy of this app has the camera. Switch to that window, or close it and try again.",

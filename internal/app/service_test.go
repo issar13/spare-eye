@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -148,6 +149,52 @@ func TestArmIsRefusedWhenAnotherInstanceHoldsTheCamera(t *testing.T) {
 	}
 }
 
+// TestAWrappedClaimStillNamesTheOtherInstance keeps the refusal working when the
+// lock error arrives wrapped, which is how the detector reports the path it
+// failed on.
+func TestAWrappedClaimStillNamesTheOtherInstance(t *testing.T) {
+	log, err := OpenLog(t.TempDir())
+	if err != nil {
+		t.Fatalf("opening log: %v", err)
+	}
+	defer log.Close()
+
+	wrapped := fmt.Errorf("claiming the camera: %w", detector.ErrAlreadyRunning)
+	service := NewService(log, config.Default(), wrapped)
+
+	status := service.Status()
+	if status.Problem == nil || !strings.Contains(status.Problem.Headline, "already running") {
+		t.Fatalf("status did not mention the other instance: %+v", status.Problem)
+	}
+}
+
+// TestAClaimThatCouldNotBeTakenDoesNotBlockArming covers the failure that is not
+// a second instance: the lock file itself was unusable. The camera is free, and
+// refusing to arm would leave the user stuck behind a copy of the app that does
+// not exist.
+func TestAClaimThatCouldNotBeTakenDoesNotBlockArming(t *testing.T) {
+	log, err := OpenLog(t.TempDir())
+	if err != nil {
+		t.Fatalf("opening log: %v", err)
+	}
+	defer log.Close()
+
+	settings := config.Default()
+	settings.Telegram.Enabled = false
+
+	service := NewService(log, settings, errors.New("opening lock file camera.lock: permission denied"))
+
+	service.mutex.Lock()
+	service.camerasScanned = true
+	service.cameras = []detector.Camera{{Index: 0, Width: 640, Height: 480}}
+	service.mutex.Unlock()
+
+	status := service.Status()
+	if !status.CanArm {
+		t.Fatalf("a lock that could not be taken blocked arming: %+v", status.Problem)
+	}
+}
+
 func TestValidateTuningRejectsUnusableValues(t *testing.T) {
 	usable := TuningForm{
 		Day:                  SensitivityForm{MinimumContourArea: 8000, ThresholdValue: 30, SampleIntervalSeconds: 1, AlertCooldownSeconds: 300},
@@ -243,6 +290,46 @@ func TestLogRetainsRecentLinesAndWritesThemToDisk(t *testing.T) {
 	}
 	if !strings.Contains(string(written), "index=1") {
 		t.Fatalf("log file does not hold the record: %q", written)
+	}
+}
+
+// TestPanickedWritesTheStackToTheLogFile guards the only diagnostic a Windows
+// desktop build has: the runtime's crash report has no console to reach, so a
+// panic that is not written to the file leaves nothing behind at all.
+func TestPanickedWritesTheStackToTheLogFile(t *testing.T) {
+	directory := t.TempDir()
+
+	log, err := OpenLog(directory)
+	if err != nil {
+		t.Fatalf("opening log: %v", err)
+	}
+	defer log.Close()
+
+	func() {
+		defer func() {
+			if panicked := recover(); panicked != nil {
+				log.Panicked("probing capture devices", panicked)
+			}
+		}()
+
+		panic("camera 3 vanished mid-probe")
+	}()
+
+	written, err := os.ReadFile(filepath.Join(directory, logFileName))
+	if err != nil {
+		t.Fatalf("reading the log file: %v", err)
+	}
+
+	// The stage names where it happened, the value says what, and the stack has
+	// to reach as far as the function that panicked to be worth reading.
+	for _, expected := range []string{
+		"probing capture devices",
+		"camera 3 vanished mid-probe",
+		"TestPanickedWritesTheStackToTheLogFile",
+	} {
+		if !strings.Contains(string(written), expected) {
+			t.Errorf("the log file does not mention %q: %s", expected, written)
+		}
 	}
 }
 
