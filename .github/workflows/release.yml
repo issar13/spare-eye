@@ -331,34 +331,56 @@ jobs:
           generate_release_notes: true
           fail_on_unmatched_files: true
           body: |
-            ## Install
+            Turn a spare laptop into a home security camera. Arm it, and it
+            watches the room through the built-in webcam and messages you on
+            Telegram when something moves.
 
-            **Linux** — download the `.tar.gz`, extract it, and run `./install.sh`
-            to add the application to your desktop menu, or just run the
-            `kaa-rada` binary directly.
+            ## Downloads
 
-            Requires OpenCV 4.6 at run time: `sudo apt install libopencv-dev`
-            on Ubuntu 24.04.
+            | Platform | Architecture | Download | How to install |
+            |---|---|---|---|
+            | Windows 10/11 | x64 (Intel/AMD) | `kaa-rada-*-windows-amd64-installer.exe` | Run it and follow the wizard |
+            | Linux | x64 (amd64) | `kaa-rada-*-linux-amd64.tar.gz` | Extract, then `./install.sh` |
+            | Windows, headless | x64 (Intel/AMD) | `kaa-rada-cli-*-windows-amd64.zip` | Extract the whole folder, keep the DLLs beside the .exe |
 
-            **Windows** — download and run the installer. It bundles the OpenCV
-            libraries the app needs, so nothing else has to be installed.
+            Only x64 is built. Apple Silicon and ARM Linux are not published:
+            the app links OpenCV through cgo, so each architecture needs a
+            native build machine rather than a cross-compile.
 
-            The `kaa-rada-cli` zip is the headless detector for a machine with
-            no display. Extract the whole archive and keep the DLLs next to the
-            executable; the CLI will not start without them.
+            ## Requirements
 
-            ### A note on the SmartScreen warning
+            | | |
+            |---|---|
+            | Windows | 10 or later. The installer bundles OpenCV, so nothing else is needed |
+            | Linux | GTK 3.24+, WebKit2GTK 4.1+, and OpenCV 4.6 — `sudo apt install libopencv-dev` on Ubuntu 24.04 |
+            | Camera | Any webcam not already in use by another program |
+            | Telegram | Your own bot. There is no shared bot and no token in the binary |
 
-            These binaries are **not code-signed**, so Windows SmartScreen will
-            warn that the publisher is unknown. Choose *More info* then
-            *Run anyway*. Code signing certificates cost a few hundred dollars a
-            year and have not been purchased for this project yet.
+            ## First run
 
-            ### Privacy
+            1. Create your bot with @BotFather and note the token and your chat
+               ID — the Setup screen walks you through it.
+            2. Pick your camera. Do not assume the first one: a virtual camera
+               such as Iriun or OBS often takes index 0 and delivers no frames.
+            3. Press **Start watching**.
 
-            Motion clips and snapshots are uploaded to Telegram's servers when
-            an alert fires. If you point a camera at a room containing other
-            people, that footage leaves your machine.
+            ## Before you point it at a room
 
-            ---
-            Verify a download against its `.sha256` file before running it.
+            When an alert fires, the snapshot and clip are uploaded to
+            Telegram's servers. If other people use the space you are
+            recording, their footage leaves your machine too, and they have not
+            agreed to that. Depending on where you live, recording people
+            without telling them may be illegal regardless of whose home it is.
+
+            Anyone who obtains your bot token can receive your footage and
+            command your camera. Treat it like a password.
+
+            ## The unsigned-binary warning
+
+            These builds are **not code-signed**, so Windows SmartScreen will
+            say the publisher is unknown — choose *More info*, then *Run
+            anyway*. A signing certificate is a few hundred dollars a year and
+            this project has not taken that on.
+
+            Every asset ships with a `.sha256` file. Check your download against
+            it before running it.

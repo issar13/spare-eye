@@ -121,8 +121,15 @@ body {
     padding: 28px 32px 48px;
 }
 
+/* Text and form panels keep a readable measure. The live view is the one
+   panel that should use the whole window: capping it meant maximising did
+   nothing at all to the size of the picture. */
 .panel {
-    max-width: 940px;
+    max-width: 1100px;
+}
+
+#panel-preview {
+    max-width: none;
 }
 
 .panel header {
@@ -302,8 +309,14 @@ button.tab.selected {
     overflow: hidden;
 }
 
+/* width rather than max-width: the camera frame is only 640px wide, so a
+   max-width rule let it render at native size and ignore the space available.
+   object-fit keeps the aspect ratio while it scales up to fill. */
 .viewport img {
-    max-width: 100%;
+    width: 100%;
+    height: auto;
+    max-height: 74vh;
+    object-fit: contain;
     display: block;
 }
 

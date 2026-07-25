@@ -58,7 +58,7 @@ func run() error {
 	bound := NewApp(service)
 
 	return wails.Run(&options.App{
-		Title:  "Motion Detector",
+		Title:  "Kaa Rada",
 		Width:  1180,
 		Height: 820,
 		AssetServer: &assetserver.Options{

@@ -2,9 +2,10 @@ import type {app} from '../wailsjs/go/models';
 import {hideBanner, showBanner} from './banner';
 import {requireElement} from './elements';
 
-// The detector re-encodes a frame every 200ms, so asking more often than that
-// only re-fetches bytes we already have.
-const frameIntervalMs = 200;
+// Matches previewInterval in internal/detector: asking faster than the
+// detector re-encodes only re-fetches bytes we already have, and asking slower
+// throws away frames it already paid to produce.
+const frameIntervalMs = 66;
 
 // retryIntervalMs applies when the camera is not armed: /preview.jpg answers
 // 204 and the image element reports that as a load error.

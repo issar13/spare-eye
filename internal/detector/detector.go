@@ -53,9 +53,16 @@ type Status struct {
 	FrameHeight     int       `json:"frameHeight"`
 }
 
-// previewInterval limits how often a frame is JPEG-encoded for the UI. Encoding
-// every frame would burn CPU on work nobody sees.
-const previewInterval = 200 * time.Millisecond
+// previewInterval limits how often a frame is JPEG-encoded for the UI. The
+// check sits inside the capture loop, so this is a ceiling rather than a rate:
+// a camera delivering 10 FPS is still previewed at 10 FPS. 66ms keeps the live
+// view smooth on a faster camera without encoding frames nobody will see.
+const previewInterval = 66 * time.Millisecond
+
+// previewJPEGQuality trades a little fidelity for latency. The preview is a
+// glance at a room, not evidence — the clips written to disk are untouched by
+// this — and a smaller frame reaches the webview sooner.
+const previewJPEGQuality = 80
 
 // Detector runs the capture and analysis loop.
 type Detector struct {
@@ -386,7 +393,8 @@ func (d *Detector) saveSnapshot(frame gocv.Mat, night bool) (string, error) {
 }
 
 func (d *Detector) updatePreview(frame gocv.Mat) {
-	encoded, err := gocv.IMEncode(gocv.JPEGFileExt, frame)
+	encoded, err := gocv.IMEncodeWithParams(gocv.JPEGFileExt, frame,
+		[]int{gocv.IMWriteJpegQuality, previewJPEGQuality})
 	if err != nil {
 		return
 	}
