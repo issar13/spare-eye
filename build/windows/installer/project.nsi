@@ -117,9 +117,20 @@ Section
 
     !insertmacro wails.files
 
-    ## PROJECT: the installer bundles ONLY what wails.files declares. No .env
-    ## or config.json is ever staged into build\bin, and CI fails the release
-    ## if one appears there. Do not add File directives that glob a directory.
+    ## PROJECT: the installer bundles ONLY what wails.files declares plus the
+    ## two entries below. No .env or config.json is ever staged into build\bin,
+    ## and CI fails the release if one appears there. Do not add File
+    ## directives that glob a whole directory.
+
+    ## OpenCV is built as shared libraries, so the app cannot start without
+    ## libopencv_*460.dll and the MinGW runtime beside it. The pattern is
+    ## scoped to an extension rather than to the directory: it can only ever
+    ## match a DLL, never a .env or a config.json.
+    File "..\..\bin\*.dll"
+
+    ## The headless CLI ships with the app so a user can run the detector on a
+    ## machine with no display, and it shares the DLLs installed above.
+    File "..\..\bin\kaa-rada-cli.exe"
 
     ## PROJECT: Start Menu folder, plus an uninstall entry beside the app.
     !insertmacro MUI_STARTMENU_WRITE_BEGIN Application

@@ -113,11 +113,6 @@ jobs:
       - name: Test
         run: go test ./...
 
-      - name: Build CLI
-        run: |
-          mkdir -p build/bin
-          go build -o build/bin/kaa-rada-cli ./cmd/kaa-rada-cli
-
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
 
@@ -127,6 +122,17 @@ jobs:
           # build fails looking for webkit2gtk-4.0, which 24.04 removed. This
           # matches `make build-desktop`.
           wails build -tags webkit2_41 -clean
+
+      # After the desktop build, not before: `wails build -clean` empties
+      # build/bin, so a CLI built earlier is deleted before it can be uploaded.
+      - name: Build CLI
+        run: go build -o build/bin/kaa-rada-cli ./cmd/kaa-rada-cli
+
+      # Proves the binary actually starts and can load libopencv, which a
+      # successful link does not. -list-cameras exits 0 on a machine with no
+      # webcam, so it is safe on a runner.
+      - name: Smoke test the CLI
+        run: ./build/bin/kaa-rada-cli -list-cameras
 
       # Runs after the build so it inspects real output, not an empty tree.
       - name: Fail if a credential reached the build output
@@ -303,23 +309,45 @@ jobs:
       - name: Test
         run: go test -tags customenv ./...
 
-      - name: Build CLI
-        run: |
-          New-Item -ItemType Directory -Force -Path build\bin | Out-Null
-          go build -tags customenv -o build\bin\kaa-rada-cli.exe .\cmd\kaa-rada-cli
-
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.13.0
 
       - name: Build desktop app
         shell: pwsh
+        # No webkit tag on Windows: it uses the system WebView2 runtime.
+        run: wails build -tags customenv -clean
+
+      # After the desktop build, not before: `wails build -clean` empties
+      # build/bin, so a CLI built earlier is deleted before it can be uploaded.
+      - name: Build CLI
+        run: go build -tags customenv -o build\bin\kaa-rada-cli.exe .\cmd\kaa-rada-cli
+
+      # OpenCV is built with BUILD_SHARED_LIBS=ON, so both binaries load
+      # libopencv_*460.dll at runtime and refuse to start without them. They
+      # are not on a user's machine, so they ship beside the executables. The
+      # MinGW runtime DLLs are needed for the same reason: OpenCV is compiled
+      # with g++, not MSVC.
+      - name: Stage the runtime DLLs beside the binaries
+        shell: pwsh
         run: |
-          if (-not (Test-Path 'wails.json')) {
-            Write-Host '::notice::wails.json not present yet, skipping the desktop build.'
-            exit 0
+          $openCvBin = "${env:GITHUB_WORKSPACE}\opencv\build\install\x64\mingw\bin"
+          Copy-Item "$openCvBin\*.dll" -Destination build\bin -Force
+
+          foreach ($runtime in @('libgcc_s_seh-1.dll', 'libstdc++-6.dll', 'libwinpthread-1.dll')) {
+            $found = Get-Command $runtime -ErrorAction SilentlyContinue
+            if ($found) {
+              Copy-Item $found.Source -Destination build\bin -Force
+            } else {
+              Write-Host "::warning::$runtime not found on PATH; the binaries may not start on a clean machine."
+            }
           }
-          # No webkit tag on Windows: it uses the system WebView2 runtime.
-          wails build -tags customenv -clean
+
+          Get-ChildItem build\bin | Select-Object Name, Length | Format-Table -AutoSize
+
+      # Proves the binary starts and resolves every DLL staged above, which a
+      # successful link does not. -list-cameras exits 0 with no webcam present.
+      - name: Smoke test the CLI
+        run: .\build\bin\kaa-rada-cli.exe -list-cameras
 
       - name: Fail if a credential reached the build output
         shell: bash
