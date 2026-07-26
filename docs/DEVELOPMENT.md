@@ -370,8 +370,14 @@ compromised whether or not you amend the commit afterwards.
 | `windows` | `windows-2022` | OpenCV build, vet, test, build; **unvalidated** |
 
 `.github/workflows/release.yml` runs on a `v*` tag and publishes a GitHub
-Release with a Linux `.tar.gz` and a Windows NSIS installer, each with a
-`.sha256`, plus generated release notes.
+Release with a Linux `.tar.gz`, a Linux `.deb`, and a Windows NSIS installer,
+each with a `.sha256`, plus generated release notes.
+
+The `.deb` is assembled by hand with `dpkg-deb` in the `linux` job. Its
+`Depends` are not written out anywhere: `dpkg-shlibdeps` reads them off the
+built binary, so the package requires the OpenCV and WebKit *runtime* packages
+rather than the `-dev` packages CI compiles against. `lintian --fail-on error`
+runs on the result, so a packaging mistake fails the release.
 
 Everything is built on **native runners**. There are no `GOOS`/`GOARCH`
 cross-builds anywhere, because cgo makes cross-compiling gocv impractical.
