@@ -80,8 +80,8 @@ func startedAtLogin() bool {
 }
 
 // run carries out startup, logging each stage as it is reached. The stages are
-// what makes a crash inside a dependency — OpenCV aborting during a camera
-// probe, a webview refusing to initialise — identifiable from the last record
+// what makes a crash inside a dependency (OpenCV aborting during a camera
+// probe, a webview refusing to initialise) identifiable from the last record
 // in the log, which is all a native crash leaves behind.
 func run(log *app.Log) error {
 	log.Info("startup: loading settings")

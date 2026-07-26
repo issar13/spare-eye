@@ -1,4 +1,4 @@
-# Credentials — never commit, and never bundle into an installer.
+# Credentials. Never commit, and never bundle into an installer.
 # Each user supplies their own bot token through the UI.
 .env
 config.json
@@ -13,7 +13,7 @@ DISABLED
 /kaa-rada.exe
 /dist/
 
-# Build output only — packaging metadata under build/ must stay tracked.
+# Build output only. Packaging metadata under build/ must stay tracked.
 # git will not descend into an excluded directory, so the parent is /build/*
 # rather than /build/, otherwise the negations below can never match.
 /build/*

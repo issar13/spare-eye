@@ -10,7 +10,7 @@ import {refreshRecordings, registerRecordingHandlers} from './recordings';
 import {activateSetup, loadSetup, registerSetupHandlers, updateSetupProgress} from './setup';
 
 // Status drives the sidebar on every screen, so it is polled continuously. The
-// heavier reads — the activity list, the recordings — happen only while their
+// heavier reads (the activity list, the recordings) happen only while their
 // screen is on show.
 const statusIntervalMs = 1000;
 const activityIntervalMs = 2000;

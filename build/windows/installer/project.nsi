@@ -29,9 +29,9 @@ Unicode true
 ## PROJECT: installs for the current user, into %LocalAppData%\Programs, and
 ## therefore asks for no elevation.
 ##
-## Two reasons. The app is per-user already — settings, recordings and the
+## Two reasons. The app is per-user already: settings, recordings and the
 ## Telegram token all live under %AppData% precisely so two people sharing a
-## machine do not share one person's footage — so a machine-wide install buys
+## machine do not share one person's footage, so a machine-wide install buys
 ## nothing. And these binaries are unsigned: an elevation prompt on an unsigned
 ## installer is the dialog that says "Publisher: Unknown" in red, which is the
 ## most alarming thing a first-time user sees. Not requesting admin removes

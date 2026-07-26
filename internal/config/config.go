@@ -54,7 +54,7 @@ type TelegramSettings struct {
 type DetectionSettings struct {
 	CameraIndex int `json:"cameraIndex"`
 
-	// CameraURL is a network stream — RTSP or HTTP — and takes precedence over
+	// CameraURL is a network stream, RTSP or HTTP, and takes precedence over
 	// CameraIndex when it is set. The two are separate fields rather than one
 	// overloaded string because a single value would leave every reader
 	// guessing whether "0" names a device or a file, and because a config.json
@@ -236,8 +236,8 @@ func Load() (Config, error) {
 
 	// The live-view bounds are enforced here so that a hand-edited file heals
 	// itself. The settings screen rejects an out-of-range value, and a stored
-	// zero would otherwise make it refuse every save — including saves of
-	// unrelated fields — over a control the user may never have opened.
+	// zero would otherwise make it refuse every save, including saves of
+	// unrelated fields, over a control the user may never have opened.
 	settings.Detection.PreviewFPS = clamp(settings.Detection.PreviewFPS, MinPreviewFPS, MaxPreviewFPS)
 	settings.Detection.PreviewQuality = clamp(settings.Detection.PreviewQuality, MinPreviewQuality, MaxPreviewQuality)
 
@@ -254,7 +254,7 @@ func Load() (Config, error) {
 
 // mentionsCameraChoice reports whether the file carries the cameraChosen key at
 // all, which is the only way to tell an upgrade from a fresh install that has
-// saved something else — a bot token, say — before choosing a camera.
+// saved something else, a bot token say, before choosing a camera.
 func mentionsCameraChoice(contents []byte) bool {
 	var probe struct {
 		Detection struct {

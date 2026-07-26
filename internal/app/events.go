@@ -9,7 +9,7 @@ import (
 )
 
 // retainedEvents bounds the in-memory history. It is a display convenience, not
-// an audit trail — the log file on disk is the durable record.
+// an audit trail; the log file on disk is the durable record.
 const retainedEvents = 200
 
 // Event kinds as the UI knows them. They are strings rather than the detector's

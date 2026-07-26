@@ -38,7 +38,7 @@ const CameraTestFlag = "--test-camera"
 // with a window that cannot arm.
 //
 // Eight devices at the couple of seconds a healthy open costs is comfortably
-// under this, and the worst case — a hang on every index in turn — is bounded
+// under this, and the worst case, a hang on every index in turn, is bounded
 // by the restart limit rather than by this value alone.
 const cameraScanTimeout = 20 * time.Second
 
@@ -174,8 +174,8 @@ func WriteCameraScan(output io.Writer, startIndex int) {
 // AvailableCamerasIsolated enumerates capture devices in a child process, so a
 // driver that ends the process it runs in ends that one instead of the app.
 //
-// A helper that cannot be started at all — the executable is not resolvable,
-// security software refuses the exec — leaves probing in this process as the
+// A helper that cannot be started at all, because the executable is not
+// resolvable or security software refuses the exec, leaves probing here as the
 // only way to find anything, and an app that reports no cameras because it
 // could not spawn a helper is worse off than one that risks the open.
 func AvailableCamerasIsolated(log *slog.Logger) []Camera {
@@ -285,7 +285,7 @@ type cameraScanCommand func(ctx context.Context, startIndex int) *exec.Cmd
 // through is the case this whole mechanism exists for, and it is described by
 // the outcome rather than reported as a problem. The deadline is treated the
 // same way, since a hung driver and a crashed one leave the parent with the
-// same question — which index was being opened.
+// same question: which index was being opened.
 func runCameraScan(startIndex int, newCommand cameraScanCommand) (cameraScanOutcome, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), cameraScanTimeout)
 	defer cancel()
