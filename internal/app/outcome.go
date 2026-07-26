@@ -12,7 +12,7 @@ const telegramSetupDoc = "docs/SETUP-TELEGRAM.md"
 // ActionResult is what every UI action reports back.
 //
 // Actions deliberately do not return a Go error to the webview. An error's text
-// is written for whoever reads the log — "opening camera 1: VideoCapture
+// is written for whoever reads the log, as in "opening camera 1: VideoCapture
 // backend failed" tells a user nothing they can act on. Every failure here
 // carries a headline in plain words and the next thing to try.
 type ActionResult struct {
@@ -80,8 +80,8 @@ func chosenCameraMissing() Problem {
 	}
 }
 
-// streamUnavailable covers every way a network camera can refuse. The reasons —
-// wrong address, wrong password, camera asleep, nothing at that address — are
+// streamUnavailable covers every way a network camera can refuse. The reasons
+// (wrong address, wrong password, camera asleep, nothing at that address) are
 // not worth telling apart, because the backend reports most of them as the same
 // silence and the first thing to check is the same in each case.
 func streamUnavailable() Problem {
@@ -97,7 +97,7 @@ func streamUnavailable() Problem {
 //
 // The reasons are not worth telling apart for a user: security software
 // blocking the change and a locked-down account look the same from here, and
-// the remedy — do it yourself, or allow the app and try again — is the same.
+// the remedy, do it yourself or allow the app and try again, is the same.
 func loginRegistrationRefused(wanted bool) Problem {
 	if wanted {
 		return Problem{
@@ -142,7 +142,7 @@ func describeTelegramFailure(failure error) Problem {
 	case strings.Contains(message, "chat not found"), strings.Contains(message, "status 400"):
 		return Problem{
 			Headline: "Telegram could not find that chat",
-			NextStep: "Check the chat ID, and make sure you have sent your bot at least one message first — " +
+			NextStep: "Check the chat ID, and make sure you have sent your bot at least one message first. " +
 				"a bot cannot start the conversation. @userinfobot will tell you your chat ID.",
 			DocPath: telegramSetupDoc,
 		}

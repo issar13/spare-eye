@@ -13,7 +13,7 @@ export const showBanner = (element: HTMLElement, message: string, tone: Tone = '
 
 // showResult renders what the Go side decided to tell the user: a headline in
 // plain words, the next thing to try, and the guide to read if there is one.
-// Nothing else is allowed on screen — an engine error string never reaches here.
+// Nothing else is allowed on screen. An engine error string never reaches here.
 export const showResult = (element: HTMLElement, result: app.ActionResult): void => {
     element.className = result.ok ? 'banner good' : 'banner error';
     element.hidden = false;

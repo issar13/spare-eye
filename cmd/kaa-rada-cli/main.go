@@ -45,14 +45,14 @@ func reportCameras() {
 	cameras := detector.AvailableCameras(nil)
 	if len(cameras) == 0 {
 		fmt.Println("No usable cameras found.")
-		fmt.Println("A device node can exist without being able to capture — virtual")
+		fmt.Println("A device node can exist without being able to capture. Virtual")
 		fmt.Println("webcams such as Iriun or OBS appear even when not streaming.")
 		return
 	}
 
 	fmt.Printf("Usable cameras (%d):\n", len(cameras))
 	for _, camera := range cameras {
-		fmt.Printf("  index %d — %dx%d\n", camera.Index, camera.Width, camera.Height)
+		fmt.Printf("  index %d: %dx%d\n", camera.Index, camera.Width, camera.Height)
 	}
 }
 
@@ -78,7 +78,7 @@ func run(requestedCamera int, disableTelegram bool) error {
 			// an opaque backend error instead of naming the actual problem.
 			return fmt.Errorf(
 				"no usable camera found\n" +
-					"  • another program may already hold the camera — a previous run of this\n" +
+					"  • another program may already hold the camera, such as a previous run of this\n" +
 					"    tool keeps the device until it exits\n" +
 					"  • virtual webcams (Iriun, OBS) present a device node without streaming\n" +
 					"  • run with -list-cameras to see what was detected",

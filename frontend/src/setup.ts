@@ -83,7 +83,7 @@ const renderCameraOptions = (cameras: detector.Camera[], settings: app.SettingsV
 
     const found = cameras.map((camera) => ({
         value: String(camera.index),
-        label: `Camera ${camera.index} — ${camera.width} × ${camera.height}`,
+        label: `Camera ${camera.index}: ${camera.width} × ${camera.height}`,
     }));
 
     // Nothing is chosen for the user. Until they answer, the picker leads with a
@@ -97,7 +97,7 @@ const renderCameraOptions = (cameras: detector.Camera[], settings: app.SettingsV
         : [];
 
     const missing = usingDevice(settings) && !deviceFound
-        ? [{value: String(settings.cameraIndex), label: `Camera ${settings.cameraIndex} — not responding`}]
+        ? [{value: String(settings.cameraIndex), label: `Camera ${settings.cameraIndex}: not responding`}]
         : [];
 
     const selected = usingDevice(settings) ? String(settings.cameraIndex) : unchosen;
@@ -133,7 +133,7 @@ const describeCameras = (cameras: detector.Camera[], settings: app.SettingsView)
 
     if (cameras.length === 0) {
         return [
-            'No camera responded. Another program is probably using it — close Zoom, Teams or OBS, ' +
+            'No camera responded. Another program is probably using it. Close Zoom, Teams or OBS, ' +
             'then press Look again. If your camera is on your network, use the box below instead.',
             'error',
         ];

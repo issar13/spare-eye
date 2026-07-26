@@ -27,8 +27,8 @@ type Camera struct {
 // pipeline that cannot run.
 //
 // A network stream is the opposite case: V4L2 speaks to kernel video devices
-// and has no idea what to do with a URL, so the default preference — which
-// resolves to FFMPEG — is the only one that can open one.
+// and has no idea what to do with a URL, so the default preference, which
+// resolves to FFMPEG, is the only one that can open one.
 func openCapture(source Source) (*gocv.VideoCapture, error) {
 	if runtime.GOOS == "linux" && !source.Network() {
 		return gocv.OpenVideoCaptureWithAPI(source.target(), gocv.VideoCaptureV4L2)
@@ -72,7 +72,7 @@ func AvailableCameras(onProbe func(index int)) []Camera {
 
 // FirstUsableCamera returns the lowest working index, stopping as soon as one is
 // found. Preferred over AvailableCameras when only a default is needed, since it
-// avoids probing — and noisily failing on — every remaining device.
+// avoids probing, and noisily failing on, every remaining device.
 func FirstUsableCamera() (int, bool) {
 	defer pinCameraThread()()
 

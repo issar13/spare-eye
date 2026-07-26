@@ -253,7 +253,7 @@ func (s *Service) TestTelegram(form TelegramForm) ActionResult {
 
 	s.log.Info("telegram verified")
 
-	return succeeded("It works — check Telegram for a test message from your bot.")
+	return succeeded("It works. Check Telegram for a test message from your bot.")
 }
 
 // SelectCamera changes the capture device, restarting the detector when armed
@@ -291,7 +291,7 @@ func (s *Service) TestCameraURL(address string) ActionResult {
 		return problem.asResult()
 	}
 
-	return succeeded(fmt.Sprintf("It works — that camera is sending a %d × %d picture.", stream.Width, stream.Height))
+	return succeeded(fmt.Sprintf("It works. That camera is sending a %d × %d picture.", stream.Width, stream.Height))
 }
 
 // SelectCameraURL adopts a network stream as the camera. It is opened first: an
@@ -492,7 +492,7 @@ func validateTuning(form TuningForm) *Problem {
 }
 
 // cameraURLSchemes are the ones a capture backend can actually open. Anything
-// else — a local file path, a device node, a scheme FFMPEG does not speak — is
+// else (a local file path, a device node, a scheme FFMPEG does not speak) is
 // turned away here rather than at the point where it would hang a driver.
 var cameraURLSchemes = []string{"rtsp", "rtsps", "http", "https"}
 

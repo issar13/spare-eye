@@ -5,7 +5,7 @@
 #
 # This exists because a live Telegram bot token was once hardcoded in this
 # project's source. Rotating that token fixed the incident; this script is what
-# stops the next one. It is a required CI step, not a linter — treat a failure
+# stops the next one. It is a required CI step, not a linter, so treat a failure
 # here as a security event, not a style nit.
 #
 # Usage:

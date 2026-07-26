@@ -387,8 +387,8 @@ func explanation(view StatusView) string {
 // cannot succeed.
 func (s *Service) armBlockedProblem(settings config.Config) *Problem {
 	// Only a claim another instance holds is a reason to refuse. Any other
-	// failure means the claim could not be made at all — an unwritable
-	// configuration directory, a lock the filesystem does not support — and the
+	// failure means the claim could not be made at all, because of an unwritable
+	// configuration directory or a lock the filesystem does not support, and the
 	// camera is almost certainly free. Blocking on that would leave the user
 	// permanently unable to arm, told about a second copy that does not exist.
 	if errors.Is(s.instanceLockError, detector.ErrAlreadyRunning) {
