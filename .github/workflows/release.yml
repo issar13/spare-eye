@@ -39,9 +39,29 @@ jobs:
       - run: ./scripts/check-no-credentials.sh
 
   linux:
-    name: Build Linux
+    name: Build Linux (${{ matrix.architecture }})
     needs: credential-scan
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      # One architecture failing should not cancel the other. A release that
+      # can ship one of the two is worth knowing about, and both logs are
+      # needed to tell an architecture-specific fault from a general one.
+      fail-fast: false
+      matrix:
+        include:
+          # Pinned rather than ubuntu-latest so both entries build against the
+          # same distribution. There is no ubuntu-latest-arm alias, so leaving
+          # this floating would silently split the two architectures onto
+          # different Ubuntu releases the moment latest moves on, and the
+          # webkit2_41 build tag is specific to 24.04.
+          - architecture: amd64
+            runner: ubuntu-24.04
+          # GitHub's hosted arm64 Linux runners are free for public
+          # repositories, which this one is, so arm64 is a native build for the
+          # same reason amd64 is: gocv links OpenCV through cgo and will not
+          # cross-compile.
+          - architecture: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
 
@@ -70,13 +90,32 @@ jobs:
             libgtk-3-dev libwebkit2gtk-4.1-dev \
             imagemagick lintian
 
+      # The same assertion ci.yml makes. It matters more here, because the two
+      # architectures draw from different Ubuntu archives and a version skew
+      # between them would otherwise surface as a compile error deep inside the
+      # Wails build rather than as a sentence naming the cause.
+      - name: Verify OpenCV is the version gocv expects
+        run: |
+          installed_version="$(pkg-config --modversion opencv4)"
+          echo "OpenCV: ${installed_version}"
+          if [ "${installed_version}" != "${OPENCV_VERSION}" ]; then
+            echo "::error::Expected OpenCV ${OPENCV_VERSION} to match gocv v0.31.0, got ${installed_version}."
+            echo "gocv v0.31.0 does not compile against newer OpenCV: the aruco C++ API changed"
+            echo "and the build fails with \"expected primary-expression before 'bool'\"."
+            exit 1
+          fi
+
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
 
+      # matrix.architecture is spelled the same way by all three consumers it
+      # feeds: Wails' -platform suffix, dpkg's Architecture field, and the
+      # asset filenames. That is why one matrix key is enough and no lookup
+      # table is needed.
       - name: Build
         run: |
           # -tags webkit2_41 is mandatory on Ubuntu 24.04; see the Makefile.
-          wails build -tags webkit2_41 -clean -platform linux/amd64
+          wails build -tags webkit2_41 -clean -platform linux/${{ matrix.architecture }}
           # After the desktop build, never before: -clean empties build/bin and
           # would delete a CLI built first, so the tarball copy would fail.
           go build -o build/bin/kaa-rada-cli ./cmd/kaa-rada-cli
@@ -93,7 +132,7 @@ jobs:
         id: package
         run: |
           version="${GITHUB_REF_NAME}"
-          staging_directory="kaa-rada-${version}-linux-amd64"
+          staging_directory="kaa-rada-${version}-linux-${{ matrix.architecture }}"
           mkdir -p "${staging_directory}"
 
           # Copy explicitly, never `cp -r build/bin/.`, so that nothing which
@@ -137,7 +176,8 @@ jobs:
             debian_version="0.0.0~dryrun"
           fi
 
-          package_root="kaa-rada_${debian_version}_amd64"
+          debian_architecture="${{ matrix.architecture }}"
+          package_root="kaa-rada_${debian_version}_${debian_architecture}"
 
           # install -d rather than mkdir -p: the runner's umask is not
           # guaranteed, and a directory shipped 0775 is a lintian warning.
@@ -220,7 +260,7 @@ jobs:
           # debian/control in the working directory even with -O, so it gets a
           # stub; the repository has no debian/ directory of its own.
           install -d debian
-          printf 'Source: kaa-rada\n\nPackage: kaa-rada\nArchitecture: amd64\n' > debian/control
+          printf 'Source: kaa-rada\n\nPackage: kaa-rada\nArchitecture: %s\n' "${debian_architecture}" > debian/control
           shlibs_line="$(dpkg-shlibdeps -O "${package_root}/usr/bin/kaa-rada")"
           rm -rf debian
           runtime_depends="${shlibs_line#shlibs:Depends=}"
@@ -240,7 +280,7 @@ jobs:
           Version: ${debian_version}
           Section: video
           Priority: optional
-          Architecture: amd64
+          Architecture: ${debian_architecture}
           Depends: ${runtime_depends}
           Installed-Size: ${installed_size}
           Maintainer: Issa Suleiman <suleimani@pgls.com>
@@ -285,9 +325,15 @@ jobs:
           dpkg-deb -x "${{ steps.package-deb.outputs.deb }}" "${extract_directory}"
           ./scripts/check-no-credentials.sh "${extract_directory}"
 
+      # The artifact name carries the architecture because upload-artifact@v4
+      # refuses a second upload under a name that already exists, and both
+      # matrix jobs upload at roughly the same moment. The publish job
+      # downloads with merge-multiple, which flattens every artifact's contents
+      # into release-assets rather than into a directory per artifact, so the
+      # names here never appear in the published asset list.
       - uses: actions/upload-artifact@v4
         with:
-          name: release-linux
+          name: release-linux-${{ matrix.architecture }}
           path: |
             *.tar.gz
             *.tar.gz.sha256
@@ -591,11 +637,17 @@ jobs:
             |---|---|---|---|
             | Windows 10/11 | x64 (Intel/AMD) | `kaa-rada-*-windows-amd64-installer.exe` | Run it and follow the wizard. Installs for your user only, so it never asks for administrator rights |
             | Debian / Ubuntu | x64 (amd64) | `kaa-rada_*_amd64.deb` | `sudo apt install ./kaa-rada_*_amd64.deb`. Use apt rather than `dpkg -i`: apt pulls in OpenCV and WebKit for you, `dpkg` only complains that they are missing |
+            | Debian / Ubuntu | ARM64 (aarch64) | `kaa-rada_*_arm64.deb` | Same command with the arm64 file. This is the one for a Raspberry Pi 4 or 5 running 64-bit Raspberry Pi OS, or any other arm64 Debian derivative |
             | Other Linux | x64 (amd64) | `kaa-rada-*-linux-amd64.tar.gz` | Extract, then `./install.sh` |
+            | Other Linux | ARM64 (aarch64) | `kaa-rada-*-linux-arm64.tar.gz` | Extract, then `./install.sh` |
 
-            Only x64 is built. Apple Silicon and ARM Linux are not published:
-            the app links OpenCV through cgo, so each architecture needs a
-            native build machine rather than a cross-compile.
+            Linux is published for x64 and ARM64. Windows is x64 only, and
+            macOS is not published at all. The app links OpenCV through cgo, so
+            every architecture needs a build machine of its own rather than a
+            cross-compile, and only the two Linux ones are available to this
+            project. If your machine is 32-bit ARM, or 64-bit hardware running
+            a 32-bit userland as some older Raspberry Pi OS images do, neither
+            Linux download will run; check with `dpkg --print-architecture`.
 
             ## Requirements
 
@@ -646,5 +698,5 @@ jobs:
             | Version | ${{ steps.describe.outputs.version }} |
             | Built | ${{ steps.describe.outputs.built }} |
             | Commit | `${{ steps.describe.outputs.commit }}` |
-            | Platforms | Windows x64, Linux x64 |
+            | Platforms | Windows x64, Linux x64, Linux ARM64 |
             | OpenCV | 4.6.0, bundled on Windows, from your distribution on Linux |
