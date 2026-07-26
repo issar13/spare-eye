@@ -57,12 +57,18 @@ jobs:
           # same frontend with the same toolchain.
           node-version: '24'
 
-      - name: Install OpenCV and GTK/WebKit development packages
+      # imagemagick and lintian are here for the .deb rather than for the build:
+      # the icon has to be resampled to a size the hicolor theme indexes, and a
+      # package nobody lints is a package whose mistakes reach users.
+      # dpkg-deb and dpkg-shlibdeps come from dpkg-dev, which build-essential
+      # already pulls in.
+      - name: Install OpenCV, GTK/WebKit, and packaging tools
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y \
             build-essential pkg-config libopencv-dev \
-            libgtk-3-dev libwebkit2gtk-4.1-dev
+            libgtk-3-dev libwebkit2gtk-4.1-dev \
+            imagemagick lintian
 
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@${{ env.WAILS_VERSION }}
@@ -111,12 +117,182 @@ jobs:
           tar -xzf "${{ steps.package.outputs.tarball }}" -C "${extract_directory}"
           ./scripts/check-no-credentials.sh "${extract_directory}"
 
+      # The tarball leaves the user to discover the runtime libraries when the
+      # app refuses to start. A .deb states them, so apt installs them. Built
+      # with dpkg-deb and a control file written out in full here, because the
+      # whole package is small enough to read in one screen and a packaging
+      # helper would spread it across a debian/ tree instead.
+      - name: Build the .deb package
+        id: package-deb
+        run: |
+          # A Debian version cannot carry the tag's leading "v", and on a
+          # workflow_dispatch dry run GITHUB_REF_NAME is a branch name, which is
+          # not a valid Debian version at all. Anything that is not a tag gets a
+          # placeholder instead; "~" sorts below everything, so a package built
+          # from a branch can never appear newer than a real release.
+          version="${GITHUB_REF_NAME}"
+          if [[ "${version}" =~ ^v[0-9] ]]; then
+            debian_version="${version#v}"
+          else
+            debian_version="0.0.0~dryrun"
+          fi
+
+          package_root="kaa-rada_${debian_version}_amd64"
+
+          # install -d rather than mkdir -p: the runner's umask is not
+          # guaranteed, and a directory shipped 0775 is a lintian warning.
+          install -d -m 0755 "${package_root}/DEBIAN"
+          install -d -m 0755 "${package_root}/usr/bin"
+          install -d -m 0755 "${package_root}/usr/share/applications"
+          install -d -m 0755 "${package_root}/usr/share/metainfo"
+          install -d -m 0755 "${package_root}/usr/share/icons/hicolor/512x512/apps"
+          install -d -m 0755 "${package_root}/usr/share/doc/kaa-rada"
+
+          # Only the desktop binary. The headless CLI is deliberately absent
+          # from every bundle, and /usr/bin is the last place it should turn up.
+          install -m 0755 build/bin/kaa-rada "${package_root}/usr/bin/kaa-rada"
+          install -m 0644 build/linux/kaa-rada.desktop \
+            "${package_root}/usr/share/applications/kaa-rada.desktop"
+          install -m 0644 build/linux/kaa-rada.metainfo.xml \
+            "${package_root}/usr/share/metainfo/kaa-rada.metainfo.xml"
+
+          # build/appicon.png is 1024x1024, but hicolor's index.theme stops at
+          # 512x512, so an icon filed under 1024x1024 is never looked up and the
+          # desktop entry's Icon=kaa-rada resolves to nothing. Resample to the
+          # largest size the theme actually indexes.
+          icon_path="${package_root}/usr/share/icons/hicolor/512x512/apps/kaa-rada.png"
+          convert build/appicon.png -resize 512x512 "${icon_path}"
+          chmod 0644 "${icon_path}"
+
+          # These three files are written by heredoc. A YAML block scalar
+          # forces their contents to be indented along with the shell, so each
+          # one is piped through sed to take that indentation back off again.
+          strip_indent() { sed 's/^          //'; }
+
+          strip_indent > "${package_root}/usr/share/doc/kaa-rada/copyright" <<'COPYRIGHT'
+          Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+          Upstream-Name: Kaa Rada
+          Source: https://github.com/issar13/kaa-rada
+
+          Files: *
+          Copyright: 2025 Issa Suleiman
+          License: MIT
+
+          License: MIT
+           Permission is hereby granted, free of charge, to any person obtaining a copy
+           of this software and associated documentation files (the "Software"), to deal
+           in the Software without restriction, including without limitation the rights
+           to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+           copies of the Software, and to permit persons to whom the Software is
+           furnished to do so, subject to the following conditions:
+           .
+           The above copyright notice and this permission notice shall be included in all
+           copies or substantial portions of the Software.
+           .
+           THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+           IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+           FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+           AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+           LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+           OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+           SOFTWARE.
+          COPYRIGHT
+          chmod 0644 "${package_root}/usr/share/doc/kaa-rada/copyright"
+
+          # Debian treats a package with no changelog as an error, not a nicety.
+          # One entry pointing at the release page is honest: the real notes are
+          # generated on GitHub and duplicating them here would let them drift.
+          strip_indent > "${package_root}/usr/share/doc/kaa-rada/changelog" <<CHANGELOG
+          kaa-rada (${debian_version}) unstable; urgency=medium
+
+            * Release ${debian_version}. Notes:
+              https://github.com/issar13/kaa-rada/releases
+
+           -- Issa Suleiman <suleimani@pgls.com>  $(date -R -u)
+          CHANGELOG
+          gzip -9n "${package_root}/usr/share/doc/kaa-rada/changelog"
+          chmod 0644 "${package_root}/usr/share/doc/kaa-rada/changelog.gz"
+
+          # The dependencies are read out of the binary rather than written by
+          # hand. The job installs -dev packages to compile against; what the
+          # user needs at run time is the library packages those pull in, and
+          # dpkg-shlibdeps is what knows the difference. It insists on a
+          # debian/control in the working directory even with -O, so it gets a
+          # stub; the repository has no debian/ directory of its own.
+          install -d debian
+          printf 'Source: kaa-rada\n\nPackage: kaa-rada\nArchitecture: amd64\n' > debian/control
+          shlibs_line="$(dpkg-shlibdeps -O "${package_root}/usr/bin/kaa-rada")"
+          rm -rf debian
+          runtime_depends="${shlibs_line#shlibs:Depends=}"
+          echo "Derived runtime dependencies: ${runtime_depends}"
+
+          installed_size="$(du -k -s --exclude=DEBIAN "${package_root}" | cut -f1)"
+
+          # Section video: the application's whole job is capturing and
+          # recording from a camera. utils would be true of anything.
+          #
+          # No postinst or prerm. dpkg triggers in desktop-file-utils and
+          # hicolor-icon-theme rebuild the desktop database and the icon cache
+          # when files land in those directories, and a hand-rolled script would
+          # only do the same work less reliably.
+          strip_indent > "${package_root}/DEBIAN/control" <<CONTROL
+          Package: kaa-rada
+          Version: ${debian_version}
+          Section: video
+          Priority: optional
+          Architecture: amd64
+          Depends: ${runtime_depends}
+          Installed-Size: ${installed_size}
+          Maintainer: Issa Suleiman <suleimani@pgls.com>
+          Homepage: https://github.com/issar13/kaa-rada
+          Description: Turn a spare laptop into a home security camera
+           Kaa Rada watches a webcam for movement and sends a snapshot and a short
+           video clip to a Telegram chat when it sees any. Sensitivity, recording
+           length and a separate night-time profile are configurable from the
+           application itself.
+           .
+           Recordings are kept locally under the per-user configuration directory
+           and pruned on a retention schedule. Alert footage is uploaded to
+           Telegram's servers, so consider who might appear in view of the camera.
+           .
+           Every installation talks to a Telegram bot you create yourself; there is
+           no shared bot and no token in the binary.
+          CONTROL
+          chmod 0644 "${package_root}/DEBIAN/control"
+
+          # --root-owner-group, or every file in the package is owned by the
+          # runner's own uid instead of root.
+          dpkg-deb --root-owner-group --build "${package_root}"
+
+          deb_file="${package_root}.deb"
+          sha256sum "${deb_file}" > "${deb_file}.sha256"
+          echo "deb=${deb_file}" >> "$GITHUB_OUTPUT"
+
+      # Printed in full so the log is a record of exactly what shipped, and
+      # linted so that a packaging mistake fails the release rather than
+      # reaching users. Warnings are allowed through: the Go binary is not
+      # built PIE and a GUI app has no man page, and neither is worth blocking
+      # a release over. Errors are not.
+      - name: Inspect and lint the .deb
+        run: |
+          dpkg-deb --info "${{ steps.package-deb.outputs.deb }}"
+          dpkg-deb --contents "${{ steps.package-deb.outputs.deb }}"
+          lintian --fail-on error "${{ steps.package-deb.outputs.deb }}"
+
+      - name: Verify the .deb contains no credentials
+        run: |
+          extract_directory="$(mktemp -d)"
+          dpkg-deb -x "${{ steps.package-deb.outputs.deb }}" "${extract_directory}"
+          ./scripts/check-no-credentials.sh "${extract_directory}"
+
       - uses: actions/upload-artifact@v4
         with:
           name: release-linux
           path: |
             *.tar.gz
             *.tar.gz.sha256
+            *.deb
+            *.deb.sha256
           if-no-files-found: error
 
   windows:
@@ -414,7 +590,8 @@ jobs:
             | Platform | Architecture | Download | How to install |
             |---|---|---|---|
             | Windows 10/11 | x64 (Intel/AMD) | `kaa-rada-*-windows-amd64-installer.exe` | Run it and follow the wizard. Installs for your user only, so it never asks for administrator rights |
-            | Linux | x64 (amd64) | `kaa-rada-*-linux-amd64.tar.gz` | Extract, then `./install.sh` |
+            | Debian / Ubuntu | x64 (amd64) | `kaa-rada_*_amd64.deb` | `sudo apt install ./kaa-rada_*_amd64.deb`. Use apt rather than `dpkg -i`: apt pulls in OpenCV and WebKit for you, `dpkg` only complains that they are missing |
+            | Other Linux | x64 (amd64) | `kaa-rada-*-linux-amd64.tar.gz` | Extract, then `./install.sh` |
 
             Only x64 is built. Apple Silicon and ARM Linux are not published:
             the app links OpenCV through cgo, so each architecture needs a
@@ -425,7 +602,7 @@ jobs:
             | | |
             |---|---|
             | Windows | 10 or later. The installer bundles OpenCV, so nothing else is needed |
-            | Linux | GTK 3.24+, WebKit2GTK 4.1+, and OpenCV 4.6. `sudo apt install libopencv-dev` on Ubuntu 24.04 |
+            | Linux | GTK 3.24+, WebKit2GTK 4.1+, and OpenCV 4.6. The `.deb` declares all of these, so apt installs them; with the tarball, `sudo apt install libopencv-dev` on Ubuntu 24.04 |
             | Camera | Any webcam not already in use by another program |
             | Telegram | Your own bot. There is no shared bot and no token in the binary |
 
