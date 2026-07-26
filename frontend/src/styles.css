@@ -356,16 +356,45 @@ input:focus, select:focus, button:focus-visible {
     gap: 16px;
 }
 
-/* The content column is the width of the window less the sidebar. Holding the
-   form to a sane measure keeps a maximised window from stretching single-line
-   inputs across a metre of screen, while the panel itself still fills. */
+/* A single-line input stretched across a metre of screen is unusable, so the
+   limit belongs on the control rather than on the column that holds it. The
+   form fills whatever the window gives it, and on a wide screen the fields sit
+   side by side instead of leaving the right-hand half empty. */
 .content {
-    --reading-measure: 1180px;
+    --field-measure: 44ch;
 }
 
 form,
 .step {
-    max-width: var(--reading-measure);
+    max-width: none;
+}
+
+label > input,
+label > select {
+    max-width: var(--field-measure);
+}
+
+/* Past this width a single column of fields leaves most of the window empty.
+   Prose and the controls that introduce a group stay full width so the reading
+   order is unchanged; only the fields themselves pair up. */
+@media (min-width: 1500px) {
+    fieldset,
+    details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+        column-gap: 32px;
+    }
+
+    fieldset > legend,
+    fieldset > p,
+    fieldset > .row,
+    fieldset > .segmented,
+    details > summary,
+    details > p,
+    details > .row {
+        grid-column: 1 / -1;
+    }
 }
 
 .recordings {
