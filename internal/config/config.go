@@ -269,6 +269,16 @@ func Load() (Config, error) {
 		settings.Detection.CameraChosen = true
 	}
 
+	// Before the product rename, the resolved default was persisted as an
+	// absolute path. Directory has already moved that tree to SpareEye, so keep
+	// the saved value in step or withResolvedPaths would recreate the old tree
+	// and make the migrated recordings appear to be missing. Custom locations
+	// are deliberately left alone.
+	legacyMediaDirectory := filepath.Join(filepath.Dir(directory), legacyDirectoryName, "media")
+	if filepath.Clean(settings.Storage.MediaDirectory) == filepath.Clean(legacyMediaDirectory) {
+		settings.Storage.MediaDirectory = filepath.Join(directory, "media")
+	}
+
 	return withResolvedPaths(settings)
 }
 

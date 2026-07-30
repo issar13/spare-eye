@@ -91,6 +91,16 @@ func run(log *app.Log) error {
 		return err
 	}
 
+	// An upgrade can carry a true preference alongside the old product's
+	// autostart registration. Re-register during startup rather than waiting for
+	// the settings form to be saved, so the next login starts SpareEye even when
+	// the legacy binary has been removed.
+	if settings.Startup.LaunchAtLogin {
+		if err := autostart.Enable(); err != nil {
+			log.Error("migrating login registration failed", "error", err)
+		}
+	}
+
 	directory, err := config.Directory()
 	if err != nil {
 		return err
