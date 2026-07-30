@@ -280,6 +280,9 @@ func (s *Service) TestTelegram(form TelegramForm) ActionResult {
 					"Use a fresh bot for Kaa Rada, press Start in that bot's private chat, then connect again.",
 				).withDoc(telegramSetupDoc)
 			}
+			if telegramDiscoveryCredentialsFailed(err) {
+				return describeTelegramFailure(err).asResult()
+			}
 			return failed(
 				"Kaa Rada cannot see your Telegram chat yet",
 				"Open your new bot in Telegram, press Start or send it a message, then come back and connect again.",
@@ -299,6 +302,17 @@ func (s *Service) TestTelegram(form TelegramForm) ActionResult {
 	}
 
 	return succeeded("Telegram is connected. Check your phone for the test message.")
+}
+
+// telegramDiscoveryCredentialsFailed distinguishes an API refusal from the
+// ordinary "no messages yet" result. Discovery happens before Verify when a
+// token changes, but an invalid token still needs Verify's BotFather advice
+// rather than instructions to message a bot that Telegram has rejected.
+func telegramDiscoveryCredentialsFailed(failure error) bool {
+	message := failure.Error()
+	return strings.Contains(message, "bot token rejected") ||
+		strings.Contains(message, "Telegram returned status") ||
+		strings.Contains(message, "Telegram reported not-ok")
 }
 
 // SelectCamera changes the capture device, restarting the detector when armed
