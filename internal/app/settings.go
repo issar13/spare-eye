@@ -207,6 +207,8 @@ func sensitivityForm(profile config.SensitivityProfile) SensitivityForm {
 // SaveTelegram stores credentials and reconnects the notifier. It does not
 // contact Telegram; TestTelegram does that.
 func (s *Service) SaveTelegram(form TelegramForm) ActionResult {
+	form = normalizedTelegramForm(form)
+
 	s.mutex.Lock()
 	updated := s.settings
 	updated.Telegram = config.TelegramSettings{
@@ -234,6 +236,7 @@ func (s *Service) SaveTelegram(form TelegramForm) ActionResult {
 // setup it discovers the chat from the message the user sent to their bot, so
 // nobody has to find or copy Telegram's internal chat ID.
 func (s *Service) TestTelegram(form TelegramForm) ActionResult {
+	form = normalizedTelegramForm(form)
 	if form.BotToken == "" {
 		return failed(
 			"The bot token is missing",
@@ -287,9 +290,16 @@ func (s *Service) TestTelegram(form TelegramForm) ActionResult {
 }
 
 func telegramFormForConnection(form TelegramForm, saved config.TelegramSettings) TelegramForm {
-	if strings.TrimSpace(form.BotToken) != strings.TrimSpace(saved.BotToken) {
+	form = normalizedTelegramForm(form)
+	if form.BotToken != strings.TrimSpace(saved.BotToken) {
 		form.ChatID = ""
 	}
+	return form
+}
+
+func normalizedTelegramForm(form TelegramForm) TelegramForm {
+	form.BotToken = strings.TrimSpace(form.BotToken)
+	form.ChatID = strings.TrimSpace(form.ChatID)
 	return form
 }
 
