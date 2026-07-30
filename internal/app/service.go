@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"kaa-rada/internal/autostart"
-	"kaa-rada/internal/config"
-	"kaa-rada/internal/detector"
-	"kaa-rada/internal/media"
+	"spareeye/internal/autostart"
+	"spareeye/internal/config"
+	"spareeye/internal/detector"
+	"spareeye/internal/media"
 )
 
 // cameraOpenTimeout bounds how long Arm waits for the first frame before giving
@@ -393,7 +393,7 @@ func (s *Service) armBlockedProblem(settings config.Config) *Problem {
 	// permanently unable to arm, told about a second copy that does not exist.
 	if errors.Is(s.instanceLockError, detector.ErrAlreadyRunning) {
 		return &Problem{
-			Headline: "Kaa Rada is already running",
+			Headline: "SpareEye is already running",
 			NextStep: "Another copy of this app has the camera. Switch to that window, or close it and try again.",
 		}
 	}

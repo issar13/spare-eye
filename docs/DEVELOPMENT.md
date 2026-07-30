@@ -1,6 +1,6 @@
 # Development
 
-Building Kaa Rada from source, on Linux and on Windows.
+Building SpareEye from source, on Linux and on Windows.
 
 > **Status.** Linux instructions are verified against Ubuntu 24.04. Windows
 > instructions follow gocv's own upstream Windows CI configuration.
@@ -67,8 +67,8 @@ The Makefile holds the platform flags so nobody has to remember them:
 
 ```sh
 make check          # gofmt, go vet, go test
-make build-cli      # headless CLI       -> build/bin/kaa-rada-cli
-make build-desktop  # desktop app        -> build/bin/kaa-rada
+make build-cli      # headless CLI       -> build/bin/spareeye-cli
+make build-desktop  # desktop app        -> build/bin/spareeye
 make dev            # desktop app with hot reload
 make frontend       # web assets         -> frontend/dist
 make package-linux  # release build for linux/amd64
@@ -213,7 +213,7 @@ and then dies immediately with exit status `3221225781`
 ### Build
 
 ```bat
-go build -tags customenv -o build\bin\kaa-rada-cli.exe .\cmd\kaa-rada-cli
+go build -tags customenv -o build\bin\spareeye-cli.exe .\cmd\spareeye-cli
 wails build -tags customenv -clean -platform windows/amd64 -nsis
 ```
 
@@ -284,7 +284,7 @@ rather than a clean "device busy". If the detector will not start, or camera
 tests fail immediately, check for another instance:
 
 ```sh
-pgrep -a 'kaa-rada'
+pgrep -a 'spareeye'
 fuser -v /dev/video*
 ```
 

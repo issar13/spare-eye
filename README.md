@@ -1,17 +1,17 @@
-# Kaa Rada
+# SpareEye
 
-**Turn a spare laptop into a private, subscription-free security camera.**
+**Turn a spare computer into a private, subscription-free security camera.**
 
-Leave a laptop at home, arm Kaa Rada, and it watches the room for movement. When
+Leave a laptop at home, arm SpareEye, and it watches the room for movement. When
 it detects motion, it saves a snapshot, records a clip if the movement
 continues, and sends the footage to your phone through Telegram. Message the bot
 to start a recording on demand or retrieve an earlier clip.
 
-Kaa Rada works with any camera your computer can access: its built-in webcam, a
+SpareEye works with any camera your computer can access: its built-in webcam, a
 USB camera, or another connected capture device. Choose the one you want from
 the Setup screen.
 
-There is no dedicated camera to buy, subscription to maintain, or Kaa Rada
+There is no dedicated camera to buy, subscription to maintain, or SpareEye
 cloud account to create. The app is designed to make useful security hardware
 out of a computer you may already have in a drawer.
 
@@ -28,7 +28,7 @@ out of a computer you may already have in a drawer.
 
 ## Status
 
-Kaa Rada is functional and tested. Motion detection, clips, snapshots, Telegram
+SpareEye is functional and tested. Motion detection, clips, snapshots, Telegram
 alerts, remote commands, and camera discovery are implemented, and the desktop
 app runs on Windows and Linux.
 
@@ -41,7 +41,7 @@ does not let you change.
 
 Camera discovery runs in a separate process because some drivers crash when
 their device is opened. A faulty driver therefore stops only the probe, not the
-entire app. Kaa Rada records which device caused the crash, continues with the
+entire app. SpareEye records which device caused the crash, continues with the
 next one, and can still find a working camera. Virtual camera drivers such as
 Iriun and OBS are common culprits and often occupy index 0.
 
@@ -49,7 +49,7 @@ Telegram is the only alerting channel. See [Why only Telegram](#why-only-telegra
 
 ## Privacy: read this first
 
-Kaa Rada records whatever the camera can see. To deliver alerts, it uploads
+SpareEye records whatever the camera can see. To deliver alerts, it uploads
 clips and snapshots to Telegram's servers, so that footage leaves your machine.
 
 If you point the camera at a shared flat, office, guest room, or any other space
@@ -101,7 +101,7 @@ something it can guess.
 From a terminal:
 
 ```bash
-go run ./cmd/kaa-rada-cli -list-cameras
+go run ./cmd/spareeye-cli -list-cameras
 ```
 
 This prints only devices that both open *and* hand over a real frame:
@@ -126,7 +126,7 @@ With credentials in the environment instead:
 ```bash
 export TELEGRAM_BOT_TOKEN=...
 export TELEGRAM_CHAT_ID=...
-go run ./cmd/kaa-rada-cli -camera 1
+go run ./cmd/spareeye-cli -camera 1
 ```
 
 At startup, the CLI prints the media directory and selected camera, removes
@@ -136,7 +136,7 @@ closed first.
 
 ## The headless command-line tool
 
-`cmd/kaa-rada-cli` runs the detector without a window. It is intended for a
+`cmd/spareeye-cli` runs the detector without a window. It is intended for a
 machine with no display, such as a laptop with its lid shut or a computer
 managed over SSH.
 
@@ -154,8 +154,8 @@ detector still runs and still writes snapshots and clips; it just sends nothing.
 Convenience targets in the `Makefile`:
 
 ```bash
-make cameras      # go run ./cmd/kaa-rada-cli -list-cameras
-make run          # go run ./cmd/kaa-rada-cli
+make cameras      # go run ./cmd/spareeye-cli -list-cameras
+make run          # go run ./cmd/spareeye-cli
 make test         # tests that need no camera
 make test-camera  # camera integration tests, needs a free webcam
 make help         # every target
@@ -202,13 +202,18 @@ Settings and media live in a per-user directory, not next to the binary:
 
 | | Linux | Windows |
 |---|---|---|
-| Settings | `~/.config/kaa-rada/config.json` | `%AppData%\kaa-rada\config.json` |
-| Snapshots | `~/.config/kaa-rada/media/snapshots/` | `%AppData%\kaa-rada\media\snapshots\` |
-| Clips | `~/.config/kaa-rada/media/videos/` | `%AppData%\kaa-rada\media\videos\` |
-| Log | `~/.config/kaa-rada/kaa-rada.log` | `%AppData%\kaa-rada\kaa-rada.log` |
+| Settings | `~/.config/spareeye/config.json` | `%AppData%\spareeye\config.json` |
+| Snapshots | `~/.config/spareeye/media/snapshots/` | `%AppData%\spareeye\media\snapshots\` |
+| Clips | `~/.config/spareeye/media/videos/` | `%AppData%\spareeye\media\videos\` |
+| Log | `~/.config/spareeye/spareeye.log` | `%AppData%\spareeye\spareeye.log` |
 
 The base directory is whatever the operating system reports as the user
 configuration directory.
+
+On the first run after upgrading from Kaa Rada, SpareEye moves the existing
+configuration directory—including credentials and recordings—to the new path.
+If a `spareeye` directory already exists, it is left untouched and takes
+precedence.
 
 The reason for this rather than a folder beside the executable: an app installed
 into `C:\Program Files` cannot write to its own directory without administrator
@@ -258,7 +263,7 @@ so. Close the other user of the camera first.
 **A camera is listed but the detector sees nothing, or index 0 does nothing**
 
 Index 0 is frequently a virtual camera (Iriun, OBS) that opens successfully and
-then delivers no frames. Run `go run ./cmd/kaa-rada-cli -list-cameras`, which
+then delivers no frames. Run `go run ./cmd/spareeye-cli -list-cameras`, which
 requires each device to hand over a real frame before reporting it, and pass the
 index it gives you with `-camera N`.
 
@@ -271,7 +276,7 @@ trailing whitespace when pasting a token anywhere else.
 
 **The window opens and closes again immediately, or never appears**
 
-Open `%AppData%\kaa-rada\kaa-rada.log`, the same path the app shows on its
+Open `%AppData%\spareeye\spareeye.log`, the same path the app shows on its
 diagnostics screen. The log is opened before any other startup work and written
 straight to disk, so its last record is the stage that failed:
 

@@ -17,7 +17,7 @@ import (
 
 	"gocv.io/x/gocv"
 
-	"kaa-rada/internal/config"
+	"spareeye/internal/config"
 )
 
 // TestManualClipContainsFrames decodes the clip it produces. A recorder that

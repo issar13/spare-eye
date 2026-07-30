@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	applicationDirectoryName = "kaa-rada"
+	applicationDirectoryName = "spareeye"
+	legacyDirectoryName      = "kaa-rada"
 	configFileName           = "config.json"
 )
 
@@ -206,6 +207,25 @@ func Directory() (string, error) {
 	}
 
 	directory := filepath.Join(base, applicationDirectoryName)
+	legacyDirectory := filepath.Join(base, legacyDirectoryName)
+
+	// The product rename must not make an upgrade look like a fresh install.
+	// Move the complete old directory so credentials, recordings, and custom
+	// settings remain together. A new SpareEye directory always wins, making
+	// this migration both one-time and safe if somebody deliberately keeps the
+	// legacy directory as a backup.
+	if _, err := os.Stat(directory); errors.Is(err, os.ErrNotExist) {
+		if _, legacyErr := os.Stat(legacyDirectory); legacyErr == nil {
+			if err := os.Rename(legacyDirectory, directory); err != nil {
+				return "", fmt.Errorf("migrating %s to %s: %w", legacyDirectory, directory, err)
+			}
+		} else if !errors.Is(legacyErr, os.ErrNotExist) {
+			return "", fmt.Errorf("checking legacy config directory %s: %w", legacyDirectory, legacyErr)
+		}
+	} else if err != nil {
+		return "", fmt.Errorf("checking config directory %s: %w", directory, err)
+	}
+
 	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return "", fmt.Errorf("creating %s: %w", directory, err)
 	}
