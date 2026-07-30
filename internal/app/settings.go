@@ -213,8 +213,7 @@ func (s *Service) SaveTelegram(form TelegramForm) ActionResult {
 // saveTelegram can trust a chat ID only when TestTelegram has just discovered
 // and verified it. A plain form save must discard an ID tied to an old token.
 func (s *Service) saveTelegram(form TelegramForm, clearChatOnTokenChange bool) ActionResult {
-	form.BotToken = strings.TrimSpace(form.BotToken)
-	form.ChatID = strings.TrimSpace(form.ChatID)
+	form = normalizedTelegramForm(form)
 
 	s.mutex.Lock()
 	updated := s.settings
@@ -249,21 +248,22 @@ func (s *Service) saveTelegram(form TelegramForm, clearChatOnTokenChange bool) A
 // setup it discovers the chat from the message the user sent to their bot, so
 // nobody has to find or copy Telegram's internal chat ID.
 func (s *Service) TestTelegram(form TelegramForm) ActionResult {
-	form.BotToken = strings.TrimSpace(form.BotToken)
-	form.ChatID = strings.TrimSpace(form.ChatID)
-	s.mutex.Lock()
-	savedBotToken := strings.TrimSpace(s.settings.Telegram.BotToken)
-	s.mutex.Unlock()
-	if form.BotToken != savedBotToken {
-		form.ChatID = ""
-	}
-
+	form = normalizedTelegramForm(form)
 	if form.BotToken == "" {
 		return failed(
 			"The bot token is missing",
 			"Paste the token from @BotFather, then open your new bot in Telegram and press Start.",
 		).withDoc(telegramSetupDoc)
 	}
+
+	// The setup screen no longer exposes the saved chat ID. When the token is
+	// replaced, that ID belongs to the previous bot and must not be reused for
+	// verification (or persisted with the new token). Discover the conversation
+	// that contacted the replacement bot instead.
+	s.mutex.Lock()
+	savedTelegram := s.settings.Telegram
+	s.mutex.Unlock()
+	form = telegramFormForConnection(form, savedTelegram)
 
 	testContext, cancel := context.WithTimeout(context.Background(), verifyTimeout)
 	defer cancel()
@@ -277,14 +277,14 @@ func (s *Service) TestTelegram(form TelegramForm) ActionResult {
 			if strings.Contains(err.Error(), "multiple Telegram conversations") {
 				return failed(
 					"More than one chat messaged this bot",
-					"Use a fresh bot for Kaa Rada, press Start in that bot's private chat, then connect again.",
+					"Use a fresh bot for SpareEye, press Start in that bot's private chat, then connect again.",
 				).withDoc(telegramSetupDoc)
 			}
 			if telegramDiscoveryCredentialsFailed(err) {
 				return describeTelegramFailure(err).asResult()
 			}
 			return failed(
-				"Kaa Rada cannot see your Telegram chat yet",
+				"SpareEye cannot see your Telegram chat yet",
 				"Open your new bot in Telegram, press Start or send it a message, then come back and connect again.",
 			).withDoc(telegramSetupDoc)
 		}
@@ -302,6 +302,20 @@ func (s *Service) TestTelegram(form TelegramForm) ActionResult {
 	}
 
 	return succeeded("Telegram is connected. Check your phone for the test message.")
+}
+
+func telegramFormForConnection(form TelegramForm, saved config.TelegramSettings) TelegramForm {
+	form = normalizedTelegramForm(form)
+	if form.BotToken != strings.TrimSpace(saved.BotToken) {
+		form.ChatID = ""
+	}
+	return form
+}
+
+func normalizedTelegramForm(form TelegramForm) TelegramForm {
+	form.BotToken = strings.TrimSpace(form.BotToken)
+	form.ChatID = strings.TrimSpace(form.ChatID)
+	return form
 }
 
 // telegramDiscoveryCredentialsFailed distinguishes an API refusal from the

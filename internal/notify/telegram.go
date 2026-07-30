@@ -53,7 +53,7 @@ func (t *Telegram) endpoint(method string) string {
 
 // DiscoverChatID finds the conversation that has messaged this bot. This keeps
 // Telegram's internal numeric identifier out of setup: the person only needs to
-// open their new bot, press Start, and return to Kaa Rada. Refusing an ambiguous
+// open their new bot, press Start, and return to SpareEye. Refusing an ambiguous
 // result is important; silently choosing one of several chats could send camera
 // footage to the wrong person or group.
 func (t *Telegram) DiscoverChatID(ctx context.Context) (string, error) {
