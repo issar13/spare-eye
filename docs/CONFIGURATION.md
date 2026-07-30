@@ -5,8 +5,8 @@ Every setting in `config.json`, what it means, and what it defaults to.
 Almost all of these are editable from the desktop app. This file is the reference
 for what each one does, and for editing the file directly on a headless machine.
 
-See [the README](../README.md#where-your-data-lives) for where `config.json`
-lives on each platform.
+See [Privacy and security](SECURITY.md#know-where-footage-goes) for where
+`config.json` lives on each platform.
 
 Durations are readable strings like `"15s"` and `"5m0s"`, so the file stays
 sensible to edit by hand. Any field you leave out keeps its default, so an older
@@ -106,4 +106,3 @@ by hand:
 
 The headless CLI ignores both: running it is already a request to watch, and
 starting it at login is a job for systemd or your shell profile.
-
