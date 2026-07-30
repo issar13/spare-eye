@@ -125,7 +125,9 @@ func describeTelegramFailure(failure error) Problem {
 	message := failure.Error()
 
 	switch {
-	case strings.Contains(message, "bot token rejected"):
+	case strings.Contains(message, "bot token rejected"),
+		strings.Contains(message, "Telegram returned status"),
+		strings.Contains(message, "Telegram reported not-ok"):
 		return Problem{
 			Headline: "Telegram would not accept that bot token",
 			NextStep: "Open Telegram, message @BotFather, and copy the token again. It looks like " +
