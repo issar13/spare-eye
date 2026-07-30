@@ -22,6 +22,7 @@ const telegramAPIRoot = "https://api.telegram.org"
 type Telegram struct {
 	botToken   string
 	chatID     string
+	apiRoot    string
 	httpClient *http.Client
 
 	lastUpdateID int
@@ -37,6 +38,7 @@ func NewTelegram(botToken, chatID string) *Telegram {
 	return &Telegram{
 		botToken:   strings.TrimSpace(botToken),
 		chatID:     strings.TrimSpace(chatID),
+		apiRoot:    telegramAPIRoot,
 		httpClient: &http.Client{Timeout: 60 * time.Second},
 	}
 }
@@ -46,7 +48,39 @@ func (t *Telegram) Name() string { return "Telegram" }
 func (t *Telegram) Close() error { return nil }
 
 func (t *Telegram) endpoint(method string) string {
-	return fmt.Sprintf("%s/bot%s/%s", telegramAPIRoot, t.botToken, method)
+	return fmt.Sprintf("%s/bot%s/%s", t.apiRoot, t.botToken, method)
+}
+
+// DiscoverChatID finds the conversation that has messaged this bot. This keeps
+// Telegram's internal numeric identifier out of setup: the person only needs to
+// open their new bot, press Start, and return to Kaa Rada. Refusing an ambiguous
+// result is important; silently choosing one of several chats could send camera
+// footage to the wrong person or group.
+func (t *Telegram) DiscoverChatID(ctx context.Context) (string, error) {
+	updates, err := t.fetchUpdates(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	chats := make(map[string]struct{})
+	for _, update := range updates {
+		if id := update.Message.Chat.ID.String(); id != "" {
+			chats[id] = struct{}{}
+		}
+	}
+
+	if len(chats) == 0 {
+		return "", fmt.Errorf("no Telegram conversation found")
+	}
+	if len(chats) > 1 {
+		return "", fmt.Errorf("multiple Telegram conversations found")
+	}
+
+	for id := range chats {
+		t.chatID = id
+		return id, nil
+	}
+	return "", fmt.Errorf("no Telegram conversation found")
 }
 
 // Verify confirms the token is valid and the chat is reachable, so the UI can
