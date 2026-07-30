@@ -300,13 +300,11 @@
                             <input autocomplete="off" name="botToken" placeholder="123456789:AAE…" type="password"/>
                         </label>
 
-                        <label>Chat ID <span class="hint">From @userinfobot in Telegram</span>
-                            <input autocomplete="off" name="chatID" placeholder="123456789" type="text"/>
-                        </label>
+                        <input name="chatID" type="hidden"/>
 
                         <div class="row">
-                            <button class="primary" type="submit">Save</button>
-                            <button id="test-telegram" type="button">Test connection</button>
+                            <button class="primary" id="test-telegram" type="button">Connect Telegram</button>
+                            <button type="submit">Save alert preference</button>
                         </div>
                     </form>
 
