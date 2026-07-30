@@ -319,27 +319,33 @@ jobs:
           dpkg-deb --contents "${{ steps.package-deb.outputs.deb }}"
           lintian --fail-on error "${{ steps.package-deb.outputs.deb }}"
 
-      # Extracting an archive only proves that dpkg can read it. Install the
-      # actual release candidate through apt as users do, then ask the dynamic
-      # linker to resolve every library. This catches malformed control data,
-      # unsatisfied dependency names, wrong-architecture packages, and missing
-      # shared libraries before the publish job can expose a broken download.
+      # Do this in a pristine Ubuntu image, not on the runner. The runner still
+      # has every development package used by the build, so a missing Depends
+      # entry could otherwise be hidden by a library that was already present.
+      # Installing in a clean image proves that the package metadata alone is
+      # sufficient to produce a runnable filesystem.
       - name: Install and smoke test the .deb
         run: |
           deb_file="${{ steps.package-deb.outputs.deb }}"
-          sudo apt-get install --no-install-recommends -y "./${deb_file}"
+          docker run --rm \
+            --volume "${PWD}:/release:ro" \
+            --env EXPECTED_ARCHITECTURE="${{ matrix.architecture }}" \
+            --env DEB_FILE="${deb_file}" \
+            ubuntu:24.04 \
+            bash -euxo pipefail -c '
+              apt-get update
+              apt-get install --no-install-recommends -y "/release/${DEB_FILE}"
 
-          test "$(dpkg-query -W -f='${binary:Package}\n' kaa-rada)" = "kaa-rada"
-          test "$(dpkg-query -W -f='${db:Status-Status}\n' kaa-rada)" = "installed"
-          test "$(dpkg-query -W -f='${Architecture}\n' kaa-rada)" = "${{ matrix.architecture }}"
-          sudo dpkg --verify kaa-rada
+              test "$(dpkg-query -W -f="\${binary:Package}\n" kaa-rada)" = "kaa-rada"
+              test "$(dpkg-query -W -f="\${db:Status-Status}\n" kaa-rada)" = "installed"
+              test "$(dpkg-query -W -f="\${Architecture}\n" kaa-rada)" = "${EXPECTED_ARCHITECTURE}"
+              dpkg --verify kaa-rada
 
-          missing_libraries="$(ldd /usr/bin/kaa-rada | awk '/not found/ { print }')"
-          if [ -n "${missing_libraries}" ]; then
-            echo "::error::The installed application has unresolved shared libraries."
-            echo "${missing_libraries}"
-            exit 1
-          fi
+              if ldd /usr/bin/kaa-rada | grep -F "not found"; then
+                echo "The installed application has unresolved shared libraries." >&2
+                exit 1
+              fi
+            '
 
       - name: Verify the .deb contains no credentials
         run: |
