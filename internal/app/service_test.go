@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"kaa-rada/internal/autostart"
-	"kaa-rada/internal/config"
-	"kaa-rada/internal/detector"
+	"spareeye/internal/autostart"
+	"spareeye/internal/config"
+	"spareeye/internal/detector"
 )
 
 // newTestService builds a service whose media directories are throwaway
@@ -654,6 +654,30 @@ func TestTelegramConnectionFormNormalizesCredentials(t *testing.T) {
 	}
 	if form.ChatID != saved.ChatID {
 		t.Errorf("normalized chat ID = %q, want %q", form.ChatID, saved.ChatID)
+	}
+}
+
+func TestTelegramDiscoveryCredentialFailuresKeepTokenAdvice(t *testing.T) {
+	cases := []string{
+		"bot token rejected by Telegram",
+		"Telegram returned status 404",
+		"Telegram reported not-ok",
+	}
+
+	for _, failure := range cases {
+		err := errors.New(failure)
+		if !telegramDiscoveryCredentialsFailed(err) {
+			t.Errorf("telegramDiscoveryCredentialsFailed(%q) = false, want true", failure)
+			continue
+		}
+		problem := describeTelegramFailure(err)
+		if !strings.Contains(problem.NextStep, "BotFather") {
+			t.Errorf("%q produced next step %q, want token advice", failure, problem.NextStep)
+		}
+	}
+
+	if telegramDiscoveryCredentialsFailed(errors.New("no Telegram conversation found")) {
+		t.Error("an empty update stream was mistaken for a credential failure")
 	}
 }
 

@@ -9,8 +9,8 @@ videos/
 DISABLED
 
 # Go build output
-/kaa-rada
-/kaa-rada.exe
+/spareeye
+/spareeye.exe
 /dist/
 
 # Build output only. Packaging metadata under build/ must stay tracked.
@@ -51,3 +51,8 @@ desktop.ini
 
 # Internal working notes: planning, status, and release gates stay local.
 ROADMAP.md
+
+# Netlify CLI scratch state for the landing page: which site this checkout is
+# linked to, and a deploy cache. Machine-local, and it holds the site ID, so it
+# is not something to share. The config that matters is netlify.toml.
+.netlify/

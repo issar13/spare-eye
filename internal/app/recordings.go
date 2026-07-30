@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"kaa-rada/internal/media"
-	"kaa-rada/internal/notify"
+	"spareeye/internal/media"
+	"spareeye/internal/notify"
 )
 
 // RecordingView is one file on disk, described for the browser screen. It adds

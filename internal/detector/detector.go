@@ -13,7 +13,7 @@ import (
 
 	"gocv.io/x/gocv"
 
-	"kaa-rada/internal/config"
+	"spareeye/internal/config"
 )
 
 // EventKind identifies what happened, so subscribers can filter without

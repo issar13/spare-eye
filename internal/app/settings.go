@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"kaa-rada/internal/autostart"
-	"kaa-rada/internal/config"
-	"kaa-rada/internal/detector"
-	"kaa-rada/internal/notify"
+	"spareeye/internal/autostart"
+	"spareeye/internal/config"
+	"spareeye/internal/detector"
+	"spareeye/internal/notify"
 )
 
 // verifyTimeout bounds the Telegram round trip so a wrong host cannot leave the
@@ -207,10 +207,22 @@ func sensitivityForm(profile config.SensitivityProfile) SensitivityForm {
 // SaveTelegram stores credentials and reconnects the notifier. It does not
 // contact Telegram; TestTelegram does that.
 func (s *Service) SaveTelegram(form TelegramForm) ActionResult {
+	return s.saveTelegram(form, true)
+}
+
+// saveTelegram can trust a chat ID only when TestTelegram has just discovered
+// and verified it. A plain form save must discard an ID tied to an old token.
+func (s *Service) saveTelegram(form TelegramForm, clearChatOnTokenChange bool) ActionResult {
 	form = normalizedTelegramForm(form)
 
 	s.mutex.Lock()
 	updated := s.settings
+	// A chat ID belongs to one particular bot's update stream. Keeping the old
+	// hidden ID after the token changes could silently send footage to a chat
+	// belonging to the previous bot instead of discovering the new one.
+	if clearChatOnTokenChange && form.BotToken != strings.TrimSpace(updated.Telegram.BotToken) {
+		form.ChatID = ""
+	}
 	updated.Telegram = config.TelegramSettings{
 		BotToken: form.BotToken,
 		ChatID:   form.ChatID,
@@ -265,11 +277,14 @@ func (s *Service) TestTelegram(form TelegramForm) ActionResult {
 			if strings.Contains(err.Error(), "multiple Telegram conversations") {
 				return failed(
 					"More than one chat messaged this bot",
-					"Use a fresh bot for Kaa Rada, press Start in that bot's private chat, then connect again.",
+					"Use a fresh bot for SpareEye, press Start in that bot's private chat, then connect again.",
 				).withDoc(telegramSetupDoc)
 			}
+			if telegramDiscoveryCredentialsFailed(err) {
+				return describeTelegramFailure(err).asResult()
+			}
 			return failed(
-				"Kaa Rada cannot see your Telegram chat yet",
+				"SpareEye cannot see your Telegram chat yet",
 				"Open your new bot in Telegram, press Start or send it a message, then come back and connect again.",
 			).withDoc(telegramSetupDoc)
 		}
@@ -282,7 +297,7 @@ func (s *Service) TestTelegram(form TelegramForm) ActionResult {
 	}
 
 	s.log.Info("telegram verified")
-	if result := s.SaveTelegram(form); !result.OK {
+	if result := s.saveTelegram(form, false); !result.OK {
 		return result
 	}
 
@@ -301,6 +316,17 @@ func normalizedTelegramForm(form TelegramForm) TelegramForm {
 	form.BotToken = strings.TrimSpace(form.BotToken)
 	form.ChatID = strings.TrimSpace(form.ChatID)
 	return form
+}
+
+// telegramDiscoveryCredentialsFailed distinguishes an API refusal from the
+// ordinary "no messages yet" result. Discovery happens before Verify when a
+// token changes, but an invalid token still needs Verify's BotFather advice
+// rather than instructions to message a bot that Telegram has rejected.
+func telegramDiscoveryCredentialsFailed(failure error) bool {
+	message := failure.Error()
+	return strings.Contains(message, "bot token rejected") ||
+		strings.Contains(message, "Telegram returned status") ||
+		strings.Contains(message, "Telegram reported not-ok")
 }
 
 // SelectCamera changes the capture device, restarting the detector when armed
@@ -558,7 +584,7 @@ func validateCameraURL(address string) *Problem {
 	parsed, err := url.Parse(trimmed)
 	if err != nil || parsed.Host == "" || !slices.Contains(cameraURLSchemes, strings.ToLower(parsed.Scheme)) {
 		return &Problem{
-			Headline: "That is not an address Kaa Rada can use",
+			Headline: "That is not an address SpareEye can use",
 			NextStep: "A network camera address has to begin with rtsp://, rtsps://, http:// or https:// and " +
 				"name the camera after it, as in rtsp://192.168.1.50:554/stream. Your camera's manual or " +
 				"its own settings page will tell you the exact address.",

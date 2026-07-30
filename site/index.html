@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kaa Rada: turn a spare laptop into a home security camera</title>
+    <meta name="description" content="Leave a laptop at home, arm it, and it watches the room. Motion alerts with snapshots and clips straight to Telegram. No cameras to buy, no subscription, no cloud account.">
+    <meta name="theme-color" content="#111318">
+
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Kaa Rada: turn a spare laptop into a home security camera">
+    <meta property="og:description" content="Motion detection and Telegram alerts on hardware you already own. No cameras to buy, no subscription, no cloud account.">
+    <meta name="twitter:card" content="summary_large_image">
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="wrap">
+        <a class="wordmark" href="#top">Kaa<span>Rada</span></a>
+        <nav>
+            <a class="nav-hide" href="#how">How it works</a>
+            <a class="nav-hide" href="#privacy">Privacy</a>
+            <a href="https://github.com/issar13/kaa-rada">GitHub</a>
+            <a href="#download">Download</a>
+        </nav>
+    </div>
+</header>
+
+<main id="top">
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="wrap hero-grid">
+            <div>
+                <h1>Turn a spare laptop into a home security camera.</h1>
+                <p class="lede">
+                    Leave a laptop at home, arm it, and it watches the room. When
+                    something moves it saves a snapshot, records a clip if the movement
+                    continues, and sends both to your phone on Telegram.
+                </p>
+
+                <div class="actions" id="download-buttons">
+                    <a class="button primary" href="https://github.com/issar13/kaa-rada/releases/latest" data-platform="windows">
+                        Download for Windows <span class="platform">64-bit</span>
+                    </a>
+                    <a class="button" href="https://github.com/issar13/kaa-rada/releases/latest" data-platform="linux">
+                        Download for Linux <span class="platform">x86-64</span>
+                    </a>
+                </div>
+
+                <p class="reassure">
+                    Free and open source, MIT licensed. No cameras to buy, no
+                    subscription, no cloud account to create.
+                </p>
+            </div>
+
+            <!-- The app's Home screen, rebuilt in markup. Every string here is the
+                 one the app actually shows. -->
+            <div class="mock" aria-hidden="true">
+                <div class="mock-chrome">
+                    <i></i><i></i><i></i>
+                    <span class="title">Kaa Rada</span>
+                </div>
+                <div class="mock-body">
+                    <div class="status">
+                        <span class="dot watching"></span>
+                        <div>
+                            <h3>Watching for motion</h3>
+                            <p>All quiet. You will get a Telegram message if anything moves.</p>
+                        </div>
+                    </div>
+
+                    <div class="mock-buttons">
+                        <span class="on">Stop watching</span>
+                        <span>Record now</span>
+                    </div>
+
+                    <div class="mock-feed">
+                        <p>What has happened</p>
+                        <ul>
+                            <li><time>21:04</time> Clip saved and sent to Telegram</li>
+                            <li><time>21:03</time> Motion detected, snapshot sent</li>
+                            <li><time>19:30</time> Switched to the night profile</li>
+                            <li><time>18:12</time> Started watching</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Setup -->
+    <section id="how">
+        <div class="wrap">
+            <div class="prose">
+                <p class="eyebrow">Getting started</p>
+                <h2>Three things, then it's watching.</h2>
+                <p class="lede">
+                    The whole of setup is one screen with three numbered steps. Nothing
+                    here needs a terminal, and nothing here needs a technical background.
+                </p>
+            </div>
+
+            <div class="steps">
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <h3>Get alerts on your phone</h3>
+                    <p>
+                        Create your own Telegram bot, paste in the token and chat ID, and
+                        press Test to confirm they work. About five minutes, once, with a
+                        guide that walks you through it.
+                    </p>
+                </div>
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <h3>Choose your camera</h3>
+                    <p>
+                        The picker lists only the devices that actually hand over a frame,
+                        so a virtual camera from OBS or Iriun cannot quietly take the slot
+                        your real webcam should be in.
+                    </p>
+                </div>
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <h3>Start watching</h3>
+                    <p>
+                        One button. The status screen tells you in plain English what is
+                        happening, and you can stop it again the same way.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- What arrives -->
+    <section>
+        <div class="wrap">
+            <div class="prose">
+                <p class="eyebrow">When something moves</p>
+                <h2>A snapshot straight away, then the clip.</h2>
+            </div>
+
+            <div class="split">
+                <div>
+                    <p>
+                        Motion sends a snapshot immediately, so you know something happened
+                        before you know what. If the movement carries on past the minimum
+                        duration you set, a clip records and follows it. That clip includes
+                        a few seconds from <em>before</em> the movement started, so you see
+                        what walked in rather than joining halfway through.
+                    </p>
+                    <p>
+                        A cooldown keeps a busy afternoon from becoming a hundred
+                        notifications. Everything is saved on the laptop as well, and
+                        deleted automatically after 30 days by default.
+                    </p>
+                </div>
+
+                <div class="thread" aria-hidden="true">
+                    <div class="bubble">
+                        <p>⚠️ Motion detected</p>
+                        <div class="attachment">
+                            <span class="glyph">🖼</span>
+                            <span>motion_2026-07-25_19-52-01.jpg</span>
+                        </div>
+                        <span class="meta">19:52</span>
+                    </div>
+                    <div class="bubble">
+                        <p>📹 Clip saved</p>
+                        <div class="attachment">
+                            <span class="glyph">🎬</span>
+                            <span>motion_2026-07-25_19-52-03.mp4 · 0.9 MB</span>
+                        </div>
+                        <span class="meta">19:52</span>
+                    </div>
+                    <div class="bubble mine">
+                        <p>/record</p>
+                        <span class="meta">19:55</span>
+                    </div>
+                    <div class="bubble">
+                        <p>Recording started. Send /stop when you want it to end.</p>
+                        <span class="meta">19:55</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Plain english -->
+    <section>
+        <div class="wrap">
+            <div class="prose">
+                <p class="eyebrow">Settings you can actually answer</p>
+                <h2>No thresholds. No contour areas. No guessing.</h2>
+                <p class="lede">
+                    Motion detection is decided by two numbers that mean nothing to
+                    somebody pointing a camera at their porch. So the app asks the
+                    question you can answer, and writes the numbers itself.
+                </p>
+            </div>
+
+            <div class="presets">
+                <div class="preset">
+                    <h4>Only big movements</h4>
+                    <p>Ignores pets, shadows and swaying branches. You will get the fewest alerts.</p>
+                </div>
+                <div class="preset chosen">
+                    <h4>Recommended <span class="tag">Default</span></h4>
+                    <p>Picks up a person walking into view. A good starting point for most homes.</p>
+                </div>
+                <div class="preset">
+                    <h4>Small movements too</h4>
+                    <p>Catches pets and small changes. Expect more alerts, including false ones.</p>
+                </div>
+            </div>
+
+            <p class="aside">
+                The same treatment applies to the live view, where frames per second and
+                JPEG quality become <strong>Easy on the laptop</strong>, <strong>Recommended</strong>
+                and <strong>Smoothest picture</strong>. The raw numbers are still there
+                under an “Advanced numbers” disclosure if you want them. They are just
+                not the way in.
+            </p>
+        </div>
+    </section>
+
+    <!-- Day / night -->
+    <section>
+        <div class="wrap">
+            <div class="prose">
+                <p class="eyebrow">Day and night</p>
+                <h2>A room at noon and the same room at 19:00 are not the same room.</h2>
+                <p class="lede">
+                    So they don't share one sensitivity setting. Pick a level for daytime
+                    and a different one for night, set the hours the night profile applies,
+                    and the app switches between them on schedule.
+                </p>
+            </div>
+
+            <div class="features">
+                <div class="feature">
+                    <h3>Text it back</h3>
+                    <p>
+                        Message your bot <code>/record</code> to start a clip,
+                        <code>/stop</code> to end it, or <code>/get</code> to list what is
+                        saved and pull one up. Only the chat you configured is obeyed;
+                        anything from anywhere else is discarded.
+                    </p>
+                </div>
+                <div class="feature">
+                    <h3>Set it and forget it</h3>
+                    <p>
+                        Open when you log in, and start watching as soon as it opens. Two
+                        separate switches, because wanting one does not mean wanting both.
+                        Registered for your user only, so no administrator prompt.
+                    </p>
+                </div>
+                <div class="feature">
+                    <h3>Browse what it caught</h3>
+                    <p>
+                        Videos and photos, newest first, with thumbnails and sizes, each
+                        marked as something you started or something that moved. Delete
+                        it, open it, or send it to Telegram again.
+                    </p>
+                </div>
+                <div class="feature">
+                    <h3>Any camera it can see</h3>
+                    <p>
+                        The built-in webcam, a USB camera you plugged in, or a better
+                        camera already on your network by its RTSP or HTTP address.
+                        Network cameras get their own box, since they never show up in
+                        a scan of local devices.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Privacy -->
+    <section class="privacy" id="privacy">
+        <div class="wrap">
+            <div class="prose">
+                <p class="eyebrow">Privacy: read this first</p>
+                <h2>This records video of a room. Here is exactly what that means.</h2>
+                <p class="lede">
+                    This section is near the top of the README too. A camera in your home
+                    is not something to be casual about, and a page that buried this would
+                    be selling you a different product.
+                </p>
+            </div>
+
+            <div class="privacy-points">
+                <div class="privacy-point">
+                    <span class="index" aria-hidden="true">01</span>
+                    <h3>Footage leaves your machine</h3>
+                    <p>
+                        Delivering clips and snapshots to you means uploading them to
+                        Telegram's servers. There is no way around that while Telegram is
+                        the delivery route.
+                    </p>
+                </div>
+                <div class="privacy-point">
+                    <span class="index" aria-hidden="true">02</span>
+                    <h3>Other people have not agreed to this</h3>
+                    <p>
+                        Point it at a shared flat, an office, or a room with guests in it
+                        and you are recording them. Depending on where you live, doing
+                        that without telling them may be illegal, whoever owns the camera
+                        or the home.
+                    </p>
+                </div>
+                <div class="privacy-point">
+                    <span class="index" aria-hidden="true">03</span>
+                    <h3>Your bot token is a password</h3>
+                    <p>
+                        Anyone who gets it can receive your footage and command your
+                        camera. It is stored with owner-only permissions, and there is no
+                        shared bot and no token baked into the binary. Every install
+                        talks to a bot you made.
+                    </p>
+                </div>
+                <div class="privacy-point">
+                    <span class="index" aria-hidden="true">04</span>
+                    <h3>Clips stay on the laptop as well</h3>
+                    <p>
+                        For 30 days by default, deleted automatically after that, or kept
+                        forever if you ask. Anyone with access to your user account can
+                        watch them.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download -->
+    <section id="download">
+        <div class="wrap">
+            <div class="prose">
+                <p class="eyebrow">Download</p>
+                <h2>Free, open source, and nothing to sign up for.</h2>
+            </div>
+
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th scope="col">Platform</th>
+                            <th scope="col">Architecture</th>
+                            <th scope="col">Install</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Windows 10 / 11</th>
+                            <td>x64 (Intel/AMD)</td>
+                            <td class="wrap-cell">
+                                Run the installer and follow the wizard. It installs for
+                                your user only, so it never asks for administrator rights.
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Debian / Ubuntu</th>
+                            <td>x64 (amd64)</td>
+                            <td class="wrap-cell">
+                                <code>sudo apt install ./kaa-rada_*_amd64.deb</code>. Use apt
+                                rather than <code>dpkg -i</code>: the package declares OpenCV
+                                and WebKit, so apt pulls them in for you, while
+                                <code>dpkg</code> only reports them missing.
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Other Linux</th>
+                            <td>x64 (amd64)</td>
+                            <td class="wrap-cell">
+                                Extract the tarball, then <code>./install.sh</code>. Needs
+                                OpenCV 4.6, GTK 3.24+ and WebKit2GTK 4.1+ from your distro.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="actions">
+                <a class="button primary" href="https://github.com/issar13/kaa-rada/releases/latest">
+                    Get the latest release
+                </a>
+                <a class="button" href="https://github.com/issar13/kaa-rada">
+                    Source on GitHub
+                </a>
+            </div>
+
+            <p class="download-note">
+                You will also need a webcam that no other program is currently using, and
+                your own Telegram bot. The
+                <a href="https://github.com/issar13/kaa-rada/blob/main/docs/SETUP-TELEGRAM.md">setup guide</a>
+                covers creating one.
+            </p>
+
+            <p class="download-note">
+                <strong>The binaries are unsigned.</strong> On Windows, SmartScreen will
+                warn you that the publisher is unknown and you will have to choose to run
+                it anyway. Code-signing certificates are a recurring cost this project has
+                not taken on. Every download ships with a <code>.sha256</code> file if you
+                want to verify it yourself.
+            </p>
+
+            <p class="download-note">
+                <strong>macOS is not supported</strong>, deliberately rather than by
+                oversight: shipping a macOS build that will open at all requires paid
+                Apple Developer enrollment, so it is deferred instead of half-done.
+                Telegram is currently the only alerting channel.
+            </p>
+        </div>
+    </section>
+
+</main>
+
+<footer>
+    <div class="wrap">
+        <span>Kaa Rada. MIT licensed.</span>
+        <nav>
+            <a href="https://github.com/issar13/kaa-rada">GitHub</a>
+            <a href="https://github.com/issar13/kaa-rada/blob/main/docs/SETUP-TELEGRAM.md">Telegram setup</a>
+            <a href="https://github.com/issar13/kaa-rada/releases/latest">Releases</a>
+        </nav>
+    </div>
+</footer>
+
+<script>
+    // Progressive enhancement only: both download buttons are present, correct and
+    // clickable without this. All it does is lead with the visitor's own platform.
+    // Release filenames carry the version, so these link to the release page rather
+    // than to a direct asset URL that would go stale on every tag.
+    const buttonRow = document.getElementById('download-buttons');
+    const platformHint = (navigator.userAgentData?.platform ?? navigator.userAgent).toLowerCase();
+    const visitorPlatform = platformHint.includes('linux') && !platformHint.includes('android') ? 'linux' : 'windows';
+    const preferredButton = buttonRow.querySelector(`[data-platform="${visitorPlatform}"]`);
+
+    if (preferredButton && preferredButton !== buttonRow.firstElementChild) {
+        buttonRow.prepend(preferredButton);
+        buttonRow.querySelectorAll('.button').forEach((button, index) => {
+            button.classList.toggle('primary', index === 0);
+        });
+    }
+</script>
+
+</body>
+</html>

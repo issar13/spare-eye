@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"kaa-rada/internal/config"
-	"kaa-rada/internal/detector"
+	"spareeye/internal/config"
+	"spareeye/internal/detector"
 )
 
 // armedService builds a service pointed at the first usable camera, with alerts

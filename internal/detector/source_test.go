@@ -3,7 +3,7 @@ package detector
 import (
 	"testing"
 
-	"kaa-rada/internal/config"
+	"spareeye/internal/config"
 )
 
 func TestAnAddressWinsOverTheDeviceIndex(t *testing.T) {

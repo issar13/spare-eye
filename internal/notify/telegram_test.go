@@ -145,3 +145,18 @@ func TestDiscoverChatIDRefusesToGuessBetweenConversations(t *testing.T) {
 		t.Fatalf("DiscoverChatID error = %v, want ambiguity error", err)
 	}
 }
+
+func TestDiscoverChatIDReportsRejectedToken(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+
+	subject := NewTelegram("1234567890:EXAMPLE", "")
+	subject.apiRoot = server.URL
+
+	if _, err := subject.DiscoverChatID(context.Background()); err == nil ||
+		!strings.Contains(err.Error(), "bot token rejected") {
+		t.Fatalf("DiscoverChatID error = %v, want rejected-token error", err)
+	}
+}
