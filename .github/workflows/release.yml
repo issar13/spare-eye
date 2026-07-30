@@ -319,6 +319,28 @@ jobs:
           dpkg-deb --contents "${{ steps.package-deb.outputs.deb }}"
           lintian --fail-on error "${{ steps.package-deb.outputs.deb }}"
 
+      # Extracting an archive only proves that dpkg can read it. Install the
+      # actual release candidate through apt as users do, then ask the dynamic
+      # linker to resolve every library. This catches malformed control data,
+      # unsatisfied dependency names, wrong-architecture packages, and missing
+      # shared libraries before the publish job can expose a broken download.
+      - name: Install and smoke test the .deb
+        run: |
+          deb_file="${{ steps.package-deb.outputs.deb }}"
+          sudo apt-get install --no-install-recommends -y "./${deb_file}"
+
+          test "$(dpkg-query -W -f='${binary:Package}\n' kaa-rada)" = "kaa-rada"
+          test "$(dpkg-query -W -f='${db:Status-Status}\n' kaa-rada)" = "installed"
+          test "$(dpkg-query -W -f='${Architecture}\n' kaa-rada)" = "${{ matrix.architecture }}"
+          sudo dpkg --verify kaa-rada
+
+          missing_libraries="$(ldd /usr/bin/kaa-rada | awk '/not found/ { print }')"
+          if [ -n "${missing_libraries}" ]; then
+            echo "::error::The installed application has unresolved shared libraries."
+            echo "${missing_libraries}"
+            exit 1
+          fi
+
       - name: Verify the .deb contains no credentials
         run: |
           extract_directory="$(mktemp -d)"
