@@ -6,7 +6,7 @@ import (
 
 	"gocv.io/x/gocv"
 
-	"kaa-rada/internal/config"
+	"spareeye/internal/config"
 )
 
 func TestIsNightHandlesWindowCrossingMidnight(t *testing.T) {

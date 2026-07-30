@@ -1,6 +1,6 @@
 # Setting up Telegram
 
-Kaa Rada sends alerts through a Telegram bot that **you** create. There is no
+SpareEye sends alerts through a Telegram bot that **you** create. There is no
 shared bot and no token built into the app, so your footage goes to your bot
 and your chat and nobody else's.
 
@@ -12,7 +12,7 @@ only the automatically registered chat is allowed to control the camera.
 You need two things:
 
 1. A **bot token**, identifying the bot the app sends messages as
-2. One message to the bot, so Kaa Rada can identify your conversation
+2. One message to the bot, so SpareEye can identify your conversation
 
 This takes about five minutes and needs only the Telegram app, on phone or
 desktop.
@@ -51,15 +51,15 @@ Telegram rule, not an app limitation.
 Do not skip this: without it the next step returns nothing and alerts never
 arrive.
 
-## Step 3: Connect in Kaa Rada
+## Step 3: Connect in SpareEye
 
-Open Setup, paste the bot token, and press **Connect Telegram**. Kaa Rada finds
+Open Setup, paste the bot token, and press **Connect Telegram**. SpareEye finds
 the conversation from the message you sent in Step 2, saves its internal ID on
 this computer, and sends a confirmation back. You do not need to look up or
 copy a chat ID.
 
 Use a new bot that only you have messaged. If more than one conversation has
-contacted it, Kaa Rada refuses to guess where private camera footage should go;
+contacted it, SpareEye refuses to guess where private camera footage should go;
 create a fresh bot and connect that one instead.
 
 The desktop setup is now complete.
@@ -113,7 +113,7 @@ running:
 ```
 export TELEGRAM_BOT_TOKEN=123456789:YOUR_BOT_TOKEN_HERE
 export TELEGRAM_CHAT_ID=123456789
-go run ./cmd/kaa-rada-cli
+go run ./cmd/spareeye-cli
 ```
 
 On Windows PowerShell:
@@ -121,7 +121,7 @@ On Windows PowerShell:
 ```
 $env:TELEGRAM_BOT_TOKEN = "123456789:YOUR_BOT_TOKEN_HERE"
 $env:TELEGRAM_CHAT_ID = "123456789"
-go run ./cmd/kaa-rada-cli
+go run ./cmd/spareeye-cli
 ```
 
 Once the credentials check out, the tool prints `Telegram connected` and sends

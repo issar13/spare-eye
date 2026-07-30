@@ -1,0 +1,24 @@
+# Netlify config for the landing page in site/.
+#
+# This has to live at the repository root rather than inside site/. Netlify reads
+# netlify.toml from the base directory, so a copy inside the publish directory is
+# ignored, and ignored silently, which means the headers below would look
+# configured while doing nothing.
+[build]
+publish = "site"
+
+# The page is hand-written HTML and CSS with no build step, so there is nothing
+# to run.
+command = ""
+
+# The page loads no scripts, styles, fonts or images from anywhere but itself.
+# Saying so here turns that from something we have to remember into something the
+# browser enforces.
+[[headers]]
+for = "/*"
+  [headers.values]
+  Content-Security-Policy = "default-src 'none'; style-src 'self'; script-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+  X-Content-Type-Options = "nosniff"
+  Referrer-Policy = "no-referrer"
+  X-Frame-Options = "DENY"
+  Permissions-Policy = "camera=(), microphone=(), geolocation=()"
