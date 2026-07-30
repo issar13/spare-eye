@@ -286,9 +286,15 @@
                         <span class="step-state" id="step-telegram-state">Not done yet</span>
                     </div>
 
-                    <p class="hint">SpareEye sends photos and clips to you on Telegram. You need a
-                        bot token and a chat ID. The walkthrough is in docs/SETUP-TELEGRAM.md. You can skip
-                        this and just save recordings to this computer.</p>
+                    <p class="hint">Your bot and footage stay between this computer and Telegram.
+                        There is no SpareEye relay or shared account.</p>
+
+                    <ol class="connect-guide">
+                        <li>Create a private bot through <strong>@BotFather</strong>.</li>
+                        <li>Paste its token below—once.</li>
+                        <li>Open your new bot and send it any message.</li>
+                        <li>Press <strong>Connect Telegram</strong>. SpareEye finds the chat automatically.</li>
+                    </ol>
 
                     <form id="telegram-form">
                         <label class="checkbox">
