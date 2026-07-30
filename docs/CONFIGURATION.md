@@ -100,8 +100,8 @@ by hand:
 
 | Platform | Where it lives |
 |---|---|
-| Windows | The `KaaRada` value under `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`, editable with `regedit` or Task Manager's Startup apps tab |
-| Linux | `~/.config/autostart/kaa-rada.desktop`, or `$XDG_CONFIG_HOME/autostart/`. Delete the file, or use your desktop's startup-applications screen |
+| Windows | The `SpareEye` value under `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run`, editable with `regedit` or Task Manager's Startup apps tab |
+| Linux | `~/.config/autostart/spareeye.desktop`, or `$XDG_CONFIG_HOME/autostart/`. Delete the file, or use your desktop's startup-applications screen |
 | macOS | Not supported. The switch reports that rather than pretending to work |
 
 The headless CLI ignores both: running it is already a request to watch, and

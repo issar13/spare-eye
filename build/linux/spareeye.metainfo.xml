@@ -5,16 +5,16 @@
   summary. The component id must match the .desktop filename.
 -->
 <component type="desktop-application">
-  <id>kaa-rada.desktop</id>
+  <id>spareeye.desktop</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
 
-  <name>Kaa Rada</name>
-  <summary>Turn a spare laptop into a home security camera</summary>
+  <name>SpareEye</name>
+  <summary>Turn a spare computer into a private security camera</summary>
 
   <description>
     <p>
-      Kaa Rada watches a webcam for movement and sends a snapshot and a
+      SpareEye watches a webcam for movement and sends a snapshot and a
       short video clip to a Telegram chat when it sees any. Sensitivity,
       recording length and a separate night-time profile are all configurable
       from the application itself.
@@ -26,7 +26,7 @@
     </p>
   </description>
 
-  <launchable type="desktop-id">kaa-rada.desktop</launchable>
+  <launchable type="desktop-id">spareeye.desktop</launchable>
 
   <categories>
     <category>Utility</category>
@@ -34,7 +34,7 @@
   </categories>
 
   <provides>
-    <binary>kaa-rada</binary>
+    <binary>spareeye</binary>
   </provides>
 
   <content_rating type="oars-1.1"/>

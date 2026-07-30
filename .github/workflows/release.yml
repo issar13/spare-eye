@@ -118,12 +118,12 @@ jobs:
           wails build -tags webkit2_41 -clean -platform linux/${{ matrix.architecture }}
           # After the desktop build, never before: -clean empties build/bin and
           # would delete a CLI built first, so the tarball copy would fail.
-          go build -o build/bin/kaa-rada-cli ./cmd/kaa-rada-cli
+          go build -o build/bin/spareeye-cli ./cmd/spareeye-cli
 
       # A successful link does not prove the binary can load libopencv at
       # runtime. -list-cameras exits 0 on a machine with no webcam.
       - name: Smoke test the CLI
-        run: ./build/bin/kaa-rada-cli -list-cameras
+        run: ./build/bin/spareeye-cli -list-cameras
 
       - name: Fail if a credential reached the bundle
         run: ./scripts/check-no-credentials.sh build/bin
@@ -132,16 +132,16 @@ jobs:
         id: package
         run: |
           version="${GITHUB_REF_NAME}"
-          staging_directory="kaa-rada-${version}-linux-${{ matrix.architecture }}"
+          staging_directory="spareeye-${version}-linux-${{ matrix.architecture }}"
           mkdir -p "${staging_directory}"
 
           # Copy explicitly, never `cp -r build/bin/.`, so that nothing which
           # happens to be sitting in the output directory can be swept into a
           # published archive.
-          cp build/bin/kaa-rada "${staging_directory}/"
+          cp build/bin/spareeye "${staging_directory}/"
           cp README.md LICENSE "${staging_directory}/"
-          cp build/linux/kaa-rada.desktop "${staging_directory}/"
-          cp build/linux/kaa-rada.metainfo.xml "${staging_directory}/"
+          cp build/linux/spareeye.desktop "${staging_directory}/"
+          cp build/linux/spareeye.metainfo.xml "${staging_directory}/"
           cp build/appicon.png "${staging_directory}/"
           cp build/linux/install.sh "${staging_directory}/"
           chmod +x "${staging_directory}/install.sh"
@@ -177,7 +177,7 @@ jobs:
           fi
 
           debian_architecture="${{ matrix.architecture }}"
-          package_root="kaa-rada_${debian_version}_${debian_architecture}"
+          package_root="spareeye_${debian_version}_${debian_architecture}"
 
           # install -d rather than mkdir -p: the runner's umask is not
           # guaranteed, and a directory shipped 0775 is a lintian warning.
@@ -186,21 +186,21 @@ jobs:
           install -d -m 0755 "${package_root}/usr/share/applications"
           install -d -m 0755 "${package_root}/usr/share/metainfo"
           install -d -m 0755 "${package_root}/usr/share/icons/hicolor/512x512/apps"
-          install -d -m 0755 "${package_root}/usr/share/doc/kaa-rada"
+          install -d -m 0755 "${package_root}/usr/share/doc/spareeye"
 
           # Only the desktop binary. The headless CLI is deliberately absent
           # from every bundle, and /usr/bin is the last place it should turn up.
-          install -m 0755 build/bin/kaa-rada "${package_root}/usr/bin/kaa-rada"
-          install -m 0644 build/linux/kaa-rada.desktop \
-            "${package_root}/usr/share/applications/kaa-rada.desktop"
-          install -m 0644 build/linux/kaa-rada.metainfo.xml \
-            "${package_root}/usr/share/metainfo/kaa-rada.metainfo.xml"
+          install -m 0755 build/bin/spareeye "${package_root}/usr/bin/spareeye"
+          install -m 0644 build/linux/spareeye.desktop \
+            "${package_root}/usr/share/applications/spareeye.desktop"
+          install -m 0644 build/linux/spareeye.metainfo.xml \
+            "${package_root}/usr/share/metainfo/spareeye.metainfo.xml"
 
           # build/appicon.png is 1024x1024, but hicolor's index.theme stops at
           # 512x512, so an icon filed under 1024x1024 is never looked up and the
-          # desktop entry's Icon=kaa-rada resolves to nothing. Resample to the
+          # desktop entry's Icon=spareeye resolves to nothing. Resample to the
           # largest size the theme actually indexes.
-          icon_path="${package_root}/usr/share/icons/hicolor/512x512/apps/kaa-rada.png"
+          icon_path="${package_root}/usr/share/icons/hicolor/512x512/apps/spareeye.png"
           convert build/appicon.png -resize 512x512 "${icon_path}"
           chmod 0644 "${icon_path}"
 
@@ -209,10 +209,10 @@ jobs:
           # one is piped through sed to take that indentation back off again.
           strip_indent() { sed 's/^          //'; }
 
-          strip_indent > "${package_root}/usr/share/doc/kaa-rada/copyright" <<'COPYRIGHT'
+          strip_indent > "${package_root}/usr/share/doc/spareeye/copyright" <<'COPYRIGHT'
           Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-          Upstream-Name: Kaa Rada
-          Source: https://github.com/issar13/kaa-rada
+          Upstream-Name: SpareEye
+          Source: https://github.com/issar13/spareeye
 
           Files: *
           Copyright: 2025 Issa Suleiman
@@ -237,21 +237,21 @@ jobs:
            OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
            SOFTWARE.
           COPYRIGHT
-          chmod 0644 "${package_root}/usr/share/doc/kaa-rada/copyright"
+          chmod 0644 "${package_root}/usr/share/doc/spareeye/copyright"
 
           # Debian treats a package with no changelog as an error, not a nicety.
           # One entry pointing at the release page is honest: the real notes are
           # generated on GitHub and duplicating them here would let them drift.
-          strip_indent > "${package_root}/usr/share/doc/kaa-rada/changelog" <<CHANGELOG
-          kaa-rada (${debian_version}) unstable; urgency=medium
+          strip_indent > "${package_root}/usr/share/doc/spareeye/changelog" <<CHANGELOG
+          spareeye (${debian_version}) unstable; urgency=medium
 
             * Release ${debian_version}. Notes:
-              https://github.com/issar13/kaa-rada/releases
+              https://github.com/issar13/spareeye/releases
 
            -- Issa Suleiman <suleimani@pgls.com>  $(date -R -u)
           CHANGELOG
-          gzip -9n "${package_root}/usr/share/doc/kaa-rada/changelog"
-          chmod 0644 "${package_root}/usr/share/doc/kaa-rada/changelog.gz"
+          gzip -9n "${package_root}/usr/share/doc/spareeye/changelog"
+          chmod 0644 "${package_root}/usr/share/doc/spareeye/changelog.gz"
 
           # The dependencies are read out of the binary rather than written by
           # hand. The job installs -dev packages to compile against; what the
@@ -260,8 +260,8 @@ jobs:
           # debian/control in the working directory even with -O, so it gets a
           # stub; the repository has no debian/ directory of its own.
           install -d debian
-          printf 'Source: kaa-rada\n\nPackage: kaa-rada\nArchitecture: %s\n' "${debian_architecture}" > debian/control
-          shlibs_line="$(dpkg-shlibdeps -O "${package_root}/usr/bin/kaa-rada")"
+          printf 'Source: spareeye\n\nPackage: spareeye\nArchitecture: %s\n' "${debian_architecture}" > debian/control
+          shlibs_line="$(dpkg-shlibdeps -O "${package_root}/usr/bin/spareeye")"
           rm -rf debian
           runtime_depends="${shlibs_line#shlibs:Depends=}"
           echo "Derived runtime dependencies: ${runtime_depends}"
@@ -276,7 +276,7 @@ jobs:
           # when files land in those directories, and a hand-rolled script would
           # only do the same work less reliably.
           strip_indent > "${package_root}/DEBIAN/control" <<CONTROL
-          Package: kaa-rada
+          Package: spareeye
           Version: ${debian_version}
           Section: video
           Priority: optional
@@ -284,9 +284,9 @@ jobs:
           Depends: ${runtime_depends}
           Installed-Size: ${installed_size}
           Maintainer: Issa Suleiman <suleimani@pgls.com>
-          Homepage: https://github.com/issar13/kaa-rada
+          Homepage: https://github.com/issar13/spareeye
           Description: Turn a spare laptop into a home security camera
-           Kaa Rada watches a webcam for movement and sends a snapshot and a short
+           SpareEye watches a webcam for movement and sends a snapshot and a short
            video clip to a Telegram chat when it sees any. Sensitivity, recording
            length and a separate night-time profile are configurable from the
            application itself.
@@ -336,12 +336,12 @@ jobs:
               apt-get update
               apt-get install --no-install-recommends -y "/release/${DEB_FILE}"
 
-              test "$(dpkg-query -W -f="\${binary:Package}\n" kaa-rada)" = "kaa-rada"
-              test "$(dpkg-query -W -f="\${db:Status-Status}\n" kaa-rada)" = "installed"
-              test "$(dpkg-query -W -f="\${Architecture}\n" kaa-rada)" = "${EXPECTED_ARCHITECTURE}"
-              dpkg --verify kaa-rada
+              test "$(dpkg-query -W -f="\${binary:Package}\n" spareeye)" = "spareeye"
+              test "$(dpkg-query -W -f="\${db:Status-Status}\n" spareeye)" = "installed"
+              test "$(dpkg-query -W -f="\${Architecture}\n" spareeye)" = "${EXPECTED_ARCHITECTURE}"
+              dpkg --verify spareeye
 
-              if ldd /usr/bin/kaa-rada | grep -F "not found"; then
+              if ldd /usr/bin/spareeye | grep -F "not found"; then
                 echo "The installed application has unresolved shared libraries." >&2
                 exit 1
               fi
@@ -493,7 +493,7 @@ jobs:
         run: wails build -tags customenv -clean -platform windows/amd64
 
       - name: Build CLI
-        run: go build -tags customenv -o build\bin\kaa-rada-cli.exe .\cmd\kaa-rada-cli
+        run: go build -tags customenv -o build\bin\spareeye-cli.exe .\cmd\spareeye-cli
 
       # OpenCV is built with BUILD_SHARED_LIBS=ON, so neither binary starts
       # without libopencv_*460.dll beside it, and the MinGW runtime is needed
@@ -515,7 +515,7 @@ jobs:
           }
 
       - name: Smoke test the CLI
-        run: .\build\bin\kaa-rada-cli.exe -list-cameras
+        run: .\build\bin\spareeye-cli.exe -list-cameras
 
       # Signing is optional and absent by default: these builds ship unsigned.
       # Add the two secrets and every asset is signed with no further change.
@@ -536,7 +536,7 @@ jobs:
           $pfx = Join-Path $env:RUNNER_TEMP 'signing.pfx'
           [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:CERTIFICATE))
           try {
-            $binary = 'build\bin\kaa-rada.exe'
+            $binary = 'build\bin\spareeye.exe'
             & signtool sign /f $pfx /p $env:CERTIFICATE_PASSWORD `
               /tr http://timestamp.digicert.com /td sha256 /fd sha256 $binary
             if ($LASTEXITCODE -ne 0) { throw "signing $binary failed" }
@@ -591,7 +591,7 @@ jobs:
             Write-Error 'No NSIS installer was produced in build\bin.'
             exit 1
           }
-          Copy-Item $installer.FullName "staging\kaa-rada-$version-windows-amd64-installer.exe"
+          Copy-Item $installer.FullName "staging\spareeye-$version-windows-amd64-installer.exe"
           # The headless CLI is deliberately not published on its own. The
           # installer already places it beside the desktop app with the DLLs it
           # needs, so a separate download would be the same files a second time
@@ -663,11 +663,11 @@ jobs:
 
             | Platform | Architecture | Download | How to install |
             |---|---|---|---|
-            | Windows 10/11 | x64 (Intel/AMD) | `kaa-rada-*-windows-amd64-installer.exe` | Run it and follow the wizard. Installs for your user only, so it never asks for administrator rights |
-            | Debian / Ubuntu | x64 (amd64) | `kaa-rada_*_amd64.deb` | `sudo apt install ./kaa-rada_*_amd64.deb`. Use apt rather than `dpkg -i`: apt pulls in OpenCV and WebKit for you, `dpkg` only complains that they are missing |
-            | Debian / Ubuntu | ARM64 (aarch64) | `kaa-rada_*_arm64.deb` | Same command with the arm64 file. This is the one for a Raspberry Pi 4 or 5 running 64-bit Raspberry Pi OS, or any other arm64 Debian derivative |
-            | Other Linux | x64 (amd64) | `kaa-rada-*-linux-amd64.tar.gz` | Extract, then `./install.sh` |
-            | Other Linux | ARM64 (aarch64) | `kaa-rada-*-linux-arm64.tar.gz` | Extract, then `./install.sh` |
+            | Windows 10/11 | x64 (Intel/AMD) | `spareeye-*-windows-amd64-installer.exe` | Run it and follow the wizard. Installs for your user only, so it never asks for administrator rights |
+            | Debian / Ubuntu | x64 (amd64) | `spareeye_*_amd64.deb` | `sudo apt install ./spareeye_*_amd64.deb`. Use apt rather than `dpkg -i`: apt pulls in OpenCV and WebKit for you, `dpkg` only complains that they are missing |
+            | Debian / Ubuntu | ARM64 (aarch64) | `spareeye_*_arm64.deb` | Same command with the arm64 file. This is the one for a Raspberry Pi 4 or 5 running 64-bit Raspberry Pi OS, or any other arm64 Debian derivative |
+            | Other Linux | x64 (amd64) | `spareeye-*-linux-amd64.tar.gz` | Extract, then `./install.sh` |
+            | Other Linux | ARM64 (aarch64) | `spareeye-*-linux-arm64.tar.gz` | Extract, then `./install.sh` |
 
             Linux is published for x64 and ARM64. Windows is x64 only, and
             macOS is not published at all. The app links OpenCV through cgo, so

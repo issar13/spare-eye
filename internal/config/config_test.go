@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,7 +14,7 @@ import (
 // isolateConfigDirectory points os.UserConfigDir at a per-test temporary
 // directory. Every test touching Directory, Load or Save must call this first:
 // without it the tests would read and overwrite the developer's real
-// ~/.config/kaa-rada/config.json, destroying a saved bot token.
+// ~/.config/spareeye/config.json, destroying a saved bot token.
 func isolateConfigDirectory(t *testing.T) string {
 	t.Helper()
 
@@ -54,6 +55,35 @@ func TestDirectoryStaysInsideTheIsolatedConfigHome(t *testing.T) {
 	}
 	if !info.IsDir() {
 		t.Error("Directory() did not create a directory")
+	}
+}
+
+func TestDirectoryMigratesTheLegacyProductDirectory(t *testing.T) {
+	temporaryHome := isolateConfigDirectory(t)
+	legacyDirectory := filepath.Join(temporaryHome, legacyDirectoryName)
+	if err := os.MkdirAll(legacyDirectory, 0o700); err != nil {
+		t.Fatalf("creating legacy directory: %v", err)
+	}
+
+	legacyConfig := []byte(`{"telegram":{"botToken":"kept"}}`)
+	if err := os.WriteFile(filepath.Join(legacyDirectory, configFileName), legacyConfig, 0o600); err != nil {
+		t.Fatalf("writing legacy config: %v", err)
+	}
+
+	directory, err := Directory()
+	if err != nil {
+		t.Fatalf("Directory() returned %v", err)
+	}
+
+	contents, err := os.ReadFile(filepath.Join(directory, configFileName))
+	if err != nil {
+		t.Fatalf("reading migrated config: %v", err)
+	}
+	if string(contents) != string(legacyConfig) {
+		t.Errorf("migrated config = %q, want %q", contents, legacyConfig)
+	}
+	if _, err := os.Stat(legacyDirectory); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("legacy directory still exists after migration: %v", err)
 	}
 }
 
