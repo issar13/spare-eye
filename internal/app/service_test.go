@@ -610,6 +610,30 @@ func TestTelegramFailuresAreTranslatedIntoAdvice(t *testing.T) {
 	}
 }
 
+func TestTelegramDiscoveryCredentialFailuresKeepTokenAdvice(t *testing.T) {
+	cases := []string{
+		"bot token rejected by Telegram",
+		"Telegram returned status 404",
+		"Telegram reported not-ok",
+	}
+
+	for _, failure := range cases {
+		err := errors.New(failure)
+		if !telegramDiscoveryCredentialsFailed(err) {
+			t.Errorf("telegramDiscoveryCredentialsFailed(%q) = false, want true", failure)
+			continue
+		}
+		problem := describeTelegramFailure(err)
+		if !strings.Contains(problem.NextStep, "BotFather") {
+			t.Errorf("%q produced next step %q, want token advice", failure, problem.NextStep)
+		}
+	}
+
+	if telegramDiscoveryCredentialsFailed(errors.New("no Telegram conversation found")) {
+		t.Error("an empty update stream was mistaken for a credential failure")
+	}
+}
+
 func TestStatusSpeaksPlainlyThroughEveryState(t *testing.T) {
 	service := newTestService(t)
 
