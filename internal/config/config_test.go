@@ -2,6 +2,8 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -13,7 +15,7 @@ import (
 // isolateConfigDirectory points os.UserConfigDir at a per-test temporary
 // directory. Every test touching Directory, Load or Save must call this first:
 // without it the tests would read and overwrite the developer's real
-// ~/.config/kaa-rada/config.json, destroying a saved bot token.
+// ~/.config/spareeye/config.json, destroying a saved bot token.
 func isolateConfigDirectory(t *testing.T) string {
 	t.Helper()
 
@@ -54,6 +56,69 @@ func TestDirectoryStaysInsideTheIsolatedConfigHome(t *testing.T) {
 	}
 	if !info.IsDir() {
 		t.Error("Directory() did not create a directory")
+	}
+}
+
+func TestDirectoryMigratesTheLegacyProductDirectory(t *testing.T) {
+	temporaryHome := isolateConfigDirectory(t)
+	legacyDirectory := filepath.Join(temporaryHome, legacyDirectoryName)
+	legacyMedia := filepath.Join(legacyDirectory, "media")
+	if err := os.MkdirAll(filepath.Join(legacyMedia, "videos"), 0o700); err != nil {
+		t.Fatalf("creating legacy directory: %v", err)
+	}
+
+	legacyConfig := []byte(fmt.Sprintf(`{"telegram":{"botToken":"kept"},"storage":{"mediaDirectory":%q}}`, legacyMedia))
+	if err := os.WriteFile(filepath.Join(legacyDirectory, configFileName), legacyConfig, 0o600); err != nil {
+		t.Fatalf("writing legacy config: %v", err)
+	}
+	recordingName := "motion-kept.mp4"
+	if err := os.WriteFile(filepath.Join(legacyMedia, "videos", recordingName), []byte("recording"), 0o600); err != nil {
+		t.Fatalf("writing legacy recording: %v", err)
+	}
+
+	settings, err := Load()
+	if err != nil {
+		t.Fatalf("Load() returned %v", err)
+	}
+	directory := filepath.Join(temporaryHome, applicationDirectoryName)
+
+	contents, err := os.ReadFile(filepath.Join(directory, configFileName))
+	if err != nil {
+		t.Fatalf("reading migrated config: %v", err)
+	}
+	if string(contents) != string(legacyConfig) {
+		t.Errorf("migrated config = %q, want %q", contents, legacyConfig)
+	}
+	if _, err := os.Stat(legacyDirectory); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("legacy directory still exists after migration: %v", err)
+	}
+	wantMedia := filepath.Join(directory, "media")
+	if settings.Storage.MediaDirectory != wantMedia {
+		t.Errorf("media directory = %q, want migrated path %q", settings.Storage.MediaDirectory, wantMedia)
+	}
+	if _, err := os.Stat(filepath.Join(settings.VideoDirectory(), recordingName)); err != nil {
+		t.Errorf("migrated recording is not visible through loaded settings: %v", err)
+	}
+}
+
+func TestLoadDoesNotRebaseAnExternalMediaDirectory(t *testing.T) {
+	temporaryHome := isolateConfigDirectory(t)
+	externalMedia := filepath.Join(t.TempDir(), "camera-media")
+	directory := filepath.Join(temporaryHome, applicationDirectoryName)
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		t.Fatalf("creating config directory: %v", err)
+	}
+	contents := []byte(fmt.Sprintf(`{"storage":{"mediaDirectory":%q}}`, externalMedia))
+	if err := os.WriteFile(filepath.Join(directory, configFileName), contents, 0o600); err != nil {
+		t.Fatalf("writing config: %v", err)
+	}
+
+	settings, err := Load()
+	if err != nil {
+		t.Fatalf("Load() returned %v", err)
+	}
+	if settings.Storage.MediaDirectory != externalMedia {
+		t.Errorf("external media directory = %q, want %q", settings.Storage.MediaDirectory, externalMedia)
 	}
 }
 

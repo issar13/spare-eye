@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"kaa-rada/internal/autostart"
-	"kaa-rada/internal/config"
-	"kaa-rada/internal/detector"
+	"spareeye/internal/autostart"
+	"spareeye/internal/config"
+	"spareeye/internal/detector"
 )
 
 // newTestService builds a service whose media directories are throwaway

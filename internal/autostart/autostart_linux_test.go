@@ -24,9 +24,19 @@ func isolateConfigDirectory(t *testing.T) string {
 
 func TestEnableWritesADesktopEntryThatEnabledRecognises(t *testing.T) {
 	temporaryHome := isolateConfigDirectory(t)
+	legacyPath := filepath.Join(temporaryHome, autostartDirectoryName, legacyDesktopEntryName)
+	if err := os.MkdirAll(filepath.Dir(legacyPath), 0o700); err != nil {
+		t.Fatalf("creating legacy entry directory: %v", err)
+	}
+	if err := os.WriteFile(legacyPath, []byte("legacy"), 0o644); err != nil {
+		t.Fatalf("writing legacy entry: %v", err)
+	}
 
 	if err := Enable(); err != nil {
 		t.Fatalf("Enable() returned %v", err)
+	}
+	if _, err := os.Stat(legacyPath); !os.IsNotExist(err) {
+		t.Errorf("Enable() left the legacy entry behind: %v", err)
 	}
 
 	path := filepath.Join(temporaryHome, autostartDirectoryName, desktopEntryName)
@@ -36,7 +46,7 @@ func TestEnableWritesADesktopEntryThatEnabledRecognises(t *testing.T) {
 	}
 
 	entry := string(contents)
-	for _, required := range []string{"[Desktop Entry]", "Type=Application", "Name=Kaa Rada", "X-GNOME-Autostart-enabled=true"} {
+	for _, required := range []string{"[Desktop Entry]", "Type=Application", "Name=SpareEye", "X-GNOME-Autostart-enabled=true"} {
 		if !strings.Contains(entry, required) {
 			t.Errorf("the entry is missing %q:\n%s", required, entry)
 		}
@@ -116,7 +126,7 @@ func TestAnEntryNamingAnotherBinaryIsNotEnabled(t *testing.T) {
 		t.Fatalf("creating %s: %v", directory, err)
 	}
 
-	stale := desktopEntry(filepath.Join(temporaryHome, "somewhere", "else", "kaa-rada"))
+	stale := desktopEntry(filepath.Join(temporaryHome, "somewhere", "else", "spareeye"))
 	if err := os.WriteFile(filepath.Join(directory, desktopEntryName), []byte(stale), 0o644); err != nil {
 		t.Fatalf("writing the stale entry: %v", err)
 	}
