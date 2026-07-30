@@ -83,8 +83,15 @@ certificates are an ongoing cost the project has not taken on.
 There is no shared bot and no token baked into the binary. Every installation
 talks to a bot you create, so your footage only reaches your own chat.
 
+Kaa Rada connects directly from this computer to Telegram's API. There is no
+Kaa Rada server, VPS, relay, webhook, public port, or account shared with other
+installations. The locally saved bot token is the credential that makes that
+private, direct connection possible; Telegram does not provide an API for an
+application to create a bot on somebody's behalf.
+
 Follow [docs/SETUP-TELEGRAM.md](docs/SETUP-TELEGRAM.md), which covers creating
-the bot with @BotFather, copying the token, and finding your chat ID. It takes
+the bot with @BotFather, copying the token, and connecting your chat. The
+desktop app discovers the chat ID from the message you send the bot. It takes
 about five minutes and needs no technical background.
 
 ### 2. Pick your camera
@@ -112,8 +119,8 @@ index 0, pushing the real webcam higher.
 
 ### 3. Run it
 
-Launch the desktop app, paste the token and chat ID into Setup, press Test to
-confirm they work, choose your camera, and arm it. Nothing else needs a
+Launch the desktop app, paste the token into Setup, press Connect Telegram to
+confirm it works, choose your camera, and arm it. Nothing else needs a
 terminal.
 
 With credentials in the environment instead:
