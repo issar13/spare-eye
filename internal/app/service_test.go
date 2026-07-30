@@ -636,6 +636,27 @@ func TestChangingTelegramTokenForcesChatRediscovery(t *testing.T) {
 	}
 }
 
+func TestTelegramConnectionFormNormalizesCredentials(t *testing.T) {
+	saved := config.TelegramSettings{
+		BotToken: "old-token",
+		ChatID:   "old-chat",
+		Enabled:  true,
+	}
+
+	form := telegramFormForConnection(TelegramForm{
+		BotToken: " old-token ",
+		ChatID:   " old-chat ",
+		Enabled:  true,
+	}, saved)
+
+	if form.BotToken != saved.BotToken {
+		t.Errorf("normalized bot token = %q, want %q", form.BotToken, saved.BotToken)
+	}
+	if form.ChatID != saved.ChatID {
+		t.Errorf("normalized chat ID = %q, want %q", form.ChatID, saved.ChatID)
+	}
+}
+
 func TestStatusSpeaksPlainlyThroughEveryState(t *testing.T) {
 	service := newTestService(t)
 
