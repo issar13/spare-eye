@@ -1,11 +1,11 @@
-// Command kaa-rada runs the detector headlessly, without the desktop UI.
+// Command spareeye runs the detector headlessly, without the desktop UI.
 //
 // It exists so the engine can be confirmed working on its own, and it doubles
 // as the way to run the detector on a machine with no display.
 //
-//	go run ./cmd/kaa-rada-cli -list-cameras
-//	go run ./cmd/kaa-rada-cli
-//	go run ./cmd/kaa-rada-cli -camera 1 -no-telegram
+//	go run ./cmd/spareeye-cli -list-cameras
+//	go run ./cmd/spareeye-cli
+//	go run ./cmd/spareeye-cli -camera 1 -no-telegram
 package main
 
 import (
@@ -18,10 +18,10 @@ import (
 	"syscall"
 	"time"
 
-	"kaa-rada/internal/config"
-	"kaa-rada/internal/detector"
-	"kaa-rada/internal/media"
-	"kaa-rada/internal/notify"
+	"spareeye/internal/config"
+	"spareeye/internal/detector"
+	"spareeye/internal/media"
+	"spareeye/internal/notify"
 )
 
 func main() {
