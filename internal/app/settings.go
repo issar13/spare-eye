@@ -207,8 +207,23 @@ func sensitivityForm(profile config.SensitivityProfile) SensitivityForm {
 // SaveTelegram stores credentials and reconnects the notifier. It does not
 // contact Telegram; TestTelegram does that.
 func (s *Service) SaveTelegram(form TelegramForm) ActionResult {
+	return s.saveTelegram(form, true)
+}
+
+// saveTelegram can trust a chat ID only when TestTelegram has just discovered
+// and verified it. A plain form save must discard an ID tied to an old token.
+func (s *Service) saveTelegram(form TelegramForm, clearChatOnTokenChange bool) ActionResult {
+	form.BotToken = strings.TrimSpace(form.BotToken)
+	form.ChatID = strings.TrimSpace(form.ChatID)
+
 	s.mutex.Lock()
 	updated := s.settings
+	// A chat ID belongs to one particular bot's update stream. Keeping the old
+	// hidden ID after the token changes could silently send footage to a chat
+	// belonging to the previous bot instead of discovering the new one.
+	if clearChatOnTokenChange && form.BotToken != strings.TrimSpace(updated.Telegram.BotToken) {
+		form.ChatID = ""
+	}
 	updated.Telegram = config.TelegramSettings{
 		BotToken: form.BotToken,
 		ChatID:   form.ChatID,
@@ -230,13 +245,23 @@ func (s *Service) SaveTelegram(form TelegramForm) ActionResult {
 	return succeeded("Saved")
 }
 
-// TestTelegram checks credentials the user has typed but may not have saved
-// yet, so a typo is caught before it is written to disk.
+// TestTelegram connects the bot and checks it can deliver a message. On a new
+// setup it discovers the chat from the message the user sent to their bot, so
+// nobody has to find or copy Telegram's internal chat ID.
 func (s *Service) TestTelegram(form TelegramForm) ActionResult {
-	if form.BotToken == "" || form.ChatID == "" {
+	form.BotToken = strings.TrimSpace(form.BotToken)
+	form.ChatID = strings.TrimSpace(form.ChatID)
+	s.mutex.Lock()
+	savedBotToken := strings.TrimSpace(s.settings.Telegram.BotToken)
+	s.mutex.Unlock()
+	if form.BotToken != savedBotToken {
+		form.ChatID = ""
+	}
+
+	if form.BotToken == "" {
 		return failed(
-			"Both boxes need filling in",
-			"Enter the bot token from @BotFather and your chat ID from @userinfobot, then test again.",
+			"The bot token is missing",
+			"Paste the token from @BotFather, then open your new bot in Telegram and press Start.",
 		).withDoc(telegramSetupDoc)
 	}
 
@@ -245,6 +270,23 @@ func (s *Service) TestTelegram(form TelegramForm) ActionResult {
 
 	telegram := notify.NewTelegram(form.BotToken, form.ChatID)
 	defer telegram.Close()
+	if form.ChatID == "" {
+		chatID, err := telegram.DiscoverChatID(testContext)
+		if err != nil {
+			s.log.Warn("telegram chat discovery failed", "error", err)
+			if strings.Contains(err.Error(), "multiple Telegram conversations") {
+				return failed(
+					"More than one chat messaged this bot",
+					"Use a fresh bot for Kaa Rada, press Start in that bot's private chat, then connect again.",
+				).withDoc(telegramSetupDoc)
+			}
+			return failed(
+				"Kaa Rada cannot see your Telegram chat yet",
+				"Open your new bot in Telegram, press Start or send it a message, then come back and connect again.",
+			).withDoc(telegramSetupDoc)
+		}
+		form.ChatID = chatID
+	}
 
 	if err := telegram.Verify(testContext); err != nil {
 		s.log.Warn("telegram verification failed", "error", err)
@@ -252,8 +294,11 @@ func (s *Service) TestTelegram(form TelegramForm) ActionResult {
 	}
 
 	s.log.Info("telegram verified")
+	if result := s.saveTelegram(form, false); !result.OK {
+		return result
+	}
 
-	return succeeded("It works. Check Telegram for a test message from your bot.")
+	return succeeded("Telegram is connected. Check your phone for the test message.")
 }
 
 // SelectCamera changes the capture device, restarting the detector when armed
