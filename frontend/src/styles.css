@@ -664,6 +664,16 @@ button.big {
     color: var(--good);
 }
 
+.connect-guide {
+    margin: 1rem 0 1.25rem;
+    padding-left: 1.4rem;
+}
+
+.connect-guide li {
+    margin: 0.45rem 0;
+    padding-left: 0.25rem;
+}
+
 .step form {
     gap: 0;
 }
