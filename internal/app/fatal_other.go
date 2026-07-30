@@ -12,7 +12,7 @@ import (
 // or a desktop launcher, so that is where this goes; a dialog would need a UI
 // toolkit that startup has not reached the point of initialising.
 func ReportFatalError(summary string, logPath string) {
-	fmt.Fprintf(os.Stderr, "Kaa Rada could not start: %s\n", summary)
+	fmt.Fprintf(os.Stderr, "SpareEye could not start: %s\n", summary)
 
 	if logPath != "" {
 		fmt.Fprintf(os.Stderr, "The details were written to %s\n", logPath)

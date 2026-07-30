@@ -12,7 +12,8 @@ import (
 
 const (
 	autostartDirectoryName = "autostart"
-	desktopEntryName       = "kaa-rada.desktop"
+	desktopEntryName       = "spareeye.desktop"
+	legacyDesktopEntryName = "kaa-rada.desktop"
 )
 
 // Enable writes an XDG autostart entry, which every mainstream Linux desktop
@@ -35,6 +36,9 @@ func Enable() error {
 	if err := os.WriteFile(path, []byte(desktopEntry(executable)), 0o644); err != nil {
 		return fmt.Errorf("writing %s: %w", path, err)
 	}
+	if err := removeEntry(legacyDesktopEntryName); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -50,7 +54,22 @@ func Disable() error {
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("removing %s: %w", path, err)
 	}
+	if err := removeEntry(legacyDesktopEntryName); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+func removeEntry(name string) error {
+	path, err := desktopEntryPath()
+	if err != nil {
+		return err
+	}
+	path = filepath.Join(filepath.Dir(path), name)
+	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("removing %s: %w", path, err)
+	}
 	return nil
 }
 
@@ -103,7 +122,7 @@ func desktopEntry(executable string) string {
 	return strings.Join([]string{
 		"[Desktop Entry]",
 		"Type=Application",
-		"Name=Kaa Rada",
+		"Name=SpareEye",
 		commandLine(executable),
 		// GNOME and its derivatives honour this key and ignore an entry that
 		// lacks it once the user has switched the app off in their own

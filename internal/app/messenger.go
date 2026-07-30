@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"kaa-rada/internal/media"
-	"kaa-rada/internal/notify"
+	"spareeye/internal/media"
+	"spareeye/internal/notify"
 )
 
 // messenger holds the connected notifier, if there is one. It is a separate

@@ -1,4 +1,4 @@
-module kaa-rada
+module spareeye
 
 go 1.25.0
 

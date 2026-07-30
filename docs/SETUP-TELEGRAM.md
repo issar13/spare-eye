@@ -1,6 +1,6 @@
 # Setting up Telegram
 
-Kaa Rada sends alerts through a Telegram bot that **you** create. There is no
+SpareEye sends alerts through a Telegram bot that **you** create. There is no
 shared bot and no token built into the app, so your footage goes to your bot
 and your chat and nobody else's.
 
@@ -113,7 +113,7 @@ running:
 ```
 export TELEGRAM_BOT_TOKEN=123456789:YOUR_BOT_TOKEN_HERE
 export TELEGRAM_CHAT_ID=123456789
-go run ./cmd/kaa-rada-cli
+go run ./cmd/spareeye-cli
 ```
 
 On Windows PowerShell:
@@ -121,7 +121,7 @@ On Windows PowerShell:
 ```
 $env:TELEGRAM_BOT_TOKEN = "123456789:YOUR_BOT_TOKEN_HERE"
 $env:TELEGRAM_CHAT_ID = "123456789"
-go run ./cmd/kaa-rada-cli
+go run ./cmd/spareeye-cli
 ```
 
 Once the credentials check out, the tool prints `Telegram connected` and sends

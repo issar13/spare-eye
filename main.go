@@ -1,5 +1,5 @@
-// Command kaa-rada is the desktop build. The headless engine lives in
-// ./cmd/kaa-rada-cli; this package exists at the repository root because Wails v2
+// Command spareeye is the desktop build. The headless engine lives in
+// ./cmd/spareeye-cli; this package exists at the repository root because Wails v2
 // compiles the main package it finds there.
 package main
 
@@ -13,10 +13,10 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
-	"kaa-rada/internal/app"
-	"kaa-rada/internal/autostart"
-	"kaa-rada/internal/config"
-	"kaa-rada/internal/detector"
+	"spareeye/internal/app"
+	"spareeye/internal/autostart"
+	"spareeye/internal/config"
+	"spareeye/internal/detector"
 )
 
 //go:embed all:frontend/dist
@@ -56,7 +56,7 @@ func main() {
 	defer func() {
 		if panicked := recover(); panicked != nil {
 			log.Panicked("desktop startup", panicked)
-			app.ReportFatalError(fmt.Sprintf("Kaa Rada stopped unexpectedly: %v", panicked), log.Path())
+			app.ReportFatalError(fmt.Sprintf("SpareEye stopped unexpectedly: %v", panicked), log.Path())
 			os.Exit(1)
 		}
 	}()
@@ -126,7 +126,7 @@ func run(log *app.Log) error {
 	log.Info("startup: opening the window", "startedAtLogin", startedByTheSystem)
 
 	return wails.Run(&options.App{
-		Title:            "Kaa Rada",
+		Title:            "SpareEye",
 		Width:            1180,
 		Height:           820,
 		WindowStartState: windowStartState,

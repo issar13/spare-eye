@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"kaa-rada/internal/detector"
+	"spareeye/internal/detector"
 )
 
 // retainedEvents bounds the in-memory history. It is a display convenience, not
