@@ -186,9 +186,9 @@ const showLoginRegistration = (status: app.StatusView): void => {
     showBanner(
         startupMessage,
         status.launchAtLogin
-            ? 'This computer is no longer set to open Kaa Rada when you log in. Security software ' +
+            ? 'This computer is no longer set to open SpareEye when you log in. Security software ' +
             'sometimes removes that, and so does moving the app. Tick the box and save to put it back.'
-            : 'This computer still opens Kaa Rada when you log in, even though that is switched off ' +
+            : 'This computer still opens SpareEye when you log in, even though that is switched off ' +
             'here. Press Save to remove it.',
         'warn',
     );

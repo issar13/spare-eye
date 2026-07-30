@@ -53,7 +53,7 @@ func cameraUnavailable() Problem {
 	return Problem{
 		Headline: "Your camera is not available",
 		NextStep: "Another program is probably using it. Close Zoom, Teams, OBS, or a second copy of " +
-			"Kaa Rada, then try again. If you use a virtual webcam such as Iriun, start it first " +
+			"SpareEye, then try again. If you use a virtual webcam such as Iriun, start it first " +
 			"or choose a different camera in Setup.",
 	}
 }
@@ -101,16 +101,16 @@ func streamUnavailable() Problem {
 func loginRegistrationRefused(wanted bool) Problem {
 	if wanted {
 		return Problem{
-			Headline: "Kaa Rada could not be set to open by itself",
-			NextStep: "Your choices were saved, but this computer would not let Kaa Rada add itself to " +
-				"the programs that open when you log in. Security software often blocks that. Open Kaa " +
-				"Rada yourself for now, and try the switch again once you have allowed it.",
+			Headline: "SpareEye could not be set to open by itself",
+			NextStep: "Your choices were saved, but this computer would not let SpareEye add itself to " +
+				"the programs that open when you log in. Security software often blocks that. Open " +
+				"SpareEye yourself for now, and try the switch again once you have allowed it.",
 		}
 	}
 
 	return Problem{
-		Headline: "Kaa Rada could not remove itself from your login programs",
-		NextStep: "Your choices were saved, but Kaa Rada may still open when you log in. Turn it off in " +
+		Headline: "SpareEye could not remove itself from your login programs",
+		NextStep: "Your choices were saved, but SpareEye may still open when you log in. Turn it off in " +
 			"your computer's own startup settings, or try the switch again.",
 	}
 }

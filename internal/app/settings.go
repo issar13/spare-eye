@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"kaa-rada/internal/autostart"
-	"kaa-rada/internal/config"
-	"kaa-rada/internal/detector"
-	"kaa-rada/internal/notify"
+	"spareeye/internal/autostart"
+	"spareeye/internal/config"
+	"spareeye/internal/detector"
+	"spareeye/internal/notify"
 )
 
 // verifyTimeout bounds the Telegram round trip so a wrong host cannot leave the
@@ -570,7 +570,7 @@ func validateCameraURL(address string) *Problem {
 	parsed, err := url.Parse(trimmed)
 	if err != nil || parsed.Host == "" || !slices.Contains(cameraURLSchemes, strings.ToLower(parsed.Scheme)) {
 		return &Problem{
-			Headline: "That is not an address Kaa Rada can use",
+			Headline: "That is not an address SpareEye can use",
 			NextStep: "A network camera address has to begin with rtsp://, rtsps://, http:// or https:// and " +
 				"name the camera after it, as in rtsp://192.168.1.50:554/stream. Your camera's manual or " +
 				"its own settings page will tell you the exact address.",

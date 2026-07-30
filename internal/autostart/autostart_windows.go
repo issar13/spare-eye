@@ -16,8 +16,9 @@ import (
 // %LocalAppData%\Programs, so a machine-wide entry would fail to be written and
 // would name a path other accounts cannot reach anyway.
 const (
-	runKeyPath      = `Software\Microsoft\Windows\CurrentVersion\Run`
-	runKeyValueName = "KaaRada"
+	runKeyPath            = `Software\Microsoft\Windows\CurrentVersion\Run`
+	runKeyValueName       = "SpareEye"
+	legacyRunKeyValueName = "KaaRada"
 )
 
 // Enable adds this binary to the current user's Run key.
@@ -35,6 +36,9 @@ func Enable() error {
 
 	if err := key.SetStringValue(runKeyValueName, commandLine(executable)); err != nil {
 		return fmt.Errorf("writing the %s Run value: %w", runKeyValueName, err)
+	}
+	if err := key.DeleteValue(legacyRunKeyValueName); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("removing the legacy %s Run value: %w", legacyRunKeyValueName, err)
 	}
 
 	return nil
@@ -54,6 +58,9 @@ func Disable() error {
 
 	if err := key.DeleteValue(runKeyValueName); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("removing the %s Run value: %w", runKeyValueName, err)
+	}
+	if err := key.DeleteValue(legacyRunKeyValueName); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("removing the legacy %s Run value: %w", legacyRunKeyValueName, err)
 	}
 
 	return nil
@@ -91,7 +98,7 @@ func Enabled() (bool, error) {
 }
 
 // commandLine is what Windows runs at login. The path is quoted because the
-// per-user install directory is %LocalAppData%\Programs\Kaa Rada, and an
+// per-user install directory is %LocalAppData%\Programs\SpareEye, and an
 // unquoted value containing a space is read as a command followed by arguments.
 func commandLine(executable string) string {
 	return fmt.Sprintf("%q %s", executable, StartedAtLoginFlag)

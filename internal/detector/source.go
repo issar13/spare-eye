@@ -3,7 +3,7 @@ package detector
 import (
 	"fmt"
 
-	"kaa-rada/internal/config"
+	"spareeye/internal/config"
 )
 
 // Source is what a capture is opened on: either a local device index or the
