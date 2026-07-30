@@ -218,6 +218,13 @@ const readStreamAddress = (): string | undefined => {
 };
 
 export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching: () => void): void => {
+    // A discovered chat belongs to the bot token that produced it. Clear the
+    // hidden value as soon as the token is edited so every subsequent action,
+    // including a plain preference save, carries an honest unpaired state.
+    requireField(telegramForm, 'botToken').addEventListener('input', () => {
+        requireField(telegramForm, 'chatID').value = '';
+    });
+
     telegramForm.addEventListener('submit', async (submission) => {
         submission.preventDefault();
 
@@ -236,10 +243,14 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         const button = event.currentTarget as HTMLButtonElement;
 
         button.disabled = true;
-        showBanner(setupMessage, 'Sending a test message…');
+        showBanner(setupMessage, 'Looking for the message you sent your bot…');
 
         try {
-            showResult(setupMessage, await TestTelegram(readTelegramForm()));
+            const result = await TestTelegram(readTelegramForm());
+            showResult(setupMessage, result);
+            if (result.ok) {
+                await loadSetup();
+            }
         } finally {
             button.disabled = false;
         }
