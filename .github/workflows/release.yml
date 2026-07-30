@@ -212,7 +212,7 @@ jobs:
           strip_indent > "${package_root}/usr/share/doc/spareeye/copyright" <<'COPYRIGHT'
           Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
           Upstream-Name: SpareEye
-          Source: https://github.com/issar13/kaa-rada
+          Source: https://github.com/issar13/spareeye
 
           Files: *
           Copyright: 2025 Issa Suleiman
@@ -246,7 +246,7 @@ jobs:
           spareeye (${debian_version}) unstable; urgency=medium
 
             * Release ${debian_version}. Notes:
-              https://github.com/issar13/kaa-rada/releases
+              https://github.com/issar13/spareeye/releases
 
            -- Issa Suleiman <suleimani@pgls.com>  $(date -R -u)
           CHANGELOG
@@ -284,7 +284,7 @@ jobs:
           Depends: ${runtime_depends}
           Installed-Size: ${installed_size}
           Maintainer: Issa Suleiman <suleimani@pgls.com>
-          Homepage: https://github.com/issar13/kaa-rada
+          Homepage: https://github.com/issar13/spareeye
           Description: Turn a spare laptop into a home security camera
            SpareEye watches a webcam for movement and sends a snapshot and a short
            video clip to a Telegram chat when it sees any. Sensitivity, recording
