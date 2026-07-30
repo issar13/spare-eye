@@ -4,10 +4,15 @@ SpareEye sends alerts through a Telegram bot that **you** create. There is no
 shared bot and no token built into the app, so your footage goes to your bot
 and your chat and nobody else's.
 
+The desktop app talks straight to `api.telegram.org`. It does not use a Kaa
+Rada VPS or relay, does not open an inbound port, and does not configure a
+webhook. Commands are collected through an outbound Telegram connection and
+only the automatically registered chat is allowed to control the camera.
+
 You need two things:
 
 1. A **bot token**, identifying the bot the app sends messages as
-2. A **chat ID**, identifying the conversation those messages go to
+2. One message to the bot, so Kaa Rada can identify your conversation
 
 This takes about five minutes and needs only the Telegram app, on phone or
 desktop.
@@ -46,7 +51,23 @@ Telegram rule, not an app limitation.
 Do not skip this: without it the next step returns nothing and alerts never
 arrive.
 
-## Step 3: Find your chat ID
+## Step 3: Connect in Kaa Rada
+
+Open Setup, paste the bot token, and press **Connect Telegram**. Kaa Rada finds
+the conversation from the message you sent in Step 2, saves its internal ID on
+this computer, and sends a confirmation back. You do not need to look up or
+copy a chat ID.
+
+Use a new bot that only you have messaged. If more than one conversation has
+contacted it, Kaa Rada refuses to guess where private camera footage should go;
+create a fresh bot and connect that one instead.
+
+The desktop setup is now complete.
+
+## Manual chat ID setup for the command-line tool
+
+The headless command-line tool still needs a token and chat ID because it has no
+setup screen. Either method below finds the ID.
 
 Either way below works.
 
@@ -86,14 +107,7 @@ back to Step 2.
 A chat ID can be negative, for example `-1001234567890` for a group. Keep the
 minus sign; it is part of the value.
 
-## Step 4: Enter both values
-
-**In the desktop app** (once available): open the setup screen, paste the bot
-token and chat ID, and use *Test connection*. A successful test sends a
-confirmation message to your chat, so you know delivery works before relying on
-it.
-
-**With the headless command-line tool**, set both in the environment before
+Set both values in the environment before
 running:
 
 ```

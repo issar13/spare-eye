@@ -117,8 +117,8 @@ index 0, pushing the real webcam higher.
 
 ### 3. Run it
 
-Launch the desktop app, paste the token and chat ID into Setup, press Test to
-confirm they work, choose your camera, and arm it. Nothing else needs a
+Launch the desktop app, paste the token into Setup, press Connect Telegram to
+confirm it works, choose your camera, and arm it. Nothing else needs a
 terminal.
 
 With credentials in the environment instead:
