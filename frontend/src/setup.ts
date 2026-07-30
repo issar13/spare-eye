@@ -236,10 +236,14 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         const button = event.currentTarget as HTMLButtonElement;
 
         button.disabled = true;
-        showBanner(setupMessage, 'Sending a test message…');
+        showBanner(setupMessage, 'Looking for the message you sent your bot…');
 
         try {
-            showResult(setupMessage, await TestTelegram(readTelegramForm()));
+            const result = await TestTelegram(readTelegramForm());
+            showResult(setupMessage, result);
+            if (result.ok) {
+                await loadSetup();
+            }
         } finally {
             button.disabled = false;
         }

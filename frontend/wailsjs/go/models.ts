@@ -348,4 +348,3 @@ export namespace detector {
 	}
 
 }
-
