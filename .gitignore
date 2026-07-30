@@ -9,8 +9,8 @@ videos/
 DISABLED
 
 # Go build output
-/kaa-rada
-/kaa-rada.exe
+/spareeye
+/spareeye.exe
 /dist/
 
 # Build output only. Packaging metadata under build/ must stay tracked.

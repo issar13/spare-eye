@@ -129,13 +129,13 @@ jobs:
       # After the desktop build, not before: `wails build -clean` empties
       # build/bin, so a CLI built earlier is deleted before it can be uploaded.
       - name: Build CLI
-        run: go build -o build/bin/kaa-rada-cli ./cmd/kaa-rada-cli
+        run: go build -o build/bin/spareeye-cli ./cmd/spareeye-cli
 
       # Proves the binary actually starts and can load libopencv, which a
       # successful link does not. -list-cameras exits 0 on a machine with no
       # webcam, so it is safe on a runner.
       - name: Smoke test the CLI
-        run: ./build/bin/kaa-rada-cli -list-cameras
+        run: ./build/bin/spareeye-cli -list-cameras
 
       # Runs after the build so it inspects real output, not an empty tree.
       - name: Fail if a credential reached the build output
@@ -143,7 +143,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: kaa-rada-linux-amd64
+          name: spareeye-linux-amd64
           path: build/bin/
           if-no-files-found: error
           retention-days: 7
@@ -326,7 +326,7 @@ jobs:
       # After the desktop build, not before: `wails build -clean` empties
       # build/bin, so a CLI built earlier is deleted before it can be uploaded.
       - name: Build CLI
-        run: go build -tags customenv -o build\bin\kaa-rada-cli.exe .\cmd\kaa-rada-cli
+        run: go build -tags customenv -o build\bin\spareeye-cli.exe .\cmd\spareeye-cli
 
       # OpenCV is built with BUILD_SHARED_LIBS=ON, so both binaries load
       # libopencv_*460.dll at runtime and refuse to start without them. They
@@ -353,7 +353,7 @@ jobs:
       # Proves the binary starts and resolves every DLL staged above, which a
       # successful link does not. -list-cameras exits 0 with no webcam present.
       - name: Smoke test the CLI
-        run: .\build\bin\kaa-rada-cli.exe -list-cameras
+        run: .\build\bin\spareeye-cli.exe -list-cameras
 
       - name: Fail if a credential reached the build output
         shell: bash
@@ -361,7 +361,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: kaa-rada-windows-amd64
+          name: spareeye-windows-amd64
           path: build/bin/
           if-no-files-found: error
           retention-days: 7

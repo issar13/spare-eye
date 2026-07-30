@@ -4,7 +4,7 @@ package app
 
 import "golang.org/x/sys/windows"
 
-const fatalCaption = "Kaa Rada could not start"
+const fatalCaption = "SpareEye could not start"
 
 // ReportFatalError tells the user startup failed, in the only way a Windows
 // desktop build can.

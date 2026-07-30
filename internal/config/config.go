@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
 const (
-	applicationDirectoryName = "kaa-rada"
+	applicationDirectoryName = "spareeye"
+	legacyDirectoryName      = "kaa-rada"
 	configFileName           = "config.json"
 )
 
@@ -206,6 +208,25 @@ func Directory() (string, error) {
 	}
 
 	directory := filepath.Join(base, applicationDirectoryName)
+	legacyDirectory := filepath.Join(base, legacyDirectoryName)
+
+	// The product rename must not make an upgrade look like a fresh install.
+	// Move the complete old directory so credentials, recordings, and custom
+	// settings remain together. A new SpareEye directory always wins, making
+	// this migration both one-time and safe if somebody deliberately keeps the
+	// legacy directory as a backup.
+	if _, err := os.Stat(directory); errors.Is(err, os.ErrNotExist) {
+		if _, legacyErr := os.Stat(legacyDirectory); legacyErr == nil {
+			if err := os.Rename(legacyDirectory, directory); err != nil {
+				return "", fmt.Errorf("migrating %s to %s: %w", legacyDirectory, directory, err)
+			}
+		} else if !errors.Is(legacyErr, os.ErrNotExist) {
+			return "", fmt.Errorf("checking legacy config directory %s: %w", legacyDirectory, legacyErr)
+		}
+	} else if err != nil {
+		return "", fmt.Errorf("checking config directory %s: %w", directory, err)
+	}
+
 	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return "", fmt.Errorf("creating %s: %w", directory, err)
 	}
@@ -233,6 +254,7 @@ func Load() (Config, error) {
 	if err := json.Unmarshal(contents, &settings); err != nil {
 		return Config{}, fmt.Errorf("parsing config: %w", err)
 	}
+	settings.Storage.MediaDirectory = migratedStorageDirectory(settings.Storage.MediaDirectory, directory)
 
 	// The live-view bounds are enforced here so that a hand-edited file heals
 	// itself. The settings screen rejects an out-of-range value, and a stored
@@ -250,6 +272,33 @@ func Load() (Config, error) {
 	}
 
 	return withResolvedPaths(settings)
+}
+
+// migratedStorageDirectory follows a media path that was stored beneath the
+// old application directory when Directory moved that entire tree. Without
+// rebasing the absolute path from config.json, an upgraded installation would
+// create a new empty kaa-rada/media directory and appear to have lost all of
+// the recordings that were successfully moved to spareeye/media.
+//
+// An external or relative custom path is left alone. If the legacy directory
+// still exists, no directory migration happened (the new directory took
+// precedence), so its paths must also remain untouched.
+func migratedStorageDirectory(stored, directory string) string {
+	if stored == "" || !filepath.IsAbs(stored) {
+		return stored
+	}
+
+	legacyDirectory := filepath.Join(filepath.Dir(directory), legacyDirectoryName)
+	if _, err := os.Stat(legacyDirectory); err == nil || !errors.Is(err, os.ErrNotExist) {
+		return stored
+	}
+
+	relative, err := filepath.Rel(legacyDirectory, stored)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return stored
+	}
+
+	return filepath.Join(directory, relative)
 }
 
 // mentionsCameraChoice reports whether the file carries the cameraChosen key at

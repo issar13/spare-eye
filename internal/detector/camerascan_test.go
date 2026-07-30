@@ -279,7 +279,7 @@ func TestAStreamReplyIsReadBackByTheSweepsReader(t *testing.T) {
 // The spawning tests re-invoke this test binary rather than a shell, so they
 // run the same way on every platform the app is built for.
 const (
-	childBehaviourVariable = "KAA_RADA_CAMERA_SCAN_CHILD"
+	childBehaviourVariable = "SPAREEYE_CAMERA_SCAN_CHILD"
 
 	sweepToTheEnd       = "sweep-to-the-end"
 	dieOnTheFirstDevice = "die-on-the-first-device"

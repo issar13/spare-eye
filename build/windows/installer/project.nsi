@@ -1,7 +1,7 @@
 Unicode true
 
 ####
-## Kaa Rada NSIS installer.
+## SpareEye NSIS installer.
 ##
 ## Adapted from the Wails v2 default template. Local changes are marked with
 ## "PROJECT:" comments so a future Wails upgrade can be diffed against the
@@ -13,18 +13,18 @@ Unicode true
 ##
 ## To iterate on the installer without a full Wails build, run a Wails NSIS
 ## build once to generate wails_tools.nsh, then:
-##   makensis -DARG_WAILS_AMD64_BINARY=..\..\bin\kaa-rada.exe
+##   makensis -DARG_WAILS_AMD64_BINARY=..\..\bin\spareeye.exe
 ####
 
 ## PROJECT: defined explicitly because wails.json sets no companyName. Left
-## undefined, INSTALLDIR below expands to "C:\Program Files\\Kaa Rada"
+## undefined, INSTALLDIR below expands to "C:\Program Files\\SpareEye"
 ## with an empty path component, and the uninstall registry key collides with
 ## any other product of the same name.
-!define INFO_COMPANYNAME "Kaa Rada"
+!define INFO_COMPANYNAME "SpareEye"
 
 ## PROJECT: pinned so the installer does not silently follow a rename of the
 ## Wails project name.
-!define PRODUCT_EXECUTABLE "kaa-rada.exe"
+!define PRODUCT_EXECUTABLE "spareeye.exe"
 
 ## PROJECT: installs for the current user, into %LocalAppData%\Programs, and
 ## therefore asks for no elevation.
@@ -69,7 +69,7 @@ ManifestDPIAware true
 ## the user enters their Telegram bot token, so getting them into the app
 ## matters more than usual here.
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${PRODUCT_EXECUTABLE}"
-!define MUI_FINISHPAGE_RUN_TEXT "Start Kaa Rada"
+!define MUI_FINISHPAGE_RUN_TEXT "Start SpareEye"
 
 ## PROJECT: Start Menu folder selection. The stock template drops a single
 ## loose .lnk into the Programs root; a folder lets us also ship an uninstall
