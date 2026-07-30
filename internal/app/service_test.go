@@ -610,6 +610,32 @@ func TestTelegramFailuresAreTranslatedIntoAdvice(t *testing.T) {
 	}
 }
 
+func TestChangingTelegramTokenForcesChatRediscovery(t *testing.T) {
+	saved := config.TelegramSettings{
+		BotToken: "old-token",
+		ChatID:   "old-chat",
+		Enabled:  true,
+	}
+
+	changed := telegramFormForConnection(TelegramForm{
+		BotToken: "new-token",
+		ChatID:   saved.ChatID,
+		Enabled:  true,
+	}, saved)
+	if changed.ChatID != "" {
+		t.Errorf("chat ID after token change = %q, want rediscovery", changed.ChatID)
+	}
+
+	unchanged := telegramFormForConnection(TelegramForm{
+		BotToken: " old-token ",
+		ChatID:   saved.ChatID,
+		Enabled:  true,
+	}, saved)
+	if unchanged.ChatID != saved.ChatID {
+		t.Errorf("chat ID with unchanged token = %q, want %q", unchanged.ChatID, saved.ChatID)
+	}
+}
+
 func TestStatusSpeaksPlainlyThroughEveryState(t *testing.T) {
 	service := newTestService(t)
 

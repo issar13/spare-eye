@@ -241,6 +241,15 @@ func (s *Service) TestTelegram(form TelegramForm) ActionResult {
 		).withDoc(telegramSetupDoc)
 	}
 
+	// The setup screen no longer exposes the saved chat ID. When the token is
+	// replaced, that ID belongs to the previous bot and must not be reused for
+	// verification (or persisted with the new token). Discover the conversation
+	// that contacted the replacement bot instead.
+	s.mutex.Lock()
+	savedTelegram := s.settings.Telegram
+	s.mutex.Unlock()
+	form = telegramFormForConnection(form, savedTelegram)
+
 	testContext, cancel := context.WithTimeout(context.Background(), verifyTimeout)
 	defer cancel()
 
@@ -275,6 +284,13 @@ func (s *Service) TestTelegram(form TelegramForm) ActionResult {
 	}
 
 	return succeeded("Telegram is connected. Check your phone for the test message.")
+}
+
+func telegramFormForConnection(form TelegramForm, saved config.TelegramSettings) TelegramForm {
+	if strings.TrimSpace(form.BotToken) != strings.TrimSpace(saved.BotToken) {
+		form.ChatID = ""
+	}
+	return form
 }
 
 // SelectCamera changes the capture device, restarting the detector when armed
