@@ -1,13 +1,13 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=Kaa Rada
+Name=SpareEye
 GenericName=Motion Detection Camera
-Comment=Turn a spare laptop into a home security camera
+Comment=Turn a spare computer into a private security camera
 # No absolute path: install.sh puts the binary on PATH under ~/.local/bin (or
 # /usr/local/bin for a system install), so the same entry works for both.
-Exec=kaa-rada
-Icon=kaa-rada
+Exec=spareeye
+Icon=spareeye
 Terminal=false
 # Utility is the single main category, so the app appears exactly once in the
 # menu; Security is the additional category that describes what it does.
@@ -20,4 +20,4 @@ StartupNotify=true
 # fails with an opaque backend error. Ask the desktop to raise the running
 # window instead of starting another instance.
 SingleMainWindow=true
-StartupWMClass=kaa-rada
+StartupWMClass=spareeye

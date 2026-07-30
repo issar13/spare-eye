@@ -12,7 +12,7 @@ behaviour see the [README](../README.md).
 ```
 main.go              Wails desktop entry point
 app.go               methods bound to the frontend
-cmd/kaa-rada-cli/    headless engine, no display needed
+cmd/spareeye-cli/    headless engine, no display needed
 internal/app/        service layer bound to the UI
 internal/autostart/  launch-at-login registration
 internal/config/     settings persistence
@@ -25,7 +25,7 @@ frontend/            webview UI, Wails-managed
 Dependencies run in one direction only:
 
 ```
-cmd/kaa-rada-cli ─┐
+cmd/spareeye-cli ─┐
              ├─> detector ─> config
 internal/app ┤   media    ─> (stdlib only)
              └─> notify   ─> (stdlib only)
@@ -450,7 +450,7 @@ protocol as a linked device. It would satisfy the interface, but it carries a
 terms-of-service and account-ban risk that has to be an explicit user choice
 rather than a shipped default. That is the decision, not an oversight.
 
-## cmd/kaa-rada-cli and internal/app
+## cmd/spareeye-cli and internal/app
 
 Both are wiring: construct a `Detector`, construct a `Notifier`, connect the
 two. Neither owns behaviour the other should have to reimplement, and anything

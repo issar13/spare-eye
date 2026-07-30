@@ -4,8 +4,8 @@
 # default, so Linux builds need the webkit2_41 tag. `wails doctor` reports
 # libwebkit as "Not Found" on such a system for that reason; it is not a problem.
 
-BINARY_CLI     := kaa-rada-cli
-BINARY_DESKTOP := kaa-rada
+BINARY_CLI     := spareeye-cli
+BINARY_DESKTOP := spareeye
 OUTPUT_DIR     := build/bin
 WAILS          := $(shell go env GOPATH)/bin/wails
 
@@ -56,16 +56,16 @@ check: fmt vet test ## Format, vet, and test
 
 .PHONY: run
 run: ## Run the headless CLI
-	go run ./cmd/kaa-rada-cli
+	go run ./cmd/spareeye-cli
 
 .PHONY: cameras
 cameras: ## List usable cameras
-	go run ./cmd/kaa-rada-cli -list-cameras
+	go run ./cmd/spareeye-cli -list-cameras
 
 .PHONY: build-cli
 build-cli: ## Build the headless CLI
 	mkdir -p $(OUTPUT_DIR)
-	go build -o $(OUTPUT_DIR)/$(BINARY_CLI) ./cmd/kaa-rada-cli
+	go build -o $(OUTPUT_DIR)/$(BINARY_CLI) ./cmd/spareeye-cli
 
 .PHONY: dev
 dev: ## Run the desktop app with hot reload

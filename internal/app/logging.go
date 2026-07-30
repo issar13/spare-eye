@@ -13,11 +13,11 @@ import (
 	"strings"
 	"sync"
 
-	"kaa-rada/internal/config"
+	"spareeye/internal/config"
 )
 
 const (
-	logFileName = "kaa-rada.log"
+	logFileName = "spareeye.log"
 
 	// retainedLogLines bounds what the UI can read back. A windowed app has no
 	// terminal, so the last few hundred lines are the only diagnostics a user

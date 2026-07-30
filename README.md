@@ -1,57 +1,61 @@
-# Kaa Rada
+# SpareEye
 
-Turn a spare laptop into a home security camera.
+**Turn a spare computer into a private, subscription-free security camera.**
 
-Leave a laptop at home, arm it, and it watches the room. When something moves it
-saves a snapshot, records a clip if the movement continues, and sends both to
-your phone on Telegram. You can message it back to start a recording on demand
-or pull up an earlier clip.
+Leave a laptop at home, arm SpareEye, and it watches the room for movement. When
+it detects motion, it saves a snapshot, records a clip if the movement
+continues, and sends the footage to your phone through Telegram. Message the bot
+to start a recording on demand or retrieve an earlier clip.
 
-It works with any camera your machine can see: the built-in webcam, a USB camera
-you plugged in, or a better camera you already own. You pick which one on the
-Setup screen.
+SpareEye works with any camera your computer can access: its built-in webcam, a
+USB camera, or another connected capture device. Choose the one you want from
+the Setup screen.
 
-No cameras to buy, no subscription, no cloud account. It runs on hardware most
-people already have in a drawer, which is the point.
+There is no dedicated camera to buy, subscription to maintain, or SpareEye
+cloud account to create. The app is designed to make useful security hardware
+out of a computer you may already have in a drawer.
 
-Detection sensitivity switches between a day profile and a night profile on a
-schedule you set, because a room at 19:00 and the same room at noon do not need
-the same thresholds.
+### At a glance
+
+- **Motion evidence:** capture a snapshot immediately and a clip when movement
+  continues.
+- **Telegram alerts:** receive footage and request recordings from your phone.
+- **Day and night profiles:** switch sensitivity automatically on your schedule.
+- **Local control:** configure, arm, monitor, and browse recordings in the
+  desktop app.
+- **Flexible cameras:** use a built-in webcam, USB camera, or other capture
+  device visible to the computer.
 
 ## Status
 
-The detection engine is finished and tested. Clips, snapshots, Telegram alerts,
-remote commands, and camera enumeration all work, and the desktop app runs on
-both Windows and Linux.
+SpareEye is functional and tested. Motion detection, clips, snapshots, Telegram
+alerts, remote commands, and camera discovery are implemented, and the desktop
+app runs on Windows and Linux.
 
-CI builds and publishes the desktop app for Windows and Linux. Its screens cover
-Telegram setup, arming and disarming, the live view and its speed and quality,
-both sensitivity profiles, the day/night schedule, retention, and a browser for
-saved clips and snapshots. Every one is a real control, so editing `config.json`
-by hand is a fallback rather than the way in. `storage.mediaDirectory` is the
-only setting the UI shows without letting you change it.
+CI builds and publishes the desktop app for Windows and Linux. The interface
+covers Telegram setup, arming and disarming, live-view speed and quality, both
+sensitivity profiles, the day/night schedule, retention, and browsing saved
+clips and snapshots. Editing `config.json` by hand is a fallback, not the normal
+setup path. `storage.mediaDirectory` is the only visible setting that the app
+does not let you change.
 
-Some camera drivers crash when their device is opened, and on Windows that used
-to take the whole app down during startup: it would appear and vanish with
-nothing in the log after `probing capture devices`. Enumeration now runs in a
-separate process, so a driver that crashes takes down only that process. The app
-notes which device killed it, carries on with the next one, and still finds your
-working camera. Virtual camera drivers such as Iriun and OBS are the usual
-culprits, and they commonly sit at index 0.
+Camera discovery runs in a separate process because some drivers crash when
+their device is opened. A faulty driver therefore stops only the probe, not the
+entire app. SpareEye records which device caused the crash, continues with the
+next one, and can still find a working camera. Virtual camera drivers such as
+Iriun and OBS are common culprits and often occupy index 0.
 
 Telegram is the only alerting channel. See [Why only Telegram](#why-only-telegram).
 
-## Privacy, read this first
+## Privacy: read this first
 
-This app records video of whatever the camera can see, and it uploads clips and
-snapshots to Telegram's servers to deliver them to you. Footage leaves your
-machine.
+SpareEye records whatever the camera can see. To deliver alerts, it uploads
+clips and snapshots to Telegram's servers, so that footage leaves your machine.
 
-If you point the camera at a space other people use, a shared flat or an office
-or a room with guests in it, those people are being recorded and their footage
-is being uploaded, and they have not agreed to either. Depending on where you
-live, recording other people without telling them may be illegal regardless of
-whose camera or whose home it is.
+If you point the camera at a shared flat, office, guest room, or any other space
+used by other people, tell them both that they are being recorded and that the
+footage is being uploaded. Depending on where you live, recording people without
+their knowledge or consent may be illegal, even in your own home.
 
 - Anyone who obtains your bot token can receive your footage and command your
   camera. Treat it like a password. See
@@ -64,13 +68,14 @@ whose camera or whose home it is.
 | | |
 |---|---|
 | Platforms | Windows and Linux |
-| Go | Whatever `go.mod` pins, which is the single source of truth |
+| Go | 1.25.0 (the version declared in `go.mod`) |
 | OpenCV | 4.6.0, to match gocv v0.31.0 |
 | Camera | One that is not already in use by another program |
 | Telegram | Your own bot, one per installation |
 
-macOS is not supported. Shipping a macOS build that will open at all requires
-paid Apple Developer enrollment, so it is deferred rather than half-done.
+macOS is not currently supported. Distributing a properly signed and notarized
+macOS build requires Apple Developer enrollment, so support is deferred rather
+than shipped incomplete.
 
 Binaries ship **unsigned**. On Windows, SmartScreen will warn that the publisher
 is unknown and you will have to choose to run it anyway. Code-signing
@@ -78,14 +83,14 @@ certificates are an ongoing cost the project has not taken on.
 
 ## Getting started
 
-### 1. Create your own Telegram bot
+### 1. Create a Telegram bot
 
 There is no shared bot and no token baked into the binary. Every installation
 talks to a bot you create, so your footage only reaches your own chat.
 
-Follow [docs/SETUP-TELEGRAM.md](docs/SETUP-TELEGRAM.md), which covers creating
-the bot with @BotFather, copying the token, and finding your chat ID. It takes
-about five minutes and needs no technical background.
+Follow the [Telegram setup guide](docs/SETUP-TELEGRAM.md) to create the bot with
+@BotFather, copy its token, and find your chat ID. The process takes about five
+minutes and requires no technical background.
 
 ### 2. Pick your camera
 
@@ -95,13 +100,13 @@ something it can guess.
 
 From a terminal:
 
-```
-go run ./cmd/kaa-rada-cli -list-cameras
+```bash
+go run ./cmd/spareeye-cli -list-cameras
 ```
 
 This prints only devices that both open *and* hand over a real frame:
 
-```
+```text
 Usable cameras (1):
   index 1 = 640x480
 ```
@@ -112,26 +117,28 @@ index 0, pushing the real webcam higher.
 
 ### 3. Run it
 
-Launch the desktop app, paste the token and chat ID into Setup, press Test to
-confirm they work, choose your camera, and arm it. Nothing else needs a
+Launch the desktop app, paste the token into Setup, press Connect Telegram to
+confirm it works, choose your camera, and arm it. Nothing else needs a
 terminal.
 
 With credentials in the environment instead:
 
-```
+```bash
 export TELEGRAM_BOT_TOKEN=...
 export TELEGRAM_CHAT_ID=...
-go run ./cmd/kaa-rada-cli -camera 1
+go run ./cmd/spareeye-cli -camera 1
 ```
 
-On start it prints the media directory and camera, prunes recordings past their
-retention age, verifies the Telegram credentials, then watches. Ctrl+C stops it;
-a clip in progress is finished and closed properly first.
+At startup, the CLI prints the media directory and selected camera, removes
+recordings past their retention age, verifies the Telegram credentials, and
+begins watching. Press Ctrl+C to stop it; any clip in progress is completed and
+closed first.
 
 ## The headless command-line tool
 
-`cmd/kaa-rada-cli` is the detector without a window, for a machine with no
-display: a laptop with the lid shut, or a box reached over SSH.
+`cmd/spareeye-cli` runs the detector without a window. It is intended for a
+machine with no display, such as a laptop with its lid shut or a computer
+managed over SSH.
 
 | Flag | Meaning |
 |---|---|
@@ -146,9 +153,9 @@ detector still runs and still writes snapshots and clips; it just sends nothing.
 
 Convenience targets in the `Makefile`:
 
-```
-make cameras      # go run ./cmd/kaa-rada-cli -list-cameras
-make run          # go run ./cmd/kaa-rada-cli
+```bash
+make cameras      # go run ./cmd/spareeye-cli -list-cameras
+make run          # go run ./cmd/spareeye-cli
 make test         # tests that need no camera
 make test-camera  # camera integration tests, needs a free webcam
 make help         # every target
@@ -172,7 +179,7 @@ whitespace is ignored.
 `/get` replies with a numbered list showing each clip's name, timestamp, and
 size, newest first. **Reply with just the number** to have that clip sent:
 
-```
+```text
 📹 Recordings, newest first:
 
 1. manual_2026-07-25_21-04-11.mp4
@@ -195,13 +202,18 @@ Settings and media live in a per-user directory, not next to the binary:
 
 | | Linux | Windows |
 |---|---|---|
-| Settings | `~/.config/kaa-rada/config.json` | `%AppData%\kaa-rada\config.json` |
-| Snapshots | `~/.config/kaa-rada/media/snapshots/` | `%AppData%\kaa-rada\media\snapshots\` |
-| Clips | `~/.config/kaa-rada/media/videos/` | `%AppData%\kaa-rada\media\videos\` |
-| Log | `~/.config/kaa-rada/kaa-rada.log` | `%AppData%\kaa-rada\kaa-rada.log` |
+| Settings | `~/.config/spareeye/config.json` | `%AppData%\spareeye\config.json` |
+| Snapshots | `~/.config/spareeye/media/snapshots/` | `%AppData%\spareeye\media\snapshots\` |
+| Clips | `~/.config/spareeye/media/videos/` | `%AppData%\spareeye\media\videos\` |
+| Log | `~/.config/spareeye/spareeye.log` | `%AppData%\spareeye\spareeye.log` |
 
 The base directory is whatever the operating system reports as the user
 configuration directory.
+
+On the first run after upgrading from Kaa Rada, SpareEye moves the existing
+configuration directory—including credentials and recordings—to the new path.
+If a `spareeye` directory already exists, it is left untouched and takes
+precedence.
 
 The reason for this rather than a folder beside the executable: an app installed
 into `C:\Program Files` cannot write to its own directory without administrator
@@ -251,7 +263,7 @@ so. Close the other user of the camera first.
 **A camera is listed but the detector sees nothing, or index 0 does nothing**
 
 Index 0 is frequently a virtual camera (Iriun, OBS) that opens successfully and
-then delivers no frames. Run `go run ./cmd/kaa-rada-cli -list-cameras`, which
+then delivers no frames. Run `go run ./cmd/spareeye-cli -list-cameras`, which
 requires each device to hand over a real frame before reporting it, and pass the
 index it gives you with `-camera N`.
 
@@ -264,7 +276,7 @@ trailing whitespace when pasting a token anywhere else.
 
 **The window opens and closes again immediately, or never appears**
 
-Open `%AppData%\kaa-rada\kaa-rada.log`, the same path the app shows on its
+Open `%AppData%\spareeye\spareeye.log`, the same path the app shows on its
 diagnostics screen. The log is opened before any other startup work and written
 straight to disk, so its last record is the stage that failed:
 

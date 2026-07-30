@@ -1,6 +1,10 @@
 package notify
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -99,5 +103,60 @@ func TestFlexibleIDAcceptsNumberOrString(t *testing.T) {
 		if identifier.String() != want {
 			t.Errorf("UnmarshalJSON(%s) = %q, want %q", input, identifier.String(), want)
 		}
+	}
+}
+
+func TestDiscoverChatIDFindsTheOnlyConversation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(response, `{"ok":true,"result":[{"update_id":7,"message":{"text":"hello","chat":{"id":987654321}}}]}`)
+	}))
+	defer server.Close()
+
+	subject := NewTelegram("1234567890:EXAMPLE", "")
+	subject.apiRoot = server.URL
+
+	chatID, err := subject.DiscoverChatID(context.Background())
+	if err != nil {
+		t.Fatalf("DiscoverChatID returned %v", err)
+	}
+	if chatID != "987654321" {
+		t.Errorf("chat ID = %q, want 987654321", chatID)
+	}
+	if subject.chatID != chatID {
+		t.Errorf("Telegram chat ID = %q, want discovered ID %q", subject.chatID, chatID)
+	}
+}
+
+func TestDiscoverChatIDRefusesToGuessBetweenConversations(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(response, `{"ok":true,"result":[`+
+			`{"update_id":1,"message":{"chat":{"id":111}}},`+
+			`{"update_id":2,"message":{"chat":{"id":222}}}]}`)
+	}))
+	defer server.Close()
+
+	subject := NewTelegram("1234567890:EXAMPLE", "")
+	subject.apiRoot = server.URL
+
+	if _, err := subject.DiscoverChatID(context.Background()); err == nil ||
+		!strings.Contains(err.Error(), "multiple Telegram conversations") {
+		t.Fatalf("DiscoverChatID error = %v, want ambiguity error", err)
+	}
+}
+
+func TestDiscoverChatIDReportsRejectedToken(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer server.Close()
+
+	subject := NewTelegram("1234567890:EXAMPLE", "")
+	subject.apiRoot = server.URL
+
+	if _, err := subject.DiscoverChatID(context.Background()); err == nil ||
+		!strings.Contains(err.Error(), "bot token rejected") {
+		t.Fatalf("DiscoverChatID error = %v, want rejected-token error", err)
 	}
 }
