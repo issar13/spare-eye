@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -84,6 +85,61 @@ func TestDirectoryMigratesTheLegacyProductDirectory(t *testing.T) {
 	}
 	if _, err := os.Stat(legacyDirectory); !errors.Is(err, os.ErrNotExist) {
 		t.Errorf("legacy directory still exists after migration: %v", err)
+	}
+}
+
+func TestLoadRetargetsTheLegacyDefaultMediaDirectory(t *testing.T) {
+	temporaryHome := isolateConfigDirectory(t)
+	legacyDirectory := filepath.Join(temporaryHome, legacyDirectoryName)
+	legacyMediaDirectory := filepath.Join(legacyDirectory, "media")
+	if err := os.MkdirAll(filepath.Join(legacyMediaDirectory, "videos"), 0o700); err != nil {
+		t.Fatalf("creating legacy media directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(legacyMediaDirectory, "videos", "kept.mp4"), []byte("clip"), 0o600); err != nil {
+		t.Fatalf("writing legacy media: %v", err)
+	}
+
+	contents := []byte(`{"storage":{"mediaDirectory":` + strconv.Quote(legacyMediaDirectory) + `}}`)
+	if err := os.WriteFile(filepath.Join(legacyDirectory, configFileName), contents, 0o600); err != nil {
+		t.Fatalf("writing legacy config: %v", err)
+	}
+
+	settings, err := Load()
+	if err != nil {
+		t.Fatalf("Load() returned %v", err)
+	}
+
+	want := filepath.Join(temporaryHome, applicationDirectoryName, "media")
+	if settings.Storage.MediaDirectory != want {
+		t.Errorf("media directory = %q, want migrated default %q", settings.Storage.MediaDirectory, want)
+	}
+	if _, err := os.Stat(filepath.Join(settings.VideoDirectory(), "kept.mp4")); err != nil {
+		t.Errorf("migrated recording is unavailable: %v", err)
+	}
+	if _, err := os.Stat(legacyDirectory); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("legacy directory was recreated: %v", err)
+	}
+}
+
+func TestLoadLeavesACustomMediaDirectoryUnchangedDuringMigration(t *testing.T) {
+	temporaryHome := isolateConfigDirectory(t)
+	legacyDirectory := filepath.Join(temporaryHome, legacyDirectoryName)
+	customDirectory := filepath.Join(temporaryHome, "recordings")
+	if err := os.MkdirAll(legacyDirectory, 0o700); err != nil {
+		t.Fatalf("creating legacy directory: %v", err)
+	}
+
+	contents := []byte(`{"storage":{"mediaDirectory":` + strconv.Quote(customDirectory) + `}}`)
+	if err := os.WriteFile(filepath.Join(legacyDirectory, configFileName), contents, 0o600); err != nil {
+		t.Fatalf("writing legacy config: %v", err)
+	}
+
+	settings, err := Load()
+	if err != nil {
+		t.Fatalf("Load() returned %v", err)
+	}
+	if settings.Storage.MediaDirectory != customDirectory {
+		t.Errorf("media directory = %q, want custom directory %q", settings.Storage.MediaDirectory, customDirectory)
 	}
 }
 
