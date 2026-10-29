@@ -3,9 +3,9 @@
 // It exists so the engine can be confirmed working on its own, and it doubles
 // as the way to run the detector on a machine with no display.
 //
-//	go run ./cmd/spareeye-cli -list-cameras
-//	go run ./cmd/spareeye-cli
-//	go run ./cmd/spareeye-cli -camera 1 -no-telegram
+//	go run ./apps/cli -list-cameras
+//	go run ./apps/cli
+//	go run ./apps/cli -camera 1 -no-telegram
 package main
 
 import (

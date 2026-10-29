@@ -70,12 +70,12 @@ make check          # gofmt, go vet, go test
 make build-cli      # headless CLI       -> build/bin/spareeye-cli
 make build-desktop  # desktop app        -> build/bin/spareeye
 make dev            # desktop app with hot reload
-make frontend       # web assets         -> frontend/dist
+make frontend       # web assets         -> apps/desktop/frontend/dist
 make package-linux  # release build for linux/amd64
 ```
 
-`frontend/dist` is uncommitted build output, but `main.go` embeds it with
-`//go:embed all:frontend/dist`. Anything compiling the root package, including
+`apps/desktop/frontend/dist` is uncommitted build output, but `main.go` embeds it with
+`//go:embed all:frontend/dist`. Anything compiling the desktop app package, including
 a bare `go vet ./...` or `go test ./...`, therefore fails on a fresh clone with
 `pattern all:frontend/dist: no matching files found` until the assets have been
 built once. `make vet` and `make test` depend on `make frontend`, so only a
@@ -92,7 +92,7 @@ switches it to the 4.1 packages 24.04 ships.
 you invoke Wails yourself, you must pass it:
 
 ```sh
-wails build -tags webkit2_41 -clean
+(cd apps/desktop && wails build -tags webkit2_41 -clean)
 ```
 
 ### `wails doctor` says libwebkit is "Not Found": this is expected
@@ -213,8 +213,8 @@ and then dies immediately with exit status `3221225781`
 ### Build
 
 ```bat
-go build -tags customenv -o build\bin\spareeye-cli.exe .\cmd\spareeye-cli
-wails build -tags customenv -clean -platform windows/amd64 -nsis
+go build -tags customenv -o build\bin\spareeye-cli.exe .\apps\cli
+cd apps\desktop && wails build -tags customenv -clean -platform windows/amd64 -nsis
 ```
 
 No webkit tag on Windows. The UI uses the system WebView2 runtime, which the

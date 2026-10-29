@@ -1,6 +1,4 @@
-// Command spareeye is the desktop build. The headless engine lives in
-// ./cmd/spareeye-cli; this package exists at the repository root because Wails v2
-// compiles the main package it finds there.
+// Command spareeye is the desktop app. The headless CLI lives in ../cli.
 package main
 
 import (

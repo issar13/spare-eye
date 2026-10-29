@@ -24,13 +24,13 @@ DISABLED
 *.out
 
 # Webview frontend build artifacts
-frontend/node_modules/
-frontend/package.json.md5
+apps/desktop/frontend/node_modules/
+apps/desktop/frontend/package.json.md5
 
-# frontend/dist is build output and is never committed. The Go binary embeds
+# apps/desktop/frontend/dist is build output and is never committed. The Go binary embeds
 # it via //go:embed, so it must exist before `go vet`, `go test`, or any build
-# that compiles the root package: run `make frontend` on a fresh clone.
-frontend/dist/
+# that compiles the desktop package: run `make frontend` on a fresh clone.
+apps/desktop/frontend/dist/
 
 build/bin/
 

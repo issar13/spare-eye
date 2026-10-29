@@ -92,21 +92,36 @@ export const registerDetectionHandlers = (onSettingsChanged: () => void): void =
     form.addEventListener('submit', async (submission) => {
         submission.preventDefault();
 
+        const saveButton = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+        if (saveButton === null || saveButton.disabled) {
+            return;
+        }
+
         const parsed = readForm();
         if (!parsed.success) {
             showBanner(message, describeIssue(parsed.error), 'error');
             return;
         }
 
-        showBanner(message, 'Saving…');
+        saveButton.disabled = true;
+        const originalLabel = saveButton.textContent;
+        saveButton.textContent = 'Saving…';
+        showBanner(message, 'Saving your motion settings…');
 
-        const result = await SaveTuning(app.TuningForm.createFrom(parsed.data));
-        showResult(message, result);
+        try {
+            const result = await SaveTuning(app.TuningForm.createFrom(parsed.data));
+            showResult(message, result);
 
-        if (result.ok) {
-            await loadDetectionForm();
+            if (result.ok) {
+                await loadDetectionForm();
+            }
+
+            onSettingsChanged();
+        } catch (error) {
+            showBanner(message, error instanceof Error ? error.message : 'Could not save motion settings.', 'error');
+        } finally {
+            saveButton.disabled = false;
+            saveButton.textContent = originalLabel;
         }
-
-        onSettingsChanged();
     });
 };

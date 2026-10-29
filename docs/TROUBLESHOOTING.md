@@ -24,7 +24,7 @@ make cameras
 Then select the reported camera in **Setup**, or pass it to the CLI:
 
 ```bash
-go run ./cmd/spareeye-cli -camera 1
+go run ./apps/cli -camera 1
 ```
 
 Camera discovery runs in a separate process so a faulty driver should stop only

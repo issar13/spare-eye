@@ -115,10 +115,10 @@ jobs:
       - name: Build
         run: |
           # -tags webkit2_41 is mandatory on Ubuntu 24.04; see the Makefile.
-          wails build -tags webkit2_41 -clean -platform linux/${{ matrix.architecture }}
+          (cd apps/desktop && wails build -tags webkit2_41 -clean -platform linux/${{ matrix.architecture }})
           # After the desktop build, never before: -clean empties build/bin and
           # would delete a CLI built first, so the tarball copy would fail.
-          go build -o build/bin/spareeye-cli ./cmd/spareeye-cli
+          go build -o build/bin/spareeye-cli ./apps/cli
 
       # A successful link does not prove the binary can load libopencv at
       # runtime. -list-cameras exits 0 on a machine with no webcam.
@@ -491,9 +491,10 @@ jobs:
       # at the moment it runs, and -clean empties that directory first.
       - name: Build the app
         run: wails build -tags customenv -clean -platform windows/amd64
+        working-directory: apps/desktop
 
       - name: Build CLI
-        run: go build -tags customenv -o build\bin\spareeye-cli.exe .\cmd\spareeye-cli
+        run: go build -tags customenv -o build\bin\spareeye-cli.exe .\apps\cli
 
       # OpenCV is built with BUILD_SHARED_LIBS=ON, so neither binary starts
       # without libopencv_*460.dll beside it, and the MinGW runtime is needed
@@ -553,6 +554,7 @@ jobs:
       # No -clean here: the DLLs staged above have to survive into the bundle.
       - name: Build installer
         run: wails build -tags customenv -platform windows/amd64 -nsis
+        working-directory: apps/desktop
 
       # The installer is a separate executable and needs its own signature; the
       # signatures on the binaries inside it do not cover the wrapper the user

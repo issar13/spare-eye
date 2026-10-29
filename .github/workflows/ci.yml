@@ -81,9 +81,9 @@ jobs:
             exit 1
           fi
 
-      # frontend/dist is not committed, and main.go embeds it with
-      # //go:embed all:frontend/dist. Every Go command below compiles the root
-      # package, so the assets have to exist before the first one runs or vet
+      # apps/desktop/frontend/dist is not committed, and apps/desktop/main.go embeds it with
+      # //go:embed all:frontend/dist. Go commands compile the desktop package,
+      # so the assets have to exist before the first one runs or vet
       # fails with "no matching files found".
       - uses: actions/setup-node@v4
         with:
@@ -94,7 +94,7 @@ jobs:
 
       - name: Build the frontend the binary embeds
         run: npm ci && npm run build
-        working-directory: frontend
+        working-directory: apps/desktop/frontend
 
       - name: Check formatting
         run: |
@@ -125,11 +125,12 @@ jobs:
           # build fails looking for webkit2gtk-4.0, which 24.04 removed. This
           # matches `make build-desktop`.
           wails build -tags webkit2_41 -clean
+        working-directory: apps/desktop
 
       # After the desktop build, not before: `wails build -clean` empties
       # build/bin, so a CLI built earlier is deleted before it can be uploaded.
       - name: Build CLI
-        run: go build -o build/bin/spareeye-cli ./cmd/spareeye-cli
+        run: go build -o build/bin/spareeye-cli ./apps/cli
 
       # Proves the binary actually starts and can load libopencv, which a
       # successful link does not. -list-cameras exits 0 on a machine with no
@@ -294,9 +295,9 @@ jobs:
           # time, not just link time, or `go test` fails with exit status 3221225781.
           "$installRoot\x64\mingw\bin" >> $env:GITHUB_PATH
 
-      # frontend/dist is not committed, and main.go embeds it with
-      # //go:embed all:frontend/dist. Every Go command below compiles the root
-      # package, so the assets have to exist before the first one runs or vet
+      # apps/desktop/frontend/dist is not committed, and apps/desktop/main.go embeds it with
+      # //go:embed all:frontend/dist. Go commands compile the desktop package,
+      # so the assets have to exist before the first one runs or vet
       # fails with "no matching files found".
       - uses: actions/setup-node@v4
         with:
@@ -307,7 +308,7 @@ jobs:
 
       - name: Build the frontend the binary embeds
         run: npm ci && npm run build
-        working-directory: frontend
+        working-directory: apps/desktop/frontend
 
       - name: Vet
         run: go vet -tags customenv ./...
@@ -322,11 +323,12 @@ jobs:
         shell: pwsh
         # No webkit tag on Windows: it uses the system WebView2 runtime.
         run: wails build -tags customenv -clean
+        working-directory: apps/desktop
 
       # After the desktop build, not before: `wails build -clean` empties
       # build/bin, so a CLI built earlier is deleted before it can be uploaded.
       - name: Build CLI
-        run: go build -tags customenv -o build\bin\spareeye-cli.exe .\cmd\spareeye-cli
+        run: go build -tags customenv -o build\bin\spareeye-cli.exe .\apps\cli
 
       # OpenCV is built with BUILD_SHARED_LIBS=ON, so both binaries load
       # libopencv_*460.dll at runtime and refuse to start without them. They

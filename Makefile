@@ -9,9 +9,8 @@ BINARY_DESKTOP := spareeye
 OUTPUT_DIR     := build/bin
 WAILS          := $(shell go env GOPATH)/bin/wails
 
-# frontend/dist is not committed, and the desktop binary embeds it, so any Go
-# command that compiles the root package needs it built first.
-FRONTEND_ENTRY := frontend/dist/index.html
+# The desktop binary embeds its frontend, so build it before compiling the app.
+FRONTEND_ENTRY := apps/desktop/frontend/dist/index.html
 
 UNAME := $(shell uname -s)
 ifeq ($(UNAME),Linux)
@@ -36,8 +35,8 @@ fmt: ## Format all Go code
 .PHONY: frontend
 frontend: $(FRONTEND_ENTRY) ## Build the web assets the desktop binary embeds
 
-$(FRONTEND_ENTRY): frontend/package.json frontend/package-lock.json $(wildcard frontend/src/*)
-	cd frontend && npm ci && npm run build
+$(FRONTEND_ENTRY): apps/desktop/frontend/package.json apps/desktop/frontend/package-lock.json $(wildcard apps/desktop/frontend/src/*)
+	cd apps/desktop/frontend && npm ci && npm run build
 
 .PHONY: vet
 vet: frontend ## Run go vet
@@ -56,34 +55,34 @@ check: fmt vet test ## Format, vet, and test
 
 .PHONY: run
 run: ## Run the headless CLI
-	go run ./cmd/spareeye-cli
+	go run ./apps/cli
 
 .PHONY: cameras
 cameras: ## List usable cameras
-	go run ./cmd/spareeye-cli -list-cameras
+	go run ./apps/cli -list-cameras
 
 .PHONY: build-cli
 build-cli: ## Build the headless CLI
 	mkdir -p $(OUTPUT_DIR)
-	go build -o $(OUTPUT_DIR)/$(BINARY_CLI) ./cmd/spareeye-cli
+	go build -o $(OUTPUT_DIR)/$(BINARY_CLI) ./apps/cli
 
 .PHONY: dev
 dev: ## Run the desktop app with hot reload
-	$(WAILS) dev $(TAG_FLAG)
+	cd apps/desktop && $(WAILS) dev $(TAG_FLAG)
 
 .PHONY: build-desktop
 build-desktop: ## Build the desktop app for the current platform
-	$(WAILS) build $(TAG_FLAG) -clean
+	cd apps/desktop && $(WAILS) build $(TAG_FLAG) -clean
 
 .PHONY: package-linux
 package-linux: ## Build a Linux desktop binary
-	$(WAILS) build -tags webkit2_41 -clean -platform linux/amd64
+	cd apps/desktop && $(WAILS) build -tags webkit2_41 -clean -platform linux/amd64
 
 .PHONY: package-windows
 package-windows: ## Build a Windows installer (run on Windows)
-	$(WAILS) build -clean -platform windows/amd64 -nsis
+	cd apps/desktop && $(WAILS) build -clean -platform windows/amd64 -nsis
 
 .PHONY: clean
 clean: ## Remove build output
-	rm -rf $(OUTPUT_DIR) frontend/dist
+	rm -rf $(OUTPUT_DIR) apps/desktop/frontend/dist
 	go clean -cache -testcache

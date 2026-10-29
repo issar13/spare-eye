@@ -10,25 +10,23 @@ behaviour see the [README](../README.md).
 ## Package map
 
 ```
-main.go              Wails desktop entry point
-app.go               methods bound to the frontend
-cmd/spareeye-cli/    headless engine, no display needed
-internal/app/        service layer bound to the UI
-internal/autostart/  launch-at-login registration
-internal/config/     settings persistence
+apps/desktop/        Wails entry point and webview UI
+apps/cli/             headless CLI application
+internal/app/         service layer bound to the UI
+internal/autostart/   launch-at-login registration
+internal/config/      settings persistence
 internal/detector/   camera, motion analysis, recording
-internal/media/      listing and retention
-internal/notify/     messaging providers
-frontend/            webview UI, Wails-managed
+internal/media/       listing and retention
+internal/notify/      messaging providers
 ```
 
 Dependencies run in one direction only:
 
 ```
-cmd/spareeye-cli ─┐
-             ├─> detector ─> config
-internal/app ┤   media    ─> (stdlib only)
-             └─> notify   ─> (stdlib only)
+apps/cli ──┐
+           ├─> internal/detector ─> internal/config
+internal/app ─┤  internal/media   ─> (stdlib only)
+           └─> internal/notify   ─> (stdlib only)
 ```
 
 `detector` imports `config` and nothing else of ours. `media` and `notify`
@@ -450,7 +448,7 @@ protocol as a linked device. It would satisfy the interface, but it carries a
 terms-of-service and account-ban risk that has to be an explicit user choice
 rather than a shipped default. That is the decision, not an oversight.
 
-## cmd/spareeye-cli and internal/app
+## apps/cli and internal/app
 
 Both are wiring: construct a `Detector`, construct a `Notifier`, connect the
 two. Neither owns behaviour the other should have to reimplement, and anything

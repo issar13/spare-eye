@@ -113,7 +113,7 @@ running:
 ```
 export TELEGRAM_BOT_TOKEN=123456789:YOUR_BOT_TOKEN_HERE
 export TELEGRAM_CHAT_ID=123456789
-go run ./cmd/spareeye-cli
+go run ./apps/cli
 ```
 
 On Windows PowerShell:
@@ -121,7 +121,7 @@ On Windows PowerShell:
 ```
 $env:TELEGRAM_BOT_TOKEN = "123456789:YOUR_BOT_TOKEN_HERE"
 $env:TELEGRAM_CHAT_ID = "123456789"
-go run ./cmd/spareeye-cli
+go run ./apps/cli
 ```
 
 Once the credentials check out, the tool prints `Telegram connected` and sends

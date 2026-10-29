@@ -55,11 +55,11 @@ Yes. The detector still writes snapshots and clips locally when credentials are
 absent or Telegram is disabled. For a one-off headless run:
 
 ```bash
-go run ./cmd/spareeye-cli -no-telegram
+go run ./apps/cli -no-telegram
 ```
 
 ## Can it run without a desktop?
 
-Yes. `cmd/spareeye-cli` runs the detector without a window and is suitable for a
+Yes. `apps/cli` runs the detector without a window and is suitable for a
 machine managed over SSH. See [Development](DEVELOPMENT.md) for building it and
 run `make help` for available commands.
