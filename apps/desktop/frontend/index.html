@@ -200,14 +200,15 @@
                         days
                     </p>
                     <p class="hint">Set this to 0 to keep everything forever. Old recordings are tidied up
-                        each time the app starts.</p>
+                        when the app starts and every hour while it runs.</p>
                     <p class="sentence">
                         Use at most
                         <input min="0" name="maxStorageGigabytes" step="any" type="number"/>
                         GB of disk space
                     </p>
                     <p class="hint">Set this to 0 for no limit. When recordings add up to more than this, the
-                        oldest are deleted at startup until they fit.</p>
+                        oldest are deleted (at startup and every hour) until they fit. A recording in
+                        progress is never deleted.</p>
                 </fieldset>
 
                 <details>
