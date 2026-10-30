@@ -1,18 +1,18 @@
-# Netlify config for the landing page in site/.
+# Netlify config for the landing page in apps/site/.
 #
-# This has to live at the repository root rather than inside site/. Netlify reads
+# This has to live at the repository root rather than inside apps/site/. Netlify reads
 # netlify.toml from the base directory, so a copy inside the publish directory is
 # ignored, and ignored silently, which means the headers below would look
 # configured while doing nothing.
 [build]
-publish = "site"
+publish = "apps/site"
 
 # The page is hand-written HTML and CSS with no build step, so there is nothing
 # to run.
 command = ""
 
 # The page loads no scripts, styles, fonts or images from anywhere but itself;
-# Inter is self-hosted under site/fonts for that reason.
+# Inter is self-hosted under apps/site/fonts for that reason.
 # Saying so here turns that from something we have to remember into something the
 # browser enforces.
 [[headers]]
