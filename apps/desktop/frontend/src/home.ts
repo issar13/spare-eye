@@ -5,7 +5,7 @@ import {requireElement} from './elements';
 import {formatElapsedSeconds, formatWhen} from './format';
 import {guideText} from './home-guide';
 import {loadRecentEvents} from './queries';
-import {setButtonPending} from './button-state';
+import {clearButtonPending, setButtonPending} from './button-state';
 
 const heroDot = requireElement<HTMLElement>('#hero-dot');
 const heroHeadline = requireElement<HTMLElement>('#hero-headline');
@@ -166,7 +166,7 @@ export const registerHomeHandlers = (onStateChanged: () => void): void => {
             showBanner(messageBanner, 'SpareEye could not change the camera state. Try again.', 'error');
         } finally {
             busy = false;
-            setButtonPending(watchButton, false);
+            await clearButtonPending(watchButton);
             onStateChanged();
         }
     });
@@ -189,7 +189,7 @@ export const registerHomeHandlers = (onStateChanged: () => void): void => {
             showBanner(messageBanner, 'SpareEye could not change the recording state. Try again.', 'error');
         } finally {
             recordingBusy = false;
-            setButtonPending(recordButton, false);
+            await clearButtonPending(recordButton);
             recordButton.disabled = false;
             onStateChanged();
         }

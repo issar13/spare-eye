@@ -6,7 +6,7 @@ import {formatMinutesOfDay, parseMinutesOfDay} from './format';
 import {applyLevel, levelFor, sensitivityOrder, sensitivityPresets} from './presets';
 import {describeIssue, tuningSchema} from './schemas';
 import {renderSegmented} from './segmented';
-import {setButtonPending} from './button-state';
+import {clearButtonPending, setButtonPending} from './button-state';
 
 const form = requireElement<HTMLFormElement>('#detection-form');
 const message = requireElement<HTMLElement>('#detection-message');
@@ -122,7 +122,7 @@ export const registerDetectionHandlers = (onSettingsChanged: () => void): void =
         } catch (error) {
             showBanner(message, error instanceof Error ? error.message : 'Could not save motion settings.', 'error');
         } finally {
-            setButtonPending(saveButton, false);
+            await clearButtonPending(saveButton);
             saveButton.disabled = false;
             saveButton.textContent = originalLabel;
         }

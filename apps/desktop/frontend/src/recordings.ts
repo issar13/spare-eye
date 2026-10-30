@@ -4,7 +4,7 @@ import {showBanner, showResult} from './banner';
 import {requireElement} from './elements';
 import {formatFullTimestamp} from './format';
 import {loadRecordings} from './queries';
-import {setButtonPending} from './button-state';
+import {clearButtonPending, setButtonPending} from './button-state';
 
 type Collection = 'clips' | 'snapshots';
 
@@ -156,7 +156,7 @@ const runAction = async (
     try {
         showResult(message, await action());
     } finally {
-        setButtonPending(button, false);
+        await clearButtonPending(button);
         button.disabled = false;
     }
 };
@@ -180,7 +180,7 @@ export const registerRecordingHandlers = (): void => {
         try {
             await refreshRecordings();
         } finally {
-            setButtonPending(refreshButton, false);
+            await clearButtonPending(refreshButton);
             refreshButton.disabled = false;
             refreshButton.textContent = originalLabel;
         }

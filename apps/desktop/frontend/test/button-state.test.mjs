@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {setButtonPending} from '../src/button-state.ts';
+import {clearButtonPending, setButtonPending} from '../src/button-state.ts';
 
 test('pending buttons expose loading state to assistive technology and styling', () => {
     const button = createButton();
@@ -19,6 +19,17 @@ test('settled buttons clear their loading state', () => {
 
     assert.equal(button.attributes.has('aria-busy'), false);
     assert.equal(button.classes.has('is-pending'), false);
+});
+
+test('pending feedback remains visible briefly when an action finishes immediately', async () => {
+    const button = createButton();
+    setButtonPending(button, true);
+
+    const clearing = clearButtonPending(button);
+
+    assert.equal(button.attributes.get('aria-busy'), 'true');
+    await clearing;
+    assert.equal(button.attributes.has('aria-busy'), false);
 });
 
 const createButton = () => {

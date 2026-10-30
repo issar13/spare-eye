@@ -14,7 +14,7 @@ import {
 import type {app, detector} from '../wailsjs/go/models';
 import type {onvif} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
-import {setButtonPending} from './button-state';
+import {clearButtonPending, setButtonPending} from './button-state';
 import {requireElement, requireField} from './elements';
 import {cameraStreamSchema, describeIssue, startupSchema, telegramSchema} from './schemas';
 
@@ -229,7 +229,7 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         } catch {
             showBanner(setupMessage, 'Could not save Telegram settings. Try again.', 'error');
         } finally {
-            setButtonPending(saveButton, false);
+            await clearButtonPending(saveButton);
             saveButton.disabled = false;
             saveButton.textContent = originalLabel;
         }
@@ -255,7 +255,7 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         } catch {
             showBanner(startupMessage, 'Could not save startup settings. Try again.', 'error');
         } finally {
-            setButtonPending(saveButton, false);
+            await clearButtonPending(saveButton);
             saveButton.disabled = false;
             saveButton.textContent = originalLabel;
         }
@@ -279,7 +279,7 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
                 await loadSetup();
             }
         } finally {
-            setButtonPending(button, false);
+            await clearButtonPending(button);
             button.disabled = false;
             button.textContent = originalLabel;
         }
@@ -297,7 +297,7 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         try {
             await showCameras(RescanCameras);
         } finally {
-            setButtonPending(cameraRefreshButton, false);
+            await clearButtonPending(cameraRefreshButton);
             cameraRefreshButton.disabled = false;
             cameraRefreshButton.textContent = originalLabel;
         }
@@ -329,7 +329,7 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
                 'error',
             );
         } finally {
-            setButtonPending(searchButton, false);
+            await clearButtonPending(searchButton);
             searchButton.disabled = false;
             searchButton.textContent = originalLabel;
         }
@@ -371,7 +371,7 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         try {
             showResult(streamMessage, await TestCameraURL(address));
         } finally {
-            setButtonPending(button, false);
+            await clearButtonPending(button);
             button.disabled = false;
             button.textContent = originalLabel;
         }
@@ -409,7 +409,7 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         } catch {
             showBanner(streamMessage, 'Could not select that camera. Try again.', 'error');
         } finally {
-            setButtonPending(useCameraButton, false);
+            await clearButtonPending(useCameraButton);
             useCameraButton.disabled = false;
             useCameraButton.textContent = originalLabel;
         }
@@ -433,7 +433,7 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
             showBanner(startMessage, 'SpareEye could not start the camera. Try again.', 'error');
         } finally {
             startBusy = false;
-            setButtonPending(startButton, false);
+            await clearButtonPending(startButton);
             onSettingsChanged();
         }
     });

@@ -5,7 +5,7 @@ import {requireElement, requireField} from './elements';
 import {LiveViewLevel, liveViewLevelFor, liveViewOrder, liveViewPresets} from './presets';
 import {describeIssue, liveViewSchema} from './schemas';
 import {renderSegmented} from './segmented';
-import {setButtonPending} from './button-state';
+import {clearButtonPending, setButtonPending} from './button-state';
 
 // Matches previewInterval in internal/detector: asking faster than the
 // detector re-encodes only re-fetches bytes we already have, and asking slower
@@ -189,7 +189,7 @@ export const registerLiveViewHandlers = (): void => {
         } catch {
             showBanner(message, 'Could not save live view settings. Try again.', 'error');
         } finally {
-            setButtonPending(saveButton, false);
+            await clearButtonPending(saveButton);
             saveButton.disabled = false;
             saveButton.textContent = originalLabel;
         }
