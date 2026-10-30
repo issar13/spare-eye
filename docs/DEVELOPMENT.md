@@ -7,6 +7,21 @@ Building SpareEye from source, on Linux and on Windows.
 
 ---
 
+## Repository layout
+
+```
+apps/
+  cli/        headless CLI (spareeye-cli)
+  desktop/    Wails desktop app: Go bindings plus frontend/
+  site/       landing page, deployed by Netlify (see netlify.toml)
+internal/     shared engine: detector, media, notify, onvif, config, autostart, app
+build/        packaging files Wails requires; see build/README.md
+docs/         user and developer guides
+scripts/      repository checks run in CI
+```
+
+---
+
 ## The one thing to understand first: gocv is pinned to OpenCV 4.6.0
 
 This project depends on `gocv.io/x/gocv v0.31.0`, which is welded to
