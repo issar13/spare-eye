@@ -214,6 +214,12 @@ unrequested footage on the front.
 One goroutine per clip, created by `startRecorder` and living exactly as long as
 that clip. Encoding and disk I/O never run on the capture goroutine.
 
+`openWriter` tries H.264 (`avc1`) first and falls back to MPEG-4 (`mp4v`).
+H.264 is the only codec the webview can play, but not every OpenCV build can
+encode it. gocv reports an unusable codec as a writer that is not open rather
+than as an error, so every attempt is checked with `IsOpened`; without that
+check a missing encoder produces a clip of nothing and no error at all.
+
 Frames arrive through a bounded channel sized at two seconds of footage
 (`frameRate × 2`, floor 8). Bounded is the point: `submit` does a non-blocking
 send and, when the channel is full, closes the clone and increments
@@ -526,9 +532,11 @@ time back.
 
 Tracked in [ROADMAP.md](../ROADMAP.md), noted here where they touch the design:
 
-- **Clips are `mp4v`.** WebKit cannot decode it, so in-app playback does not
-  work and the working path is opening the file externally. Fixing it properly
-  means moving the recorder to H.264.
+- **In-app playback depends on the platform's H.264 support.** Clips are H.264
+  where OpenCV can encode it, and WebKitGTK only decodes that with
+  `gstreamer1.0-libav` or the openh264 plugin installed. A Windows OpenCV build
+  usually lacks an H.264 encoder, so clips there fall back to `mp4v`, which
+  WebView2 cannot play; opening the file externally works either way.
 - **No config hot-reload for the capture path.** Everything except the live-view
   settings is fixed when the camera opens, so changing it restarts the detector.
 - **The CLI prints with `fmt`.** Acceptable for a terminal program, but it means

@@ -275,6 +275,11 @@ jobs:
           # hicolor-icon-theme rebuild the desktop database and the icon cache
           # when files land in those directories, and a hand-rolled script would
           # only do the same work less reliably.
+          #
+          # Clips are H.264, and WebKitGTK decodes video through GStreamer, which
+          # ships no H.264 decoder in its base plugins. dpkg-shlibdeps cannot see
+          # a plugin loaded at run time, so it is named here. Recommends, not
+          # Depends: without one the app still works and clips open externally.
           strip_indent > "${package_root}/DEBIAN/control" <<CONTROL
           Package: spareeye
           Version: ${debian_version}
@@ -282,6 +287,7 @@ jobs:
           Priority: optional
           Architecture: ${debian_architecture}
           Depends: ${runtime_depends}
+          Recommends: gstreamer1.0-libav | gstreamer1.0-plugins-bad
           Installed-Size: ${installed_size}
           Maintainer: Issa Suleiman <suleimani@pgls.com>
           Homepage: https://github.com/issar13/spareeye
