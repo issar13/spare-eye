@@ -22,12 +22,20 @@ export function Disarm() {
   return window['go']['main']['App']['Disarm']();
 }
 
+export function DiscoverNetworkCameras() {
+  return window['go']['main']['App']['DiscoverNetworkCameras']();
+}
+
 export function LogLines() {
   return window['go']['main']['App']['LogLines']();
 }
 
 export function OpenExternally(arg1) {
   return window['go']['main']['App']['OpenExternally'](arg1);
+}
+
+export function PreviewFrame() {
+  return window['go']['main']['App']['PreviewFrame']();
 }
 
 export function RecentEvents() {

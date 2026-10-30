@@ -92,8 +92,12 @@ jobs:
           # same frontend with the same toolchain.
           node-version: '24'
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.15.0
+
       - name: Build the frontend the binary embeds
-        run: npm ci && npm run build
+        run: pnpm install --frozen-lockfile && pnpm build
         working-directory: apps/desktop/frontend
 
       - name: Check formatting
@@ -306,8 +310,12 @@ jobs:
           # same frontend with the same toolchain.
           node-version: '24'
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.15.0
+
       - name: Build the frontend the binary embeds
-        run: npm ci && npm run build
+        run: pnpm install --frozen-lockfile && pnpm build
         working-directory: apps/desktop/frontend
 
       - name: Vet

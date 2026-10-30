@@ -277,10 +277,10 @@ func Load() (Config, error) {
 // migratedStorageDirectory follows a media path that was stored beneath the
 // old application directory when Directory moved that entire tree. Without
 // rebasing the absolute path from config.json, an upgraded installation would
-// create a new empty kaa-rada/media directory and appear to have lost all of
-// the recordings that were successfully moved to spareeye/media.
+// create a new empty media directory and appear to have lost all of the
+// recordings that were successfully moved to spareeye/media.
 //
-// An external or relative custom path is left alone. If the legacy directory
+// An external or relative custom path is left alone. If the previous directory
 // still exists, no directory migration happened (the new directory took
 // precedence), so its paths must also remain untouched.
 func migratedStorageDirectory(stored, directory string) string {

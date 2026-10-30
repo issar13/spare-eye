@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"net/url"
 	"path/filepath"
 
@@ -9,6 +10,7 @@ import (
 
 	"spareeye/internal/app"
 	"spareeye/internal/detector"
+	"spareeye/internal/onvif"
 )
 
 // App is the surface bound into the webview. It holds no state of its own: the
@@ -41,11 +43,26 @@ func (a *App) Settings() app.SettingsView { return a.service.Settings() }
 // Status is polled by the arm/disarm screen.
 func (a *App) Status() app.StatusView { return a.service.Status() }
 
+// PreviewFrame returns the latest camera picture for display in the webview.
+func (a *App) PreviewFrame() string {
+	frame := a.service.PreviewJPEG()
+	if len(frame) == 0 {
+		return ""
+	}
+
+	return base64.StdEncoding.EncodeToString(frame)
+}
+
 // Cameras lists capture devices confirmed to deliver frames.
 func (a *App) Cameras() []detector.Camera { return a.service.Cameras() }
 
 // RescanCameras looks for devices again, on the user's explicit request.
 func (a *App) RescanCameras() []detector.Camera { return a.service.RescanCameras() }
+
+// DiscoverNetworkCameras finds ONVIF devices on the local network.
+func (a *App) DiscoverNetworkCameras() ([]onvif.Camera, error) {
+	return onvif.DiscoverCameras()
+}
 
 // Every action returns an ActionResult rather than an error. A rejected Wails
 // promise carries only the Go error's text, and that text is written for a log,

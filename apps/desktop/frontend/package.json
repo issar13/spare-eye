@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/query-core": "^5.105.0",
     "date-fns": "^4.1.0",
     "zod": "^4.1.5"
   },

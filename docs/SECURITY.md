@@ -34,9 +34,9 @@ Default locations:
 The operating system's user configuration directory is used when it differs
 from these defaults.
 
-On the first run after upgrading from Kaa Rada, SpareEye moves the existing
-configuration directory, including credentials and recordings, to the new
-location. An existing `spareeye` directory is never overwritten.
+On the first run after an upgrade, SpareEye moves the existing configuration
+directory, including credentials and recordings, to its current location. An
+existing `spareeye` directory is never overwritten.
 
 ## Protect the bot token
 

@@ -1,6 +1,5 @@
 import './styles.css';
 
-import {Status} from '../wailsjs/go/main/App';
 import type {app} from '../wailsjs/go/models';
 import {loadDetectionForm, registerDetectionHandlers} from './detection';
 import {requireElement} from './elements';
@@ -8,6 +7,7 @@ import {refreshActivity, registerHomeHandlers, updateHome} from './home';
 import {loadLiveViewForm, registerLiveViewHandlers, startPreview, stopPreview, updatePreview} from './preview';
 import {refreshRecordings, registerRecordingHandlers} from './recordings';
 import {activateSetup, loadSetup, registerSetupHandlers, updateSetupProgress} from './setup';
+import {loadStatus} from './queries';
 
 // Status drives the sidebar on every screen, so it is polled continuously. The
 // heavier reads (the activity list, the recordings) happen only while their
@@ -15,7 +15,7 @@ import {activateSetup, loadSetup, registerSetupHandlers, updateSetupProgress} fr
 const statusIntervalMs = 1000;
 const activityIntervalMs = 2000;
 
-const panelNames = ['home', 'preview', 'recordings', 'detection', 'setup'] as const;
+const panelNames = ['home', 'recordings', 'settings', 'cameras'] as const;
 type PanelName = (typeof panelNames)[number];
 
 const navButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-panel]'));
@@ -32,7 +32,7 @@ const showPanel = (name: PanelName): void => {
 
     window.clearInterval(activityTimer);
 
-    if (name === 'preview') {
+    if (name === 'home') {
         startPreview();
         void loadLiveViewForm();
     } else {
@@ -48,11 +48,11 @@ const showPanel = (name: PanelName): void => {
         void refreshRecordings();
     }
 
-    if (name === 'setup') {
+    if (name === 'cameras') {
         activateSetup();
     }
 
-    if (name === 'detection') {
+    if (name === 'settings') {
         void loadDetectionForm();
     }
 };
@@ -63,7 +63,7 @@ const updateSidebar = (status: app.StatusView): void => {
 };
 
 const pollStatus = async (): Promise<app.StatusView> => {
-    const status = await Status();
+    const status = await loadStatus();
 
     updateSidebar(status);
     updateHome(status);
@@ -76,7 +76,7 @@ const pollStatus = async (): Promise<app.StatusView> => {
 // A first run has nothing configured, so it opens on Setup. Anyone who has
 // already been through it lands on Home, where the button they want is.
 const openingPanel = (status: app.StatusView): PanelName =>
-    status.canArm ? 'home' : 'setup';
+    status.canArm ? 'home' : 'cameras';
 
 const start = async (): Promise<void> => {
     navButtons.forEach((button) => button.addEventListener('click', () => {

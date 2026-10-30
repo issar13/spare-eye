@@ -1,6 +1,7 @@
 import {
     Arm,
     Cameras,
+    DiscoverNetworkCameras,
     RescanCameras,
     SaveStartup,
     SaveTelegram,
@@ -11,6 +12,7 @@ import {
     TestTelegram,
 } from '../wailsjs/go/main/App';
 import type {app, detector} from '../wailsjs/go/models';
+import type {onvif} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
 import {requireElement, requireField} from './elements';
 import {cameraStreamSchema, describeIssue, startupSchema, telegramSchema} from './schemas';
@@ -22,6 +24,8 @@ const startupMessage = requireElement<HTMLElement>('#startup-message');
 const setupMessage = requireElement<HTMLElement>('#setup-message');
 const cameraMessage = requireElement<HTMLElement>('#camera-message');
 const streamMessage = requireElement<HTMLElement>('#stream-message');
+const networkCameraMessage = requireElement<HTMLElement>('#network-camera-message');
+const networkCameraList = requireElement<HTMLUListElement>('#network-camera-list');
 const startMessage = requireElement<HTMLElement>('#start-message');
 const picker = requireElement<HTMLSelectElement>('#camera-picker');
 const startButton = requireElement<HTMLButtonElement>('#setup-start');
@@ -31,12 +35,7 @@ const startButton = requireElement<HTMLButtonElement>('#setup-start');
 // with device 0.
 const unchosen = '';
 
-// Whether the chosen camera is known to work, which is what decides if step one
-// shows as finished. A scan sets it directly; until one has run, the status poll
-// stands in, because the engine only reports it can arm once it has opened a
-// camera itself. Without that fallback the step reads as outstanding on every
-// screen but Setup, and stays that way if the camera was busy at launch.
-let cameraConfirmed = false;
+let startBusy = false;
 
 const readTelegramForm = (): app.TelegramForm => telegramSchema.parse({
     botToken: requireField(telegramForm, 'botToken').value,
@@ -78,8 +77,6 @@ const usingDevice = (settings: app.SettingsView): boolean =>
 // which camera the app is still trying to use.
 const renderCameraOptions = (cameras: detector.Camera[], settings: app.SettingsView): void => {
     const deviceFound = cameras.some((camera) => camera.index === settings.cameraIndex);
-
-    cameraConfirmed = usingStream(settings) || (usingDevice(settings) && deviceFound);
 
     const found = cameras.map((camera) => ({
         value: String(camera.index),
@@ -159,15 +156,11 @@ const describeCameras = (cameras: detector.Camera[], settings: app.SettingsView)
     return [`Using camera ${settings.cameraIndex}. Pick a different one below if you want.`, 'good'];
 };
 
-// updateSetupProgress ticks the steps off as they are completed, so a first-run
-// user can see at a glance what is left to do.
 export const updateSetupProgress = (status: app.StatusView): void => {
-    markStep('#step-camera', cameraConfirmed || status.canArm || status.armed);
-    markStep('#step-telegram', status.telegramConnected || !status.alertsEnabled);
-    markStep('#step-start', status.armed);
-
-    startButton.disabled = status.armed || !status.canArm;
-    startButton.textContent = status.armed ? 'Already watching' : 'Start watching';
+    startButton.disabled = startBusy || status.armed || !status.canArm;
+    startButton.textContent = startBusy
+        ? 'Turning your camera on…'
+        : status.armed ? 'Already watching' : 'Start watching';
 
     showLoginRegistration(status);
 };
@@ -192,14 +185,6 @@ const showLoginRegistration = (status: app.StatusView): void => {
             'here. Press Save to remove it.',
         'warn',
     );
-};
-
-const markStep = (selector: string, done: boolean): void => {
-    requireElement<HTMLElement>(selector).classList.toggle('done', done);
-
-    const state = requireElement<HTMLElement>(`${selector}-state`);
-    state.textContent = done ? 'Done' : 'Not done yet';
-    state.className = done ? 'step-state done' : 'step-state';
 };
 
 // readStreamAddress returns the typed address, or nothing once it has told the
@@ -228,14 +213,48 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
     telegramForm.addEventListener('submit', async (submission) => {
         submission.preventDefault();
 
-        showResult(setupMessage, await SaveTelegram(readTelegramForm()));
+        const saveButton = telegramForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+        if (saveButton === null || saveButton.disabled) {
+            return;
+        }
+
+        saveButton.disabled = true;
+        const originalLabel = saveButton.textContent;
+        saveButton.textContent = 'Saving…';
+
+        try {
+            showResult(setupMessage, await SaveTelegram(readTelegramForm()));
+        } catch {
+            showBanner(setupMessage, 'Could not save Telegram settings. Try again.', 'error');
+        } finally {
+            saveButton.disabled = false;
+            saveButton.textContent = originalLabel;
+        }
+
         onSettingsChanged();
     });
 
     startupForm.addEventListener('submit', async (submission) => {
         submission.preventDefault();
 
-        showResult(startupMessage, await SaveStartup(readStartupForm()));
+        const saveButton = startupForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+        if (saveButton === null || saveButton.disabled) {
+            return;
+        }
+
+        saveButton.disabled = true;
+        const originalLabel = saveButton.textContent;
+        saveButton.textContent = 'Saving…';
+
+        try {
+            showResult(startupMessage, await SaveStartup(readStartupForm()));
+        } catch {
+            showBanner(startupMessage, 'Could not save startup settings. Try again.', 'error');
+        } finally {
+            saveButton.disabled = false;
+            saveButton.textContent = originalLabel;
+        }
+
         onSettingsChanged();
     });
 
@@ -259,6 +278,33 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
     });
 
     requireElement<HTMLButtonElement>('#camera-refresh').addEventListener('click', () => void showCameras(RescanCameras));
+
+    requireElement<HTMLButtonElement>('#network-camera-search').addEventListener('click', async (event) => {
+        const searchButton = event.currentTarget as HTMLButtonElement;
+        searchButton.disabled = true;
+        showBanner(networkCameraMessage, 'Searching this network for ONVIF cameras…');
+        networkCameraList.replaceChildren();
+
+        try {
+            const cameras = await DiscoverNetworkCameras();
+            renderNetworkCameras(cameras);
+            showBanner(
+                networkCameraMessage,
+                cameras.length === 0
+                    ? 'No ONVIF cameras replied. Check that ONVIF is enabled and the camera is on this local network.'
+                    : `Found ${cameras.length} ONVIF ${cameras.length === 1 ? 'camera' : 'cameras'}.`,
+                cameras.length === 0 ? 'warn' : 'good',
+            );
+        } catch {
+            showBanner(
+                networkCameraMessage,
+                'Could not search this network. Check that local network access is available and try again.',
+                'error',
+            );
+        } finally {
+            searchButton.disabled = false;
+        }
+    });
 
     picker.addEventListener('change', async () => {
         // The prompt and the network-camera entry are labels, not choices.
@@ -319,19 +365,41 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
     });
 
     startButton.addEventListener('click', async () => {
+        startBusy = true;
         startButton.disabled = true;
         showBanner(startMessage, 'Turning your camera on…');
 
-        const result = await Arm();
-        if (result.ok) {
-            hideBanner(startMessage);
-            onWatching();
-        } else {
-            showResult(startMessage, result);
+        try {
+            const result = await Arm();
+            if (result.ok) {
+                hideBanner(startMessage);
+                onWatching();
+            } else {
+                showResult(startMessage, result);
+            }
+        } catch {
+            showBanner(startMessage, 'SpareEye could not start the camera. Try again.', 'error');
+        } finally {
+            startBusy = false;
+            onSettingsChanged();
         }
-
-        onSettingsChanged();
     });
+};
+
+const renderNetworkCameras = (cameras: onvif.Camera[]): void => {
+    networkCameraList.replaceChildren(...cameras.map((camera) => {
+        const item = document.createElement('li');
+        const title = document.createElement('strong');
+        const address = document.createElement('span');
+        const serviceAddress = document.createElement('code');
+
+        title.textContent = camera.name;
+        address.textContent = camera.address;
+        serviceAddress.textContent = camera.serviceURL;
+        item.append(title, address, serviceAddress);
+
+        return item;
+    }));
 };
 
 export const activateSetup = (): void => {

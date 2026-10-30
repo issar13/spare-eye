@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="build/appicon.png" alt="SpareEye logo" width="128">
+  <img src="docs/images/spareeye-mark.svg" alt="SpareEye camera mark" width="128">
 </p>
 
 <h1 align="center">SpareEye</h1>

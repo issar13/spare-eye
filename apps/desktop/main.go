@@ -10,6 +10,7 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	linuxOptions "github.com/wailsapp/wails/v2/pkg/options/linux"
 
 	"spareeye/internal/app"
 	"spareeye/internal/autostart"
@@ -19,6 +20,14 @@ import (
 
 //go:embed all:frontend/dist
 var assets embed.FS
+
+//go:embed appicon.png
+var appIcon []byte
+
+// Wails' Linux backend treats an unset maximum as the bounds of the monitor
+// where the window first opens. A generous ceiling lets a maximized window
+// expand after it is moved to a larger display.
+const maximumWindowDimension = 32767
 
 // main opens the log before any startup work, then reports whatever that work
 // does to both the log and the user.
@@ -126,7 +135,7 @@ func run(log *app.Log) error {
 	// on purpose.
 	startedByTheSystem := startedAtLogin()
 
-	windowStartState := options.Normal
+	windowStartState := options.Maximised
 	if startedByTheSystem {
 		windowStartState = options.Minimised
 	}
@@ -137,12 +146,15 @@ func run(log *app.Log) error {
 		Title:            "SpareEye",
 		Width:            1180,
 		Height:           820,
+		MaxWidth:         maximumWindowDimension,
+		MaxHeight:        maximumWindowDimension,
 		WindowStartState: windowStartState,
 		AssetServer: &assetserver.Options{
 			Assets:  assets,
 			Handler: service.AssetHandler(),
 		},
-		BackgroundColour: &options.RGBA{R: 17, G: 19, B: 24, A: 1},
+		Linux:            &linuxOptions.Options{Icon: appIcon},
+		BackgroundColour: &options.RGBA{R: 11, G: 16, B: 32, A: 1},
 		OnStartup:        bound.startup,
 		OnShutdown:       bound.shutdown,
 		Bind:             []interface{}{bound},

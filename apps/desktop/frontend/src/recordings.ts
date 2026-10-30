@@ -1,8 +1,9 @@
-import {Clips, DeleteRecording, OpenExternally, SendRecording, Snapshots} from '../wailsjs/go/main/App';
+import {DeleteRecording, OpenExternally, SendRecording} from '../wailsjs/go/main/App';
 import type {app} from '../wailsjs/go/models';
 import {showBanner, showResult} from './banner';
 import {requireElement} from './elements';
 import {formatFullTimestamp} from './format';
+import {loadRecordings} from './queries';
 
 type Collection = 'clips' | 'snapshots';
 
@@ -13,7 +14,7 @@ let shown: Collection = 'clips';
 
 export const refreshRecordings = async (): Promise<void> => {
     try {
-        render(shown === 'clips' ? await Clips() : await Snapshots());
+        render(await loadRecordings(shown));
     } catch {
         // The listing only fails if the recordings folder cannot be read, which
         // is a storage problem rather than anything the user did wrong. The list
@@ -53,6 +54,7 @@ const renderRecording = (recording: app.RecordingView): HTMLElement => {
     row.className = 'recording';
 
     const summary = document.createElement('div');
+    summary.className = 'recording-body';
 
     const when = document.createElement('h4');
     when.textContent = formatFullTimestamp(recording.createdAt);
@@ -75,20 +77,39 @@ const renderRecording = (recording: app.RecordingView): HTMLElement => {
 };
 
 const renderMedia = (recording: app.RecordingView): HTMLElement => {
+    const frame = document.createElement('div');
+    frame.className = 'recording-media';
+
+    const fallback = document.createElement('span');
+    fallback.className = 'media-placeholder';
+    fallback.textContent = recording.video ? 'Video preview unavailable' : 'Photo preview unavailable';
+
     if (!recording.video) {
         const still = document.createElement('img');
-        still.src = recording.url;
         still.alt = `Photo taken ${formatFullTimestamp(recording.createdAt)}`;
         still.loading = 'lazy';
-        return still;
+        still.addEventListener('load', () => frame.classList.remove('unavailable'));
+        still.addEventListener('error', () => {
+            still.classList.add('unavailable');
+            frame.classList.add('unavailable');
+        });
+        still.src = recording.url;
+        frame.append(still, fallback);
+        return frame;
     }
 
     const player = document.createElement('video');
     player.src = recording.url;
     player.controls = true;
     player.preload = 'metadata';
+    player.addEventListener('loadeddata', () => frame.classList.remove('unavailable'));
+    player.addEventListener('error', () => {
+        player.classList.add('unavailable');
+        frame.classList.add('unavailable');
+    });
 
-    return player;
+    frame.append(player, fallback);
+    return frame;
 };
 
 const renderActions = (recording: app.RecordingView): HTMLElement => {
