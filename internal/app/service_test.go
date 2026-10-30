@@ -825,3 +825,33 @@ func TestDeliveryOutcomesReachTheActivityList(t *testing.T) {
 		t.Fatal("a recorded entry should be stamped with the time it happened")
 	}
 }
+
+// TestPruningSparesTheClipBeingRecorded runs a prune while a clip is open, as
+// the hourly schedule can, with a cap that only the open clip still exceeds.
+func TestPruningSparesTheClipBeingRecorded(t *testing.T) {
+	service := newTestService(t)
+	service.settings.Storage.MaxStorageGigabytes = 1.0 / 1024
+	videos := service.settings.VideoDirectory()
+
+	finished := filepath.Join(videos, "motion_finished.mp4")
+	recording := filepath.Join(videos, "motion_recording.mp4")
+	if err := os.WriteFile(finished, make([]byte, 1024*1024), 0o600); err != nil {
+		t.Fatalf("writing %s: %v", finished, err)
+	}
+	if err := os.Chtimes(finished, time.Now().Add(-time.Hour), time.Now().Add(-time.Hour)); err != nil {
+		t.Fatalf("ageing %s: %v", finished, err)
+	}
+	if err := os.WriteFile(recording, make([]byte, 2*1024*1024), 0o600); err != nil {
+		t.Fatalf("writing %s: %v", recording, err)
+	}
+	service.openClips = []string{recording}
+
+	service.pruneExpiredMedia()
+
+	if _, err := os.Stat(finished); !os.IsNotExist(err) {
+		t.Errorf("the finished clip survived a cap it was over")
+	}
+	if _, err := os.Stat(recording); err != nil {
+		t.Errorf("the clip being recorded was removed: %v", err)
+	}
+}

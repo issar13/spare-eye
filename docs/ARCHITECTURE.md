@@ -376,9 +376,16 @@ of the files.
 
 `PruneToSizeCap` takes both directories at once, because the oldest file overall
 may be in either, and deletes oldest first until the combined size fits
-`maxStorageGigabytes` (zero or less keeps everything). It runs after `Prune` at
-startup, before capture begins, so no clip is open and none can be deleted
-mid-write.
+`maxStorageGigabytes` (zero or less keeps everything). It runs after `Prune`.
+
+Both run at startup and then hourly while the app or CLI is open; pruning only
+at launch let a camera left running for weeks outgrow both limits. A scheduled
+prune can land mid-recording, so callers pass the clips still being written as
+`inUse`: they count toward the total but are never removed. The open clips are
+known from `EventClipStarted` and `EventClipFinished`, which is why the desktop
+service tracks them in `consumeEvents` and the CLI prunes on the same goroutine
+that reads events. `Prune` needs no such list, because an open clip's
+modification time is always recent.
 
 ## desktopnotify
 

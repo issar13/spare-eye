@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -90,32 +91,7 @@ func run(requestedCamera int, disableTelegram bool) error {
 	fmt.Printf("Media directory: %s\n", settings.Storage.MediaDirectory)
 	fmt.Printf("Camera index:    %d\n", settings.Detection.CameraIndex)
 
-	// Both directories are pruned. Passing only the video directory left
-	// snapshots accumulating forever, which on a busy camera is the larger
-	// share of the files even though each one is smaller.
-	prunedTotal := 0
-	for _, directory := range []string{settings.VideoDirectory(), settings.SnapshotDirectory()} {
-		removed, err := media.Prune(directory, settings.Storage.RetentionDays)
-		if err != nil {
-			fmt.Printf("Retention pruning failed for %s: %v\n", directory, err)
-			continue
-		}
-		prunedTotal += removed
-	}
-	if prunedTotal > 0 {
-		fmt.Printf("Pruned %d files older than %d days\n", prunedTotal, settings.Storage.RetentionDays)
-	}
-
-	cappedTotal, err := media.PruneToSizeCap(
-		[]string{settings.VideoDirectory(), settings.SnapshotDirectory()},
-		settings.Storage.MaxStorageGigabytes,
-	)
-	if err != nil {
-		fmt.Printf("Storage cap pruning failed: %v\n", err)
-	}
-	if cappedTotal > 0 {
-		fmt.Printf("Pruned %d oldest files to stay under %g GB\n", cappedTotal, settings.Storage.MaxStorageGigabytes)
-	}
+	pruneMedia(settings, nil)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -139,7 +115,7 @@ func run(requestedCamera int, disableTelegram bool) error {
 		fmt.Println("Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID to enable alerts.")
 	}
 
-	go reportEvents(ctx, engine, notifier)
+	go reportEvents(ctx, engine, notifier, settings)
 
 	fmt.Println("Watching for motion. Press Ctrl+C to stop.")
 
@@ -159,10 +135,66 @@ func applyEnvironmentCredentials(settings *config.Config) {
 	}
 }
 
-// reportEvents prints every detector event and forwards the interesting ones to
-// the notifier.
-func reportEvents(ctx context.Context, engine *detector.Detector, notifier notify.Notifier) {
-	for event := range engine.Events() {
+// mediaPruneInterval is how often retention and the storage cap are reapplied
+// while watching. Pruning only at launch let a camera left running for weeks
+// outgrow both.
+const mediaPruneInterval = time.Hour
+
+// pruneMedia applies retention and the storage cap, sparing openClips.
+func pruneMedia(settings config.Config, openClips []string) {
+	// Both directories are pruned. Passing only the video directory left
+	// snapshots accumulating forever, which on a busy camera is the larger
+	// share of the files even though each one is smaller.
+	prunedTotal := 0
+	for _, directory := range []string{settings.VideoDirectory(), settings.SnapshotDirectory()} {
+		removed, err := media.Prune(directory, settings.Storage.RetentionDays)
+		if err != nil {
+			fmt.Printf("Retention pruning failed for %s: %v\n", directory, err)
+			continue
+		}
+		prunedTotal += removed
+	}
+	if prunedTotal > 0 {
+		fmt.Printf("Pruned %d files older than %d days\n", prunedTotal, settings.Storage.RetentionDays)
+	}
+
+	cappedTotal, err := media.PruneToSizeCap(
+		[]string{settings.VideoDirectory(), settings.SnapshotDirectory()},
+		settings.Storage.MaxStorageGigabytes,
+		openClips,
+	)
+	if err != nil {
+		fmt.Printf("Storage cap pruning failed: %v\n", err)
+	}
+	if cappedTotal > 0 {
+		fmt.Printf("Pruned %d oldest files to stay under %g GB\n", cappedTotal, settings.Storage.MaxStorageGigabytes)
+	}
+}
+
+// reportEvents prints every detector event, forwards the interesting ones to
+// the notifier, and reapplies pruning on a schedule. Pruning shares this
+// goroutine because it needs the clips still open, which only the event
+// stream knows; one goroutine owning that list means it needs no lock.
+func reportEvents(ctx context.Context, engine *detector.Detector, notifier notify.Notifier, settings config.Config) {
+	pruneTicker := time.NewTicker(mediaPruneInterval)
+	defer pruneTicker.Stop()
+
+	openClips := []string{}
+	events := engine.Events()
+
+	for {
+		var event detector.Event
+		select {
+		case <-pruneTicker.C:
+			pruneMedia(settings, openClips)
+			continue
+		case received, open := <-events:
+			if !open {
+				return
+			}
+			event = received
+		}
+
 		stamp := event.At.Format("15:04:05")
 
 		switch event.Kind {
@@ -180,9 +212,11 @@ func reportEvents(ctx context.Context, engine *detector.Detector, notifier notif
 			deliver(ctx, notifier, describeMotion(event.Night), event.MediaPath, notify.AttachmentImage)
 
 		case detector.EventClipStarted:
+			openClips = append(openClips, event.MediaPath)
 			fmt.Printf("[%s] recording started: %s\n", stamp, event.MediaPath)
 
 		case detector.EventClipFinished:
+			openClips = slices.DeleteFunc(openClips, func(path string) bool { return path == event.MediaPath })
 			if event.Err != nil {
 				fmt.Printf("[%s] recording failed: %v\n", stamp, event.Err)
 				continue

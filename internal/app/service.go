@@ -19,6 +19,12 @@ import (
 // device that has not produced a frame well past that is not going to.
 const cameraOpenTimeout = 25 * time.Second
 
+// mediaPruneInterval is how often retention and the storage cap are applied
+// while the app is open. Pruning only at launch let a camera left running for
+// weeks outgrow both. An hour is far below the one-day retention granularity
+// and a clip's worth of disk, so neither limit drifts meaningfully past itself.
+const mediaPruneInterval = time.Hour
+
 // Service owns the detector for the desktop UI: one camera, one notifier, one
 // set of settings, and the history the UI reads back.
 //
@@ -40,6 +46,13 @@ type Service struct {
 	// user who asked to be watching on launch, and is not, is told why instead
 	// of finding a screen that simply reads "Not running".
 	launchProblem *Problem
+
+	// openClips are clips the detector is still writing, kept so a prune
+	// running mid-recording never removes one.
+	openClips []string
+
+	// stopPruning ends the scheduled pruning started by Startup.
+	stopPruning context.CancelFunc
 
 	cameras []detector.Camera
 	// camerasScanned distinguishes "no camera found" from "not looked yet",
@@ -103,6 +116,12 @@ func (s *Service) Startup(ctx context.Context) {
 
 	s.pruneExpiredMedia()
 	s.restartMessenger()
+
+	pruningContext, stopPruning := context.WithCancel(ctx)
+	s.mutex.Lock()
+	s.stopPruning = stopPruning
+	s.mutex.Unlock()
+	go s.pruneOnSchedule(pruningContext)
 
 	// Probing opens every device in turn, which takes long enough to be worth
 	// keeping off the path that paints the window. Arming waits for it to
@@ -206,14 +225,37 @@ func containsCamera(cameras []detector.Camera, index int) bool {
 // Shutdown stops the detector and the notifier. Wails calls it while the window
 // is closing, so a clip in progress still gets flushed to disk.
 func (s *Service) Shutdown(ctx context.Context) {
+	s.mutex.Lock()
+	stopPruning := s.stopPruning
+	s.mutex.Unlock()
+	if stopPruning != nil {
+		stopPruning()
+	}
+
 	s.stopSession()
 	s.messenger.stop()
 	s.log.Info("shutdown complete")
 }
 
+// pruneOnSchedule reapplies retention and the storage cap until ctx ends.
+func (s *Service) pruneOnSchedule(ctx context.Context) {
+	ticker := time.NewTicker(mediaPruneInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.pruneExpiredMedia()
+		}
+	}
+}
+
 func (s *Service) pruneExpiredMedia() {
 	s.mutex.Lock()
 	settings := s.settings
+	openClips := slices.Clone(s.openClips)
 	s.mutex.Unlock()
 
 	// Prune scans one directory at a time, and snapshots and clips live in
@@ -234,6 +276,7 @@ func (s *Service) pruneExpiredMedia() {
 	removed, err := media.PruneToSizeCap(
 		[]string{settings.VideoDirectory(), settings.SnapshotDirectory()},
 		settings.Storage.MaxStorageGigabytes,
+		openClips,
 	)
 	if err != nil {
 		s.log.Error("enforcing the storage cap failed", "error", err)
@@ -560,7 +603,16 @@ func (s *Service) consumeEvents(session *detectorSession, drained chan struct{})
 			s.deliverSnapshot(event.MediaPath, event.Night)
 			s.deliverDesktopAlert(event.MediaPath, event.Night)
 
+		case detector.EventClipStarted:
+			s.mutex.Lock()
+			s.openClips = append(s.openClips, event.MediaPath)
+			s.mutex.Unlock()
+
 		case detector.EventClipFinished:
+			s.mutex.Lock()
+			s.openClips = slices.DeleteFunc(s.openClips, func(path string) bool { return path == event.MediaPath })
+			s.mutex.Unlock()
+
 			if event.Err == nil {
 				s.deliverClip(event.MediaPath, event.Manual)
 			}

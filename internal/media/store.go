@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -81,10 +82,11 @@ const bytesPerGigabyte = 1024 * 1024 * 1024
 // and snapshots together, until their combined size fits maxGigabytes, and
 // returns how many were removed. A cap of zero or less keeps everything.
 //
-// It is meant to run before capture starts, as Prune is. Nothing is being
-// written then, so no file can be deleted mid-recording; calling it while a
-// clip is open would need that clip's path excluded.
-func PruneToSizeCap(directories []string, maxGigabytes float64) (int, error) {
+// inUse names clips still being written. They count toward the total, since
+// they occupy the disk, but are never removed: that would lose the footage
+// being recorded, and on Windows the open handle makes the removal fail and
+// abort the prune.
+func PruneToSizeCap(directories []string, maxGigabytes float64, inUse []string) (int, error) {
 	if maxGigabytes <= 0 {
 		return 0, nil
 	}
@@ -115,6 +117,9 @@ func PruneToSizeCap(directories []string, maxGigabytes float64) (int, error) {
 	for _, recording := range recordings {
 		if totalBytes <= capBytes {
 			break
+		}
+		if slices.Contains(inUse, recording.Path) {
+			continue
 		}
 		if err := os.Remove(recording.Path); err != nil {
 			return removed, fmt.Errorf("removing %s: %w", recording.Path, err)
