@@ -11,6 +11,7 @@ import (
 	"spareeye/internal/config"
 	"spareeye/internal/desktopnotify"
 	"spareeye/internal/detector"
+	"spareeye/internal/host"
 	"spareeye/internal/media"
 )
 
@@ -19,10 +20,11 @@ import (
 // device that has not produced a frame well past that is not going to.
 const cameraOpenTimeout = 25 * time.Second
 
-// mediaPruneInterval is how often retention and the storage cap are applied
-// while the app is open. Pruning only at launch let a camera left running for
-// weeks outgrow both. An hour is far below the one-day retention granularity
-// and a clip's worth of disk, so neither limit drifts meaningfully past itself.
+// mediaPruneInterval is how often retention, the storage cap and the free-space
+// floor are applied while the app is open. Cleaning only at launch let a camera
+// left running for weeks outgrow all three. An hour is far below the one-day
+// retention granularity and a clip's worth of disk, so no limit drifts
+// meaningfully past itself.
 const mediaPruneInterval = time.Hour
 
 // Service owns the detector for the desktop UI: one camera, one notifier, one
@@ -62,10 +64,22 @@ type Service struct {
 	events    eventHistory
 	messenger messenger
 
+	// hostReading is the last look at the battery, disk and temperature. The UI
+	// asks for status every second, but these come from sysfs or Win32 and move
+	// slowly, so they are refreshed lazily at most once per hostReadingMaxAge.
+	hostReading    host.Reading
+	hostReadAt     time.Time
+	readHost       func(directory string) host.Reading
+	currentTimeFor func() time.Time
+
 	// showDesktopNotification is a field so tests can observe alerts without a
 	// notification daemon, and so the platform choice stays in desktopnotify.
 	showDesktopNotification func(desktopnotify.Message) error
 }
+
+// hostReadingMaxAge is how stale the battery, disk and temperature figures may
+// get before the next status call reads them again.
+const hostReadingMaxAge = 30 * time.Second
 
 // detectorSession is one run of the detector, from opening the camera to the
 // event channel closing.
@@ -91,9 +105,35 @@ func NewService(log *Log, settings config.Config, instanceLockError error) *Serv
 		instanceLockError: instanceLockError,
 		settings:          settings,
 		events:            eventHistory{limit: retainedEvents},
+		readHost:          host.Read,
+		currentTimeFor:    time.Now,
 
 		showDesktopNotification: desktopnotify.Show,
 	}
+}
+
+// currentHostReading returns the cached reading, taking a fresh one when it is
+// too old. The read happens outside the mutex because it touches the file
+// system, and Status must not make every other call wait behind that. Two
+// callers racing past the age check both read, which is harmless.
+func (s *Service) currentHostReading(mediaDirectory string) host.Reading {
+	s.mutex.Lock()
+	cached, readAt := s.hostReading, s.hostReadAt
+	s.mutex.Unlock()
+
+	now := s.currentTimeFor()
+	if !readAt.IsZero() && now.Sub(readAt) < hostReadingMaxAge {
+		return cached
+	}
+
+	fresh := s.readHost(mediaDirectory)
+
+	s.mutex.Lock()
+	s.hostReading = fresh
+	s.hostReadAt = now
+	s.mutex.Unlock()
+
+	return fresh
 }
 
 // Startup runs the work that should happen once the app is up: reclaiming disk
@@ -114,7 +154,7 @@ func (s *Service) Startup(ctx context.Context) {
 		s.log.Error("camera claim refused", "error", s.instanceLockError)
 	}
 
-	s.pruneExpiredMedia()
+	s.cleanUpMedia()
 	s.restartMessenger()
 
 	pruningContext, stopPruning := context.WithCancel(ctx)
@@ -222,7 +262,7 @@ func containsCamera(cameras []detector.Camera, index int) bool {
 	})
 }
 
-// Shutdown stops the detector and the notifier. Wails calls it while the window
+// Shutdown stops the cleanup schedule, the detector and the notifier. Wails calls it while the window
 // is closing, so a clip in progress still gets flushed to disk.
 func (s *Service) Shutdown(ctx context.Context) {
 	s.mutex.Lock()
@@ -237,8 +277,16 @@ func (s *Service) Shutdown(ctx context.Context) {
 	s.log.Info("shutdown complete")
 }
 
-// pruneOnSchedule reapplies retention and the storage cap until ctx ends.
+// pruneOnSchedule reruns the media cleanup until ctx ends.
 func (s *Service) pruneOnSchedule(ctx context.Context) {
+	// A panic here would end the process under an open window; a missed
+	// cleanup is far cheaper.
+	defer func() {
+		if panicked := recover(); panicked != nil {
+			s.log.Panicked("cleaning up old recordings", panicked)
+		}
+	}()
+
 	ticker := time.NewTicker(mediaPruneInterval)
 	defer ticker.Stop()
 
@@ -247,9 +295,17 @@ func (s *Service) pruneOnSchedule(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			s.pruneExpiredMedia()
+			s.cleanUpMedia()
 		}
 	}
+}
+
+// cleanUpMedia is the one scheduled cleanup: age retention first, then the
+// size cap, then the free-space floor, so each step starts from what the
+// gentler ones already freed.
+func (s *Service) cleanUpMedia() {
+	s.pruneExpiredMedia()
+	s.recycleOldestClips()
 }
 
 func (s *Service) pruneExpiredMedia() {
@@ -261,7 +317,7 @@ func (s *Service) pruneExpiredMedia() {
 	// Prune scans one directory at a time, and snapshots and clips live in
 	// separate ones.
 	for _, directory := range []string{settings.VideoDirectory(), settings.SnapshotDirectory()} {
-		removed, err := media.Prune(directory, settings.Storage.RetentionDays)
+		removed, err := media.Prune(directory, settings.Storage.RetentionDays, settings.Storage.MediaDirectory)
 		if err != nil {
 			s.log.Error("pruning failed", "directory", directory, "error", err)
 			continue
@@ -277,6 +333,7 @@ func (s *Service) pruneExpiredMedia() {
 		[]string{settings.VideoDirectory(), settings.SnapshotDirectory()},
 		settings.Storage.MaxStorageGigabytes,
 		openClips,
+		settings.Storage.MediaDirectory,
 	)
 	if err != nil {
 		s.log.Error("enforcing the storage cap failed", "error", err)
@@ -349,8 +406,11 @@ func (s *Service) Status() StatusView {
 	// way nothing can be promised about the next login.
 	registered, _ := autostart.Enabled()
 
+	hostReading := s.currentHostReading(settings.Storage.MediaDirectory)
+
 	view := StatusView{
 		CameraSource:            describeCameraSource(settings.Detection),
+		CameraLocation:          settings.Detection.CameraLocation,
 		AlertsEnabled:           settings.Telegram.Enabled,
 		AlertsConfigured:        settings.ConfiguredForAlerts(),
 		TelegramConnected:       s.messenger.connected(),
@@ -359,6 +419,17 @@ func (s *Service) Status() StatusView {
 		LogPath:                 s.log.Path(),
 		MediaDirectory:          settings.Storage.MediaDirectory,
 		LastFailure:             lastFail,
+		OnMains:                 hostReading.OnMains,
+	}
+
+	if hostReading.BatteryPercent >= 0 {
+		view.BatteryPercent = &hostReading.BatteryPercent
+	}
+	if hostReading.FreeBytes > 0 {
+		view.DiskFreeBytes = &hostReading.FreeBytes
+	}
+	if hostReading.CelsiusOK {
+		view.TemperatureCelsius = &hostReading.Celsius
 	}
 
 	blocked := s.armBlockedProblem(settings)
@@ -600,8 +671,12 @@ func (s *Service) consumeEvents(session *detectorSession, drained chan struct{})
 			}
 
 		case detector.EventSnapshotSaved:
-			s.deliverSnapshot(event.MediaPath, event.Night)
-			s.deliverDesktopAlert(event.MediaPath, event.Night)
+			// A photo the user asked for is for them to look at here, not
+			// an alert, so it is not sent to their phone or desktop as motion.
+			if !event.Manual {
+				s.deliverSnapshot(event.MediaPath, event.Night)
+				s.deliverDesktopAlert(event.MediaPath, event.Night)
+			}
 
 		case detector.EventClipStarted:
 			s.mutex.Lock()
@@ -713,6 +788,21 @@ func (s *Service) StartManualRecording() ActionResult {
 	session.engine.StartManualRecording()
 
 	return succeeded("Recording now")
+}
+
+// TakeSnapshot saves the current picture as a photo.
+func (s *Service) TakeSnapshot() ActionResult {
+	s.mutex.Lock()
+	session := s.session
+	s.mutex.Unlock()
+
+	if session == nil {
+		return failed("Nothing to photograph yet", "Press Start watching first, then take a snapshot.")
+	}
+
+	session.engine.TakeSnapshot()
+
+	return succeeded("Taking a snapshot…")
 }
 
 // StopManualRecording ends the manual clip in progress.

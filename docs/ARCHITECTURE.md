@@ -25,13 +25,13 @@ Dependencies run in one direction only:
 
 ```
 apps/cli ──┐
-           ├─> internal/detector ─> internal/config
+           ├─> internal/detector ─> internal/config, internal/media
 internal/app ─┤  internal/media   ─> (stdlib only)
            ├─> internal/notify   ─> (stdlib only)
            └─> internal/desktopnotify ─> (D-Bus / Windows toast libraries)
 ```
 
-`detector` imports `config` and nothing else of ours. `media` and `notify`
+`detector` imports `config` and `media` (for the poster path) and nothing else of ours. `media` and `notify`
 import nothing of ours at all. Neither the detector nor either notifier knows the
 other exists; the process that wires them together is the only place they meet.
 That is what makes the notifier swappable and the detector testable without a
@@ -261,6 +261,7 @@ for closing**, with every transfer explicit.
 | `prebuffer` entries | the prebuffer, which clones on `add` | evicted on overflow, or by the caller of `drain` |
 | `clipRequest.lead` | the recorder, transferred by `drain` | `run`, after writing each one |
 | Frames in `recorder.frames` | the recorder, cloned by `submit` | `writeFrame`, or `releasePending` on a failed or finished clip |
+| `clipRequest.poster` | the recorder, a clone made by `beginClip` | `writePoster`, once the JPEG is written or skipped |
 | Preview JPEG | copied out of the native buffer into a Go slice immediately | n/a, `IMEncode` result is closed at once |
 
 `submit` clones because the capture loop reuses one `Mat` for every read; handing
@@ -378,10 +379,24 @@ of the files.
 may be in either, and deletes oldest first until the combined size fits
 `maxStorageGigabytes` (zero or less keeps everything). It runs after `Prune`.
 
-Both run at startup and then hourly while the app or CLI is open; pruning only
-at launch let a camera left running for weeks outgrow both limits. A scheduled
-prune can land mid-recording, so callers pass the clips still being written as
-`inUse`: they count toward the total but are never removed. The open clips are
+Starred recordings are listed by name in `protected.json` in the media
+directory. `Prune`, `PruneToSizeCap` and `RemoveOldestUnprotectedVideo` all read
+it under `protectedMutex` and never delete a starred file, so a star set
+mid-sweep cannot lose to a delete. A clip's poster lives in a hidden `.posters`
+subdirectory (so listings never show it as a recording) and is removed with the
+clip by all three.
+
+`RemoveOldestUnprotectedVideo` is the free-space step: it deletes the oldest
+clip that is neither starred nor still being written, and the desktop service
+calls it repeatedly until `minimumFreeGigabytes` is free on the media drive. A
+free-space reading of zero means "unknown" and never triggers a deletion.
+
+The desktop service has one cleanup, run at startup and then hourly: retention
+`Prune`, then `PruneToSizeCap`, then the free-space step. The CLI runs the first
+two on the same schedule. Cleaning only at launch let a camera left running for
+weeks outgrow the limits. A scheduled cleanup can land mid-recording, so callers
+pass the clips still being written as `inUse`: they count toward the total but
+are never removed. The open clips are
 known from `EventClipStarted` and `EventClipFinished`, which is why the desktop
 service tracks them in `consumeEvents` and the CLI prunes on the same goroutine
 that reads events. `Prune` needs no such list, because an open clip's

@@ -26,12 +26,20 @@ export function DiscoverNetworkCameras() {
   return window['go']['main']['App']['DiscoverNetworkCameras']();
 }
 
+export function ExportRecordings(arg1) {
+  return window['go']['main']['App']['ExportRecordings'](arg1);
+}
+
 export function LogLines() {
   return window['go']['main']['App']['LogLines']();
 }
 
 export function OpenExternally(arg1) {
   return window['go']['main']['App']['OpenExternally'](arg1);
+}
+
+export function OpenRecordingsFolder() {
+  return window['go']['main']['App']['OpenRecordingsFolder']();
 }
 
 export function PreviewFrame() {
@@ -44,6 +52,10 @@ export function RecentEvents() {
 
 export function RescanCameras() {
   return window['go']['main']['App']['RescanCameras']();
+}
+
+export function SaveCameraLocation(arg1) {
+  return window['go']['main']['App']['SaveCameraLocation'](arg1);
 }
 
 export function SaveLiveView(arg1) {
@@ -78,6 +90,10 @@ export function SendRecording(arg1) {
   return window['go']['main']['App']['SendRecording'](arg1);
 }
 
+export function SetProtected(arg1, arg2) {
+  return window['go']['main']['App']['SetProtected'](arg1, arg2);
+}
+
 export function Settings() {
   return window['go']['main']['App']['Settings']();
 }
@@ -96,6 +112,10 @@ export function Status() {
 
 export function StopManualRecording() {
   return window['go']['main']['App']['StopManualRecording']();
+}
+
+export function TakeSnapshot() {
+  return window['go']['main']['App']['TakeSnapshot']();
 }
 
 export function TestCameraURL(arg1) {

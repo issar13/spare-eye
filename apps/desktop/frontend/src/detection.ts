@@ -1,12 +1,11 @@
 import {SaveTuning, Settings} from '../wailsjs/go/main/App';
 import {app} from '../wailsjs/go/models';
-import {showBanner, showResult} from './banner';
+import {hideBanner, showBanner, showResult} from './banner';
 import {requireElement, requireField} from './elements';
 import {formatMinutesOfDay, parseMinutesOfDay} from './format';
 import {applyLevel, levelFor, sensitivityOrder, sensitivityPresets} from './presets';
 import {describeIssue, tuningSchema} from './schemas';
 import {renderSegmented} from './segmented';
-import {clearButtonPending, setButtonPending} from './button-state';
 
 const form = requireElement<HTMLFormElement>('#detection-form');
 const message = requireElement<HTMLElement>('#detection-message');
@@ -38,6 +37,7 @@ export const loadDetectionForm = async (): Promise<void> => {
     requireField(form, 'clipDurationSeconds').value = String(tuning.clipDurationSeconds);
     requireField(form, 'prebufferLeadSeconds').value = String(tuning.prebufferLeadSeconds);
     requireField(form, 'retentionDays').value = String(tuning.retentionDays);
+    requireField(form, 'minimumFreeGigabytes').value = String(tuning.minimumFreeGigabytes);
     requireField(form, 'maxStorageGigabytes').value = String(tuning.maxStorageGigabytes);
 };
 
@@ -87,46 +87,35 @@ const readForm = () => {
         prebufferLeadSeconds: requireField(form, 'prebufferLeadSeconds').value,
         clipDurationSeconds: requireField(form, 'clipDurationSeconds').value,
         retentionDays: requireField(form, 'retentionDays').value,
+        minimumFreeGigabytes: requireField(form, 'minimumFreeGigabytes').value,
         maxStorageGigabytes: requireField(form, 'maxStorageGigabytes').value,
     });
 };
 
-export const registerDetectionHandlers = (onSettingsChanged: () => void): void => {
-    form.addEventListener('submit', async (submission) => {
-        submission.preventDefault();
+// saveDetection is run by the Settings save bar alongside the other sections. It
+// reports into its own banner and tells the bar whether it went through.
+export const saveDetection = async (): Promise<boolean> => {
+    const parsed = readForm();
+    if (!parsed.success) {
+        showBanner(message, describeIssue(parsed.error), 'error');
+        return false;
+    }
 
-        const saveButton = form.querySelector<HTMLButtonElement>('button[type="submit"]');
-        if (saveButton === null || saveButton.disabled) {
-            return;
-        }
-
-        const parsed = readForm();
-        if (!parsed.success) {
-            showBanner(message, describeIssue(parsed.error), 'error');
-            return;
-        }
-
-        saveButton.disabled = true;
-        setButtonPending(saveButton, true);
-        const originalLabel = saveButton.textContent;
-        saveButton.textContent = 'Saving…';
-        showBanner(message, 'Saving your motion settings…');
-
-        try {
-            const result = await SaveTuning(app.TuningForm.createFrom(parsed.data));
+    try {
+        const result = await SaveTuning(app.TuningForm.createFrom(parsed.data));
+        if (result.ok) {
+            hideBanner(message);
+            await loadDetectionForm();
+        } else {
             showResult(message, result);
-
-            if (result.ok) {
-                await loadDetectionForm();
-            }
-
-            onSettingsChanged();
-        } catch (error) {
-            showBanner(message, error instanceof Error ? error.message : 'Could not save motion settings.', 'error');
-        } finally {
-            await clearButtonPending(saveButton);
-            saveButton.disabled = false;
-            saveButton.textContent = originalLabel;
         }
-    });
+        return result.ok;
+    } catch (error) {
+        showBanner(message, error instanceof Error ? error.message : 'Could not save motion settings.', 'error');
+        return false;
+    }
+};
+
+export const registerDetectionHandlers = (): void => {
+    form.addEventListener('submit', (submission) => submission.preventDefault());
 };

@@ -121,6 +121,7 @@ type Detector struct {
 
 	manualStart chan struct{}
 	manualStop  chan struct{}
+	snapshotNow chan struct{}
 
 	// preview holds the most recent JPEG-encoded frame for the UI.
 	preview atomic.Pointer[[]byte]
@@ -155,6 +156,7 @@ func New(settings config.Config) *Detector {
 		events:      make(chan Event, 64),
 		manualStart: make(chan struct{}, 1),
 		manualStop:  make(chan struct{}, 1),
+		snapshotNow: make(chan struct{}, 1),
 	}
 	created.status.Store(&Status{})
 	created.SetPreview(settings.Detection.PreviewFPS, settings.Detection.PreviewQuality)
@@ -191,6 +193,15 @@ func (d *Detector) StartManualRecording() {
 func (d *Detector) StopManualRecording() {
 	select {
 	case d.manualStop <- struct{}{}:
+	default:
+	}
+}
+
+// TakeSnapshot asks for the current frame to be saved as a photo. Requests
+// arriving before the capture loop has serviced the last one are discarded.
+func (d *Detector) TakeSnapshot() {
+	select {
+	case d.snapshotNow <- struct{}{}:
 	default:
 	}
 }
@@ -437,7 +448,7 @@ func (d *Detector) processFrames(
 		}
 
 		if time.Since(lastAlert) >= profile.AlertCooldown.AsDuration() {
-			if path, err := d.saveSnapshot(*frame, night); err != nil {
+			if path, err := d.saveSnapshot(*frame, motionSnapshotPrefix, "2006-01-02_15-04-05"); err != nil {
 				d.publish(Event{Kind: EventFailure, Err: err})
 			} else {
 				lastAlert = time.Now()
@@ -446,7 +457,7 @@ func (d *Detector) processFrames(
 		}
 
 		if time.Since(motionSince) >= d.settings.Detection.MotionPersist.AsDuration() {
-			d.beginAutomaticClip(frameSize, captureFPS, history)
+			d.beginAutomaticClip(*frame, frameSize, captureFPS, history)
 			// Cleared so a single sustained event cannot immediately queue a
 			// second clip the moment this one finishes.
 			motionSince = time.Now()
@@ -492,8 +503,17 @@ func (d *Detector) isNight(now time.Time) bool {
 	return minutes >= start || minutes < end
 }
 
-func (d *Detector) saveSnapshot(frame gocv.Mat, night bool) (string, error) {
-	name := fmt.Sprintf("motion_%s.jpg", time.Now().Format("2006-01-02_15-04-05"))
+// The prefix decides how the media list classifies a photo: "manual_" marks one
+// the user asked for.
+const (
+	motionSnapshotPrefix = "motion_"
+	manualSnapshotPrefix = "manual_"
+)
+
+// saveSnapshot writes the frame as a JPEG named from the prefix and the current
+// time, formatted with timestampLayout.
+func (d *Detector) saveSnapshot(frame gocv.Mat, prefix, timestampLayout string) (string, error) {
+	name := fmt.Sprintf("%s%s.jpg", prefix, time.Now().Format(timestampLayout))
 	path := filepath.Join(d.settings.SnapshotDirectory(), name)
 
 	if !gocv.IMWrite(path, frame) {
@@ -574,12 +594,18 @@ func (d *Detector) feedActiveRecording(frame gocv.Mat) {
 	}
 }
 
-// handleManualRequests services start and stop requests arriving from the UI or
-// a notifier command.
+// handleManualRequests services start, stop and snapshot requests arriving from
+// the UI or a notifier command.
 func (d *Detector) handleManualRequests(frame gocv.Mat, frameSize image.Point, captureFPS float64, history *prebuffer) {
 	select {
 	case <-d.manualStart:
-		d.beginClip(frameSize, captureFPS, history, true)
+		d.beginClip(frame, frameSize, captureFPS, history, true)
+	default:
+	}
+
+	select {
+	case <-d.snapshotNow:
+		d.takeManualSnapshot(frame)
 	default:
 	}
 
@@ -600,11 +626,25 @@ func (d *Detector) handleManualRequests(frame gocv.Mat, frameSize image.Point, c
 	}
 }
 
-func (d *Detector) beginAutomaticClip(frameSize image.Point, captureFPS float64, history *prebuffer) {
-	d.beginClip(frameSize, captureFPS, history, false)
+// takeManualSnapshot writes on the capture goroutine, as the motion snapshot
+// does: one JPEG the user just asked for costs a single frame's delay, which
+// is not worth a goroutine and a clone of the frame. Milliseconds in the name
+// keep two presses within the same second from overwriting each other.
+func (d *Detector) takeManualSnapshot(frame gocv.Mat) {
+	path, err := d.saveSnapshot(frame, manualSnapshotPrefix, "2006-01-02_15-04-05.000")
+	if err != nil {
+		d.publish(Event{Kind: EventFailure, Err: err})
+		return
+	}
+
+	d.publish(Event{Kind: EventSnapshotSaved, Manual: true, MediaPath: path})
 }
 
-func (d *Detector) beginClip(frameSize image.Point, captureFPS float64, history *prebuffer, manual bool) {
+func (d *Detector) beginAutomaticClip(frame gocv.Mat, frameSize image.Point, captureFPS float64, history *prebuffer) {
+	d.beginClip(frame, frameSize, captureFPS, history, false)
+}
+
+func (d *Detector) beginClip(frame gocv.Mat, frameSize image.Point, captureFPS float64, history *prebuffer, manual bool) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -626,6 +666,9 @@ func (d *Detector) beginClip(frameSize image.Point, captureFPS float64, history 
 		frameSize: frameSize,
 		manual:    manual,
 		lead:      history.drain(),
+		// Cloned because the capture loop reuses frame for its next read. The
+		// recorder takes ownership and closes the clone.
+		poster: frame.Clone(),
 	}
 	if !manual {
 		request.duration = d.settings.Detection.ClipDuration.AsDuration()

@@ -42,6 +42,9 @@ export const tuningSchema = z.object({
     retentionDays: z.coerce.number().int().nonnegative(
         'The number of days to keep recordings cannot be negative. Use 0 to keep them forever.',
     ),
+    minimumFreeGigabytes: z.coerce.number().int().nonnegative(
+        'The free space to keep cannot be negative. Use 0 to turn this off.',
+    ),
     maxStorageGigabytes: z.coerce.number().nonnegative(
         'The most disk space recordings may use cannot be negative. Use 0 for no limit.',
     ),
@@ -93,5 +96,12 @@ export const cameraStreamSchema = z.object({
             'then name the camera, as in rtsp://192.168.1.50:554/stream.',
         ),
 });
+
+// The room name is a label on the screens, never a lookup key, so any text is
+// fine as long as it fits the overlay. The Go service enforces the same limit.
+export const cameraLocationSchema = z.string().trim().max(
+    40,
+    'Use 40 characters or fewer for the camera location, such as Living Room or Front Door.',
+);
 
 export const describeIssue = (error: z.ZodError): string => error.issues[0].message;

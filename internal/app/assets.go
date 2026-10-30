@@ -5,12 +5,15 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	"spareeye/internal/media"
 )
 
 const (
 	previewRoute  = "/preview.jpg"
 	snapshotRoute = "/media/snapshots/"
 	videoRoute    = "/media/videos/"
+	posterRoute   = "/media/posters/"
 )
 
 // AssetHandler serves what cannot be embedded in the binary: the live camera
@@ -25,6 +28,7 @@ func (s *Service) AssetHandler() http.Handler {
 	router.HandleFunc(previewRoute, s.servePreview)
 	router.HandleFunc(snapshotRoute, s.serveMedia)
 	router.HandleFunc(videoRoute, s.serveMedia)
+	router.HandleFunc(posterRoute, s.serveMedia)
 
 	return router
 }
@@ -50,8 +54,11 @@ func (s *Service) serveMedia(writer http.ResponseWriter, request *http.Request) 
 	s.mutex.Unlock()
 
 	directory := videos
-	if strings.HasPrefix(request.URL.Path, snapshotRoute) {
+	switch {
+	case strings.HasPrefix(request.URL.Path, snapshotRoute):
 		directory = snapshots
+	case strings.HasPrefix(request.URL.Path, posterRoute):
+		directory = media.PosterDirectory(videos)
 	}
 
 	// Only a bare file name is accepted. The request path reaches here from a

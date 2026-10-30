@@ -75,11 +75,11 @@ export namespace app {
 	}
 	export class NotificationsForm {
 	    desktop: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new NotificationsForm(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.desktop = source["desktop"];
@@ -109,6 +109,8 @@ export namespace app {
 	    createdAt: string;
 	    manual: boolean;
 	    video: boolean;
+	    protected: boolean;
+	    posterURL: string;
 
 	    static createFrom(source: any = {}) {
 	        return new RecordingView(source);
@@ -123,6 +125,8 @@ export namespace app {
 	        this.createdAt = source["createdAt"];
 	        this.manual = source["manual"];
 	        this.video = source["video"];
+	        this.protected = source["protected"];
+	        this.posterURL = source["posterURL"];
 	    }
 	}
 	export class SensitivityForm {
@@ -167,6 +171,7 @@ export namespace app {
 	    clipDurationSeconds: number;
 	    retentionDays: number;
 	    maxStorageGigabytes: number;
+	    minimumFreeGigabytes: number;
 
 	    static createFrom(source: any = {}) {
 	        return new TuningForm(source);
@@ -183,6 +188,7 @@ export namespace app {
 	        this.clipDurationSeconds = source["clipDurationSeconds"];
 	        this.retentionDays = source["retentionDays"];
 	        this.maxStorageGigabytes = source["maxStorageGigabytes"];
+	        this.minimumFreeGigabytes = source["minimumFreeGigabytes"];
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -228,6 +234,7 @@ export namespace app {
 	    cameraIndex: number;
 	    cameraURL: string;
 	    cameraChosen: boolean;
+	    cameraLocation: string;
 	    mediaDirectory: string;
 
 	    static createFrom(source: any = {}) {
@@ -244,6 +251,7 @@ export namespace app {
 	        this.cameraIndex = source["cameraIndex"];
 	        this.cameraURL = source["cameraURL"];
 	        this.cameraChosen = source["cameraChosen"];
+	        this.cameraLocation = source["cameraLocation"];
 	        this.mediaDirectory = source["mediaDirectory"];
 	    }
 
@@ -280,12 +288,17 @@ export namespace app {
 	    frameWidth: number;
 	    frameHeight: number;
 	    cameraSource: string;
+	    cameraLocation: string;
 	    alertsEnabled: boolean;
 	    alertsConfigured: boolean;
 	    telegramConnected: boolean;
 	    launchAtLogin: boolean;
 	    launchAtLoginRegistered: boolean;
 	    canArm: boolean;
+	    batteryPercent?: number;
+	    onMains: boolean;
+	    diskFreeBytes?: number;
+	    temperatureCelsius?: number;
 	    lastFailure: string;
 	    logPath: string;
 	    mediaDirectory: string;
@@ -309,12 +322,17 @@ export namespace app {
 	        this.frameWidth = source["frameWidth"];
 	        this.frameHeight = source["frameHeight"];
 	        this.cameraSource = source["cameraSource"];
+	        this.cameraLocation = source["cameraLocation"];
 	        this.alertsEnabled = source["alertsEnabled"];
 	        this.alertsConfigured = source["alertsConfigured"];
 	        this.telegramConnected = source["telegramConnected"];
 	        this.launchAtLogin = source["launchAtLogin"];
 	        this.launchAtLoginRegistered = source["launchAtLoginRegistered"];
 	        this.canArm = source["canArm"];
+	        this.batteryPercent = source["batteryPercent"];
+	        this.onMains = source["onMains"];
+	        this.diskFreeBytes = source["diskFreeBytes"];
+	        this.temperatureCelsius = source["temperatureCelsius"];
 	        this.lastFailure = source["lastFailure"];
 	        this.logPath = source["logPath"];
 	        this.mediaDirectory = source["mediaDirectory"];

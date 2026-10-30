@@ -147,7 +147,7 @@ func pruneMedia(settings config.Config, openClips []string) {
 	// share of the files even though each one is smaller.
 	prunedTotal := 0
 	for _, directory := range []string{settings.VideoDirectory(), settings.SnapshotDirectory()} {
-		removed, err := media.Prune(directory, settings.Storage.RetentionDays)
+		removed, err := media.Prune(directory, settings.Storage.RetentionDays, settings.Storage.MediaDirectory)
 		if err != nil {
 			fmt.Printf("Retention pruning failed for %s: %v\n", directory, err)
 			continue
@@ -162,6 +162,7 @@ func pruneMedia(settings config.Config, openClips []string) {
 		[]string{settings.VideoDirectory(), settings.SnapshotDirectory()},
 		settings.Storage.MaxStorageGigabytes,
 		openClips,
+		settings.Storage.MediaDirectory,
 	)
 	if err != nil {
 		fmt.Printf("Storage cap pruning failed: %v\n", err)
@@ -285,7 +286,12 @@ func forwardCommands(ctx context.Context, notifier notify.Notifier, engine *dete
 
 		case incoming.Command == notify.CommandListRecordings:
 			fmt.Println("command: list recordings")
-			recordings, err := media.ListVideos(settings.VideoDirectory())
+			protected, err := media.LoadProtected(settings.Storage.MediaDirectory)
+			if err != nil {
+				notifier.Send(ctx, fmt.Sprintf("⚠️ Could not list recordings: %v", err), nil)
+				continue
+			}
+			recordings, err := media.ListVideos(settings.VideoDirectory(), protected)
 			if err != nil {
 				notifier.Send(ctx, fmt.Sprintf("⚠️ Could not list recordings: %v", err), nil)
 				continue
