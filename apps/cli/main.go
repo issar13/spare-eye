@@ -106,6 +106,17 @@ func run(requestedCamera int, disableTelegram bool) error {
 		fmt.Printf("Pruned %d files older than %d days\n", prunedTotal, settings.Storage.RetentionDays)
 	}
 
+	cappedTotal, err := media.PruneToSizeCap(
+		[]string{settings.VideoDirectory(), settings.SnapshotDirectory()},
+		settings.Storage.MaxStorageGigabytes,
+	)
+	if err != nil {
+		fmt.Printf("Storage cap pruning failed: %v\n", err)
+	}
+	if cappedTotal > 0 {
+		fmt.Printf("Pruned %d oldest files to stay under %g GB\n", cappedTotal, settings.Storage.MaxStorageGigabytes)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 

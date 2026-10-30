@@ -221,6 +221,20 @@ func (s *Service) pruneExpiredMedia() {
 			s.log.Info("pruned expired media", "directory", directory, "removed", removed)
 		}
 	}
+
+	// The cap spans both directories, so it cannot be applied per directory
+	// above: the oldest file overall may be in either.
+	removed, err := media.PruneToSizeCap(
+		[]string{settings.VideoDirectory(), settings.SnapshotDirectory()},
+		settings.Storage.MaxStorageGigabytes,
+	)
+	if err != nil {
+		s.log.Error("enforcing the storage cap failed", "error", err)
+		return
+	}
+	if removed > 0 {
+		s.log.Info("pruned media over the storage cap", "removed", removed)
+	}
 }
 
 // Settings returns the persisted configuration in the shape the UI edits.

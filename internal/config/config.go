@@ -126,6 +126,11 @@ type StorageSettings struct {
 	// RetentionDays discards media older than this. Zero keeps everything,
 	// which will fill the disk of anything left running for months.
 	RetentionDays int `json:"retentionDays"`
+
+	// MaxStorageGigabytes caps the combined size of clips and snapshots; the
+	// oldest are deleted first once it is exceeded. Zero means no cap. It is a
+	// float so a small disk can be given a fraction of a gigabyte.
+	MaxStorageGigabytes float64 `json:"maxStorageGigabytes"`
 }
 
 // Duration is a time.Duration that serialises as a readable string such as
@@ -262,6 +267,10 @@ func Load() (Config, error) {
 	// unrelated fields, over a control the user may never have opened.
 	settings.Detection.PreviewFPS = clamp(settings.Detection.PreviewFPS, MinPreviewFPS, MaxPreviewFPS)
 	settings.Detection.PreviewQuality = clamp(settings.Detection.PreviewQuality, MinPreviewQuality, MaxPreviewQuality)
+
+	// A negative cap is meaningless, and zero already means "no cap", so the
+	// nearest valid value is clamped to rather than refusing to start.
+	settings.Storage.MaxStorageGigabytes = max(0, settings.Storage.MaxStorageGigabytes)
 
 	// An installation that predates being asked which camera to use has an index
 	// somebody has been running with, and sending it back to the Setup screen to

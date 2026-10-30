@@ -42,6 +42,9 @@ export const tuningSchema = z.object({
     retentionDays: z.coerce.number().int().nonnegative(
         'The number of days to keep recordings cannot be negative. Use 0 to keep them forever.',
     ),
+    maxStorageGigabytes: z.coerce.number().nonnegative(
+        'The most disk space recordings may use cannot be negative. Use 0 for no limit.',
+    ),
 });
 
 export const liveViewSchema = z.object({

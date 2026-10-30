@@ -328,6 +328,7 @@ func TestValidateTuningRejectsUnusableValues(t *testing.T) {
 		"night start past midnight in minutes": func(form *TuningForm) { form.NightStartMinutes = 1440 },
 		"zero clip duration":                   func(form *TuningForm) { form.ClipDurationSeconds = 0 },
 		"negative retention":                   func(form *TuningForm) { form.RetentionDays = -1 },
+		"negative storage cap":                 func(form *TuningForm) { form.MaxStorageGigabytes = -1 },
 	}
 
 	for name, corrupt := range rejected {

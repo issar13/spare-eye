@@ -113,7 +113,8 @@ type TuningForm struct {
 	PrebufferLeadSeconds float64 `json:"prebufferLeadSeconds"`
 	ClipDurationSeconds  float64 `json:"clipDurationSeconds"`
 
-	RetentionDays int `json:"retentionDays"`
+	RetentionDays       int     `json:"retentionDays"`
+	MaxStorageGigabytes float64 `json:"maxStorageGigabytes"`
 }
 
 // LiveViewForm is the Live view screen's speed and sharpness. Both govern the
@@ -155,6 +156,7 @@ func settingsView(settings config.Config) SettingsView {
 			PrebufferLeadSeconds: settings.Detection.PrebufferLead.AsDuration().Seconds(),
 			ClipDurationSeconds:  settings.Detection.ClipDuration.AsDuration().Seconds(),
 			RetentionDays:        settings.Storage.RetentionDays,
+			MaxStorageGigabytes:  settings.Storage.MaxStorageGigabytes,
 		},
 		LiveView: LiveViewForm{
 			PreviewFPS:     settings.Detection.PreviewFPS,
@@ -435,6 +437,7 @@ func (s *Service) SaveTuning(form TuningForm) ActionResult {
 	updated.Detection.PrebufferLead = seconds(form.PrebufferLeadSeconds)
 	updated.Detection.ClipDuration = seconds(form.ClipDurationSeconds)
 	updated.Storage.RetentionDays = form.RetentionDays
+	updated.Storage.MaxStorageGigabytes = form.MaxStorageGigabytes
 	s.mutex.Unlock()
 
 	if s.persist(updated) != nil {
@@ -558,6 +561,12 @@ func validateTuning(form TuningForm) *Problem {
 		return &Problem{
 			Headline: "That is not a number of days",
 			NextStep: "Set how long to keep recordings to 0 or more days. 0 keeps them forever.",
+		}
+	}
+	if form.MaxStorageGigabytes < 0 {
+		return &Problem{
+			Headline: "That is not a storage limit",
+			NextStep: "Set the most space recordings may use to 0 or more gigabytes. 0 means no limit.",
 		}
 	}
 

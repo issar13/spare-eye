@@ -354,6 +354,12 @@ callers loop over the clip and snapshot directories in turn; pruning only clips
 left snapshots accumulating forever, which on a busy camera is the larger share
 of the files.
 
+`PruneToSizeCap` takes both directories at once, because the oldest file overall
+may be in either, and deletes oldest first until the combined size fits
+`maxStorageGigabytes` (zero or less keeps everything). It runs after `Prune` at
+startup, before capture begins, so no clip is open and none can be deleted
+mid-write.
+
 ## notify
 
 A messaging provider, plus the interface that keeps the detector ignorant of

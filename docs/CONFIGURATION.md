@@ -68,6 +68,7 @@ disables the night profile entirely.
 |---|---|---|
 | `storage.mediaDirectory` | per-user media directory | Where snapshots and clips are written |
 | `storage.retentionDays` | `30` | Recordings older than this are deleted at startup. `0` keeps everything, which will eventually fill the disk |
+| `storage.maxStorageGigabytes` | `0` | Cap on the combined size of clips and snapshots, in gigabytes (fractions allowed). When over, the oldest recordings are deleted at startup, after age-based retention, until the rest fit. `0` means no cap; negative values are treated as `0`. Off by default so upgrading never deletes recordings nobody asked to lose |
 
 Clips are written at the frame rate measured from the camera on startup, not a
 configured one. A guessed rate is what makes recordings play back too fast or too
