@@ -11,13 +11,14 @@ publish = "site"
 # to run.
 command = ""
 
-# The page loads no scripts, styles, fonts or images from anywhere but itself.
+# The page loads no scripts, styles, fonts or images from anywhere but itself;
+# Inter is self-hosted under site/fonts for that reason.
 # Saying so here turns that from something we have to remember into something the
 # browser enforces.
 [[headers]]
 for = "/*"
   [headers.values]
-  Content-Security-Policy = "default-src 'none'; style-src 'self'; script-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+  Content-Security-Policy = "default-src 'none'; style-src 'self'; font-src 'self'; script-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
   X-Content-Type-Options = "nosniff"
   Referrer-Policy = "no-referrer"
   X-Frame-Options = "DENY"
