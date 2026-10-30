@@ -34,6 +34,10 @@ export function OpenExternally(arg1) {
   return window['go']['main']['App']['OpenExternally'](arg1);
 }
 
+export function OpenRecordingsFolder() {
+  return window['go']['main']['App']['OpenRecordingsFolder']();
+}
+
 export function PreviewFrame() {
   return window['go']['main']['App']['PreviewFrame']();
 }

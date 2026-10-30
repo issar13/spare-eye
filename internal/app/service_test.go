@@ -81,6 +81,56 @@ func TestResolveMediaRejectsPathsOutsideTheMediaDirectory(t *testing.T) {
 	}
 }
 
+func TestOpenTargetOnlyAcceptsFilesDirectlyInTheMediaDirectories(t *testing.T) {
+	service := newTestService(t)
+	mediaDirectory := service.Settings().MediaDirectory
+
+	siblingDirectory := filepath.Join(mediaDirectory, "other")
+	if err := os.MkdirAll(siblingDirectory, 0o700); err != nil {
+		t.Fatalf("creating sibling directory: %v", err)
+	}
+
+	clipPath := filepath.Join(mediaDirectory, "videos", "motion_2026-01-01_00-00-00.mp4")
+	if err := os.WriteFile(clipPath, []byte("not really video"), 0o600); err != nil {
+		t.Fatalf("writing clip: %v", err)
+	}
+
+	resolved, err := service.OpenTarget(clipPath)
+	if err != nil || resolved != clipPath {
+		t.Fatalf("OpenTarget(%q) returned %q, error %v", clipPath, resolved, err)
+	}
+
+	refused := []string{
+		"/etc/passwd",
+		filepath.Join(mediaDirectory, "videos", "..", "..", "config.json"),
+		filepath.Join(siblingDirectory, "clip.mp4"),
+	}
+
+	for _, path := range refused {
+		if _, err := service.OpenTarget(path); err == nil {
+			t.Errorf("OpenTarget(%q) was accepted, want rejection", path)
+		}
+	}
+}
+
+func TestRecordingsFolderCreatesTheMediaDirectory(t *testing.T) {
+	service := newTestService(t)
+
+	missing := filepath.Join(t.TempDir(), "not-yet-created")
+	service.mutex.Lock()
+	service.settings.Storage.MediaDirectory = missing
+	service.mutex.Unlock()
+
+	folder, err := service.RecordingsFolder()
+	if err != nil || folder != missing {
+		t.Fatalf("RecordingsFolder returned %q, error %v", folder, err)
+	}
+
+	if _, err := os.Stat(missing); err != nil {
+		t.Fatalf("media directory was not created: %v", err)
+	}
+}
+
 func TestAssetHandlerServesMediaAndRefusesTraversal(t *testing.T) {
 	service := newTestService(t)
 	settings := service.Settings()

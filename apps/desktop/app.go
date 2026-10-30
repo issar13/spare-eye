@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"net/url"
-	"path/filepath"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -117,16 +116,33 @@ func (a *App) LogLines() []string { return a.service.LogLines() }
 // OpenExternally hands a recording to the desktop's default player.
 //
 // Clips are written with the mp4v codec, which WebKit does not decode, so the
-// in-app player cannot be the only way to watch one.
+// in-app player cannot be the only way to watch one. The path is checked
+// against the media directories, since opening runs whatever program the OS
+// associates with the file.
 func (a *App) OpenExternally(path string) app.ActionResult {
-	if !filepath.IsAbs(path) {
+	resolved, err := a.service.OpenTarget(path)
+	if err != nil {
+		return app.NotARecording()
+	}
+
+	runtime.BrowserOpenURL(a.windowContext, (&url.URL{Scheme: "file", Path: resolved}).String())
+
+	return app.ActionResult{OK: true, Headline: "Opening in your video player"}
+}
+
+// OpenRecordingsFolder opens the media directory in the file manager. It takes
+// no argument: the webview never names the folder, so it cannot be steered
+// anywhere but the one the settings point at.
+func (a *App) OpenRecordingsFolder() app.ActionResult {
+	folder, err := a.service.RecordingsFolder()
+	if err != nil {
 		return app.ActionResult{
-			Headline: "That recording could not be opened",
-			NextStep: "Press Refresh to reload the list, then try again.",
+			Headline: "Your recordings folder could not be opened",
+			NextStep: "Check that the folder in Settings exists and that SpareEye may write to it.",
 		}
 	}
 
-	runtime.BrowserOpenURL(a.windowContext, (&url.URL{Scheme: "file", Path: path}).String())
+	runtime.BrowserOpenURL(a.windowContext, (&url.URL{Scheme: "file", Path: folder}).String())
 
-	return app.ActionResult{OK: true, Headline: "Opening in your video player"}
+	return app.ActionResult{OK: true, Headline: "Opening your recordings folder"}
 }

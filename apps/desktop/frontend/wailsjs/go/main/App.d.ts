@@ -20,6 +20,8 @@ export function LogLines():Promise<Array<string>>;
 
 export function OpenExternally(arg1:string):Promise<app.ActionResult>;
 
+export function OpenRecordingsFolder():Promise<app.ActionResult>;
+
 export function PreviewFrame():Promise<string>;
 
 export function RecentEvents():Promise<Array<app.EventView>>;

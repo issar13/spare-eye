@@ -73,7 +73,7 @@ func recordingViews(recordings []media.Recording, route string, video bool) []Re
 func (s *Service) DeleteRecording(path string) ActionResult {
 	resolved, _, err := s.resolveMedia(path)
 	if err != nil {
-		return notARecording()
+		return NotARecording()
 	}
 
 	if err := os.Remove(resolved); err != nil {
@@ -93,7 +93,7 @@ func (s *Service) DeleteRecording(path string) ActionResult {
 func (s *Service) SendRecording(path string) ActionResult {
 	resolved, kind, err := s.resolveMedia(path)
 	if err != nil {
-		return notARecording()
+		return NotARecording()
 	}
 
 	if !s.messenger.connected() {
@@ -113,9 +113,33 @@ func (s *Service) SendRecording(path string) ActionResult {
 	return succeeded("Sending " + name + " to Telegram…")
 }
 
-// notARecording covers a path that is not in the media folders. A user cannot
+// OpenTarget confirms a path is a recording before the desktop is asked to open
+// it. Opening hands the path to whatever program the OS associates with it, so
+// an unchecked path would let the webview launch any file on disk.
+func (s *Service) OpenTarget(path string) (string, error) {
+	resolved, _, err := s.resolveMedia(path)
+
+	return resolved, err
+}
+
+// RecordingsFolder returns the media directory, creating it first. The folder
+// is chosen from settings rather than by the webview, and may not exist yet on
+// a fresh install that has not recorded anything.
+func (s *Service) RecordingsFolder() (string, error) {
+	s.mutex.Lock()
+	directory := s.settings.Storage.MediaDirectory
+	s.mutex.Unlock()
+
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		return "", err
+	}
+
+	return directory, nil
+}
+
+// NotARecording covers a path that is not in the media folders. A user cannot
 // reach this through the UI, so the wording only has to be non-alarming.
-func notARecording() ActionResult {
+func NotARecording() ActionResult {
 	return failed(
 		"That file is not one of your recordings",
 		"Press Refresh to reload the list.",

@@ -1,5 +1,5 @@
 import {format, parseISO} from 'date-fns';
-import {Arm, Disarm, LogLines, OpenExternally, StartManualRecording, StopManualRecording} from '../wailsjs/go/main/App';
+import {Arm, Disarm, LogLines, OpenExternally, OpenRecordingsFolder, StartManualRecording, StopManualRecording} from '../wailsjs/go/main/App';
 import type {app} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
 import {clearButtonPending, setButtonPending} from './button-state';
@@ -39,9 +39,6 @@ const recentClipLimit = 4;
 let busy = false;
 let recordingBusy = false;
 
-// The folder recordings go to, kept for the Open Folder buttons.
-let recordingsFolder = '';
-
 // The clip names last drawn, so the two-second refresh only rebuilds the cards
 // (and reloads their videos) when a clip has actually come or gone.
 let shownClipNames = '';
@@ -76,7 +73,6 @@ export const updateHome = (status: app.StatusView): void => {
     feedFps.textContent = status.captureFPS === 0 ? 'Not measured yet' : `Capturing • ${status.captureFPS.toFixed(1)} fps`;
     feedSize.textContent = status.frameWidth === 0 ? 'Picture size unknown' : `${status.frameWidth} × ${status.frameHeight}`;
 
-    recordingsFolder = status.mediaDirectory;
     mediaDirectory.textContent = status.mediaDirectory;
 
     renderGuide(status.problem);
@@ -274,7 +270,7 @@ const renderClipCard = (clip: app.RecordingView): HTMLElement => {
 };
 
 export const openRecordingsFolder = async (): Promise<void> => {
-    const result = await OpenExternally(recordingsFolder);
+    const result = await OpenRecordingsFolder();
     if (result.ok) {
         hideBanner(messageBanner);
     } else {
