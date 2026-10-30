@@ -3,6 +3,7 @@ import type {app} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
 import {requireElement} from './elements';
 import {formatElapsedSeconds, formatWhen} from './format';
+import {guideText} from './home-guide';
 import {loadRecentEvents} from './queries';
 
 const heroDot = requireElement<HTMLElement>('#hero-dot');
@@ -46,10 +47,10 @@ export const updateHome = (status: app.StatusView): void => {
 // obstacle itself is already the hero headline, and its remedy the explanation
 // underneath, so only the pointer to the guide is left to add.
 const renderGuide = (problem: app.Problem | null | undefined): void => {
-    const path = problem?.docPath ?? '';
+    const text = guideText(problem);
 
-    heroGuide.hidden = path === '';
-    heroGuide.textContent = path === '' ? '' : `Step-by-step instructions are in ${path}`;
+    heroGuide.hidden = text === '';
+    heroGuide.textContent = text;
 };
 
 // renderDiagnostics is the only place the technical numbers appear, and it
