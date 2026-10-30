@@ -447,6 +447,14 @@
                     <span>days</span>
                 </div>
 
+                <div class="inset inline-setting">
+                    <i class="icon i-broom tint-green"></i>
+                    <span class="grow"><strong>Keep free space on the drive</strong><small>While SpareEye runs, the oldest recordings are removed if space drops below this. Starred ones are kept. Set 0 to turn this off.</small></span>
+                    <span>Keep at least</span>
+                    <input form="detection-form" min="0" name="minimumFreeGigabytes" step="1" type="number"/>
+                    <span>GB free</span>
+                </div>
+
                 <div class="inset" id="live-view-section">
                     <h4><i class="icon i-gauge tint-blue"></i>Live view picture</h4>
                     <p class="hint">This changes only the picture on the Live screen. Saved recordings stay at full quality.</p>

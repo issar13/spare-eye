@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -193,6 +194,12 @@ func (a *App) ExportRecordings(collection string) app.ActionResult {
 
 	if destination == "" {
 		return app.ActionResult{OK: true, Headline: "Export cancelled"}
+	}
+
+	// Some platforms' save dialogs return exactly what was typed, so a name
+	// without the extension would produce a zip nothing opens on double-click.
+	if !strings.EqualFold(filepath.Ext(destination), ".zip") {
+		destination += ".zip"
 	}
 
 	if err := a.service.WriteExportArchive(paths, destination); err != nil {

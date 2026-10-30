@@ -24,6 +24,7 @@ const (
 	eventClipSaved     = "recording-saved"
 	eventAlertSent     = "alert-sent"
 	eventAlertFailed   = "alert-failed"
+	eventClipRecycled  = "recording-recycled"
 	eventTrouble       = "trouble"
 )
 

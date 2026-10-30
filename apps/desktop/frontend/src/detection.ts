@@ -37,6 +37,7 @@ export const loadDetectionForm = async (): Promise<void> => {
     requireField(form, 'clipDurationSeconds').value = String(tuning.clipDurationSeconds);
     requireField(form, 'prebufferLeadSeconds').value = String(tuning.prebufferLeadSeconds);
     requireField(form, 'retentionDays').value = String(tuning.retentionDays);
+    requireField(form, 'minimumFreeGigabytes').value = String(tuning.minimumFreeGigabytes);
 };
 
 const renderSensitivity = (): void => {
@@ -85,6 +86,7 @@ const readForm = () => {
         prebufferLeadSeconds: requireField(form, 'prebufferLeadSeconds').value,
         clipDurationSeconds: requireField(form, 'clipDurationSeconds').value,
         retentionDays: requireField(form, 'retentionDays').value,
+        minimumFreeGigabytes: requireField(form, 'minimumFreeGigabytes').value,
     });
 };
 

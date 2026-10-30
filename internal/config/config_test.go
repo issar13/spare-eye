@@ -414,6 +414,9 @@ func TestLoadKeepsDefaultsForFieldsAbsentFromTheFile(t *testing.T) {
 		t.Errorf("retention = %d, want the default %d",
 			settings.Storage.RetentionDays, defaults.Storage.RetentionDays)
 	}
+	if settings.Storage.MinimumFreeGigabytes != 5 {
+		t.Errorf("minimum free space = %d GB, want the default 5", settings.Storage.MinimumFreeGigabytes)
+	}
 
 	// A config.json saved before the live view became configurable names neither
 	// preview field. Landing on zero would give the settings screen a frame rate

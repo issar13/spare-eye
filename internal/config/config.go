@@ -126,6 +126,11 @@ type StorageSettings struct {
 	// RetentionDays discards media older than this. Zero keeps everything,
 	// which will fill the disk of anything left running for months.
 	RetentionDays int `json:"retentionDays"`
+
+	// MinimumFreeGigabytes is the free space on the media drive below which
+	// the oldest unstarred clips are recycled while the app runs, whatever
+	// their age. Zero turns that off.
+	MinimumFreeGigabytes int `json:"minimumFreeGigabytes"`
 }
 
 // Duration is a time.Duration that serialises as a readable string such as
@@ -182,7 +187,7 @@ func Default() Config {
 			PreviewFPS:        12,
 			PreviewQuality:    80,
 		},
-		Storage: StorageSettings{RetentionDays: 30},
+		Storage: StorageSettings{RetentionDays: 30, MinimumFreeGigabytes: 5},
 		// Both startup choices stay off until they are asked for. A fresh
 		// install that registered itself with the operating system, or reached
 		// for the webcam on its own, would be doing something nobody agreed to.

@@ -550,3 +550,63 @@ func TestPruneKeepsProtectedRecordingsAndTheirPosters(t *testing.T) {
 		}
 	}
 }
+
+func TestRemoveOldestUnprotectedVideoSkipsStarredClipsAndTakesThePoster(t *testing.T) {
+	mediaDirectory := t.TempDir()
+	videoDirectory := filepath.Join(mediaDirectory, "videos")
+	if err := os.MkdirAll(PosterDirectory(videoDirectory), 0o700); err != nil {
+		t.Fatalf("creating the poster directory returned %v", err)
+	}
+	now := time.Now()
+
+	starredPath := writeRecording(t, videoDirectory, "starred.mp4", 10, now.Add(-3*time.Hour))
+	oldestPath := writeRecording(t, videoDirectory, "oldest.mp4", 10, now.Add(-2*time.Hour))
+	newestPath := writeRecording(t, videoDirectory, "newest.mp4", 10, now.Add(-time.Hour))
+	writeRecording(t, PosterDirectory(videoDirectory), "oldest.mp4.jpg", 10, now)
+
+	if err := SetProtected(mediaDirectory, "starred.mp4", true); err != nil {
+		t.Fatalf("SetProtected returned %v", err)
+	}
+
+	removed, err := RemoveOldestUnprotectedVideo(videoDirectory, mediaDirectory)
+	if err != nil {
+		t.Fatalf("RemoveOldestUnprotectedVideo returned %v", err)
+	}
+	if removed != "oldest.mp4" {
+		t.Fatalf("removed %q, want oldest.mp4", removed)
+	}
+
+	for _, path := range []string{oldestPath, PosterPath(oldestPath)} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Errorf("%s should be gone, Stat returned %v", path, err)
+		}
+	}
+	for _, path := range []string{starredPath, newestPath} {
+		if _, err := os.Stat(path); err != nil {
+			t.Errorf("%s should remain, Stat returned %v", path, err)
+		}
+	}
+}
+
+func TestRemoveOldestUnprotectedVideoRemovesNothingWhenNothingQualifies(t *testing.T) {
+	mediaDirectory := t.TempDir()
+	videoDirectory := filepath.Join(mediaDirectory, "videos")
+	if err := os.MkdirAll(videoDirectory, 0o700); err != nil {
+		t.Fatalf("creating the video directory returned %v", err)
+	}
+
+	removed, err := RemoveOldestUnprotectedVideo(videoDirectory, mediaDirectory)
+	if err != nil || removed != "" {
+		t.Fatalf("an empty directory gave %q, %v; want nothing", removed, err)
+	}
+
+	writeRecording(t, videoDirectory, "starred.mp4", 10, time.Now())
+	if err := SetProtected(mediaDirectory, "starred.mp4", true); err != nil {
+		t.Fatalf("SetProtected returned %v", err)
+	}
+
+	removed, err = RemoveOldestUnprotectedVideo(videoDirectory, mediaDirectory)
+	if err != nil || removed != "" {
+		t.Fatalf("a directory of starred clips gave %q, %v; want nothing", removed, err)
+	}
+}

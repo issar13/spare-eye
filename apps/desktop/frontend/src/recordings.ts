@@ -35,7 +35,7 @@ export const refreshRecordings = async (): Promise<void> => {
             Settings(),
         ]);
 
-        renderUsage(clips, snapshots, settings.tuning.retentionDays);
+        renderUsage(clips, snapshots, settings.tuning.retentionDays, settings.tuning.minimumFreeGigabytes);
         render(recordingsToShow(clips, snapshots));
     } catch {
         // The listing only fails if the recordings folder cannot be read, which
@@ -92,7 +92,7 @@ const render = (recordings: app.RecordingView[]): void => {
 
 // renderUsage sums what the Go side reported for each file, so the figure is the
 // space these recordings take, not the free space left on the drive.
-const renderUsage = (clips: app.RecordingView[], snapshots: app.RecordingView[], days: number): void => {
+const renderUsage = (clips: app.RecordingView[], snapshots: app.RecordingView[], days: number, minimumFreeGigabytes: number): void => {
     const megabytes = [...clips, ...snapshots].reduce((sum, recording) => sum + recording.sizeMegabytes, 0);
 
     total.textContent = megabytes >= 1024 ? `${(megabytes / 1024).toFixed(1)} GB` : `${megabytes.toFixed(1)} MB`;
@@ -107,15 +107,19 @@ const renderUsage = (clips: app.RecordingView[], snapshots: app.RecordingView[],
         tab.textContent = `${tabLabels[collection]} (${counts[collection]})`;
     });
 
+    const recycling = minimumFreeGigabytes > 0
+        ? ` • Recycles the oldest clips if free space drops under ${minimumFreeGigabytes} GB`
+        : '';
+
     if (days === 0) {
-        retention.textContent = '• Kept until you delete them';
+        retention.textContent = `• Kept until you delete them${recycling}`;
         retentionDays.textContent = 'Keeps everything';
         cleanup.textContent = 'Automatic cleanup is off, so recordings stay until you delete them.';
         protection.textContent = 'Automatic cleanup is off. Turn it on to stop old clips from filling your laptop’s drive.';
         return;
     }
 
-    retention.textContent = `• Auto-clears after ${days} days`;
+    retention.textContent = `• Auto-clears after ${days} days${recycling}`;
     retentionDays.textContent = `Auto-clears after ${days}d`;
     cleanup.textContent = `Recordings older than ${days} days are removed each time SpareEye starts. Starred recordings are never removed automatically.`;
     protection.textContent = `Old clips are removed automatically after ${days} days, so your laptop’s drive never fills up. Starred recordings are never removed automatically.`;

@@ -158,6 +158,7 @@ export namespace app {
 	    prebufferLeadSeconds: number;
 	    clipDurationSeconds: number;
 	    retentionDays: number;
+	    minimumFreeGigabytes: number;
 
 	    static createFrom(source: any = {}) {
 	        return new TuningForm(source);
@@ -173,6 +174,7 @@ export namespace app {
 	        this.prebufferLeadSeconds = source["prebufferLeadSeconds"];
 	        this.clipDurationSeconds = source["clipDurationSeconds"];
 	        this.retentionDays = source["retentionDays"];
+	        this.minimumFreeGigabytes = source["minimumFreeGigabytes"];
 	    }
 
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

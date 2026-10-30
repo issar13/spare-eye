@@ -56,6 +56,11 @@ type Service struct {
 	hostReadAt     time.Time
 	readHost       func(directory string) host.Reading
 	currentTimeFor func() time.Time
+
+	// stopCleanup and cleanupFinished belong to the periodic cleanup loop,
+	// which runs from Startup until Shutdown.
+	stopCleanup     context.CancelFunc
+	cleanupFinished chan struct{}
 }
 
 // hostReadingMaxAge is how stale the battery, disk and temperature figures may
@@ -134,6 +139,7 @@ func (s *Service) Startup(ctx context.Context) {
 	}
 
 	s.pruneExpiredMedia()
+	s.startCleanupLoop()
 	s.restartMessenger()
 
 	// Probing opens every device in turn, which takes long enough to be worth
@@ -235,9 +241,10 @@ func containsCamera(cameras []detector.Camera, index int) bool {
 	})
 }
 
-// Shutdown stops the detector and the notifier. Wails calls it while the window
+// Shutdown stops the cleanup loop, the detector and the notifier. Wails calls it while the window
 // is closing, so a clip in progress still gets flushed to disk.
 func (s *Service) Shutdown(ctx context.Context) {
+	s.stopCleanupLoop()
 	s.stopSession()
 	s.messenger.stop()
 	s.log.Info("shutdown complete")

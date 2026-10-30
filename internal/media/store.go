@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -147,6 +148,42 @@ func Prune(directory string, retentionDays int, mediaDirectory string) (int, err
 	}
 
 	return removed, nil
+}
+
+// RemoveOldestUnprotectedVideo deletes the oldest clip in videoDirectory that
+// is not starred, along with its poster, and returns its name. An empty name
+// means there was nothing it was allowed to remove. It takes protectedMutex for
+// the same reason Prune does: a star set mid-sweep must never lose to a delete.
+func RemoveOldestUnprotectedVideo(videoDirectory, mediaDirectory string) (string, error) {
+	protectedMutex.Lock()
+	defer protectedMutex.Unlock()
+
+	protected, err := loadProtected(mediaDirectory)
+	if err != nil {
+		return "", err
+	}
+
+	clips, err := list(videoDirectory, ".mp4", protected)
+	if err != nil {
+		return "", err
+	}
+
+	removable := slices.DeleteFunc(clips, func(clip Recording) bool { return clip.Protected })
+	if len(removable) == 0 {
+		return "", nil
+	}
+
+	// Listings run newest first, so the oldest clip is the last one.
+	oldest := removable[len(removable)-1]
+
+	if err := os.Remove(oldest.Path); err != nil {
+		return "", fmt.Errorf("removing %s: %w", oldest.Path, err)
+	}
+	if err := os.Remove(PosterPath(oldest.Path)); err != nil && !os.IsNotExist(err) {
+		return oldest.Name, fmt.Errorf("removing poster for %s: %w", oldest.Path, err)
+	}
+
+	return oldest.Name, nil
 }
 
 const protectedFileName = "protected.json"

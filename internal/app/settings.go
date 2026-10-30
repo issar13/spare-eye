@@ -121,7 +121,8 @@ type TuningForm struct {
 	PrebufferLeadSeconds float64 `json:"prebufferLeadSeconds"`
 	ClipDurationSeconds  float64 `json:"clipDurationSeconds"`
 
-	RetentionDays int `json:"retentionDays"`
+	RetentionDays        int `json:"retentionDays"`
+	MinimumFreeGigabytes int `json:"minimumFreeGigabytes"`
 }
 
 // LiveViewForm is the Live view screen's speed and sharpness. Both govern the
@@ -163,6 +164,7 @@ func settingsView(settings config.Config) SettingsView {
 			PrebufferLeadSeconds: settings.Detection.PrebufferLead.AsDuration().Seconds(),
 			ClipDurationSeconds:  settings.Detection.ClipDuration.AsDuration().Seconds(),
 			RetentionDays:        settings.Storage.RetentionDays,
+			MinimumFreeGigabytes: settings.Storage.MinimumFreeGigabytes,
 		},
 		LiveView: LiveViewForm{
 			PreviewFPS:     settings.Detection.PreviewFPS,
@@ -443,6 +445,7 @@ func (s *Service) SaveTuning(form TuningForm) ActionResult {
 	updated.Detection.PrebufferLead = seconds(form.PrebufferLeadSeconds)
 	updated.Detection.ClipDuration = seconds(form.ClipDurationSeconds)
 	updated.Storage.RetentionDays = form.RetentionDays
+	updated.Storage.MinimumFreeGigabytes = form.MinimumFreeGigabytes
 	s.mutex.Unlock()
 
 	if s.persist(updated) != nil {
@@ -454,6 +457,7 @@ func (s *Service) SaveTuning(form TuningForm) ActionResult {
 		"nightEnd", form.NightEndMinutes,
 		"clipSeconds", form.ClipDurationSeconds,
 		"retentionDays", form.RetentionDays,
+		"minimumFreeGigabytes", form.MinimumFreeGigabytes,
 	)
 
 	if problem := s.restartDetector(); problem != nil {
@@ -566,6 +570,12 @@ func validateTuning(form TuningForm) *Problem {
 		return &Problem{
 			Headline: "That is not a number of days",
 			NextStep: "Set how long to keep recordings to 0 or more days. 0 keeps them forever.",
+		}
+	}
+	if form.MinimumFreeGigabytes < 0 {
+		return &Problem{
+			Headline: "That is not an amount of free space",
+			NextStep: "Set the free space to keep to 0 or more gigabytes. 0 turns it off.",
 		}
 	}
 

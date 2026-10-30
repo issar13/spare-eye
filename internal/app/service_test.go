@@ -398,6 +398,7 @@ func TestValidateTuningRejectsUnusableValues(t *testing.T) {
 		PrebufferLeadSeconds: 3,
 		ClipDurationSeconds:  15,
 		RetentionDays:        30,
+		MinimumFreeGigabytes: 5,
 	}
 
 	if problem := validateTuning(usable); problem != nil {
@@ -411,6 +412,7 @@ func TestValidateTuningRejectsUnusableValues(t *testing.T) {
 		"night start past midnight in minutes": func(form *TuningForm) { form.NightStartMinutes = 1440 },
 		"zero clip duration":                   func(form *TuningForm) { form.ClipDurationSeconds = 0 },
 		"negative retention":                   func(form *TuningForm) { form.RetentionDays = -1 },
+		"negative free space floor":            func(form *TuningForm) { form.MinimumFreeGigabytes = -1 },
 	}
 
 	for name, corrupt := range rejected {
