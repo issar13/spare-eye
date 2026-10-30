@@ -10,6 +10,7 @@ import (
 	"spareeye/internal/autostart"
 	"spareeye/internal/config"
 	"spareeye/internal/detector"
+	"spareeye/internal/host"
 	"spareeye/internal/media"
 )
 
@@ -47,7 +48,19 @@ type Service struct {
 
 	events    eventHistory
 	messenger messenger
+
+	// hostReading is the last look at the battery, disk and temperature. The UI
+	// asks for status every second, but these come from sysfs or Win32 and move
+	// slowly, so they are refreshed lazily at most once per hostReadingMaxAge.
+	hostReading    host.Reading
+	hostReadAt     time.Time
+	readHost       func(directory string) host.Reading
+	currentTimeFor func() time.Time
 }
+
+// hostReadingMaxAge is how stale the battery, disk and temperature figures may
+// get before the next status call reads them again.
+const hostReadingMaxAge = 30 * time.Second
 
 // detectorSession is one run of the detector, from opening the camera to the
 // event channel closing.
@@ -73,7 +86,33 @@ func NewService(log *Log, settings config.Config, instanceLockError error) *Serv
 		instanceLockError: instanceLockError,
 		settings:          settings,
 		events:            eventHistory{limit: retainedEvents},
+		readHost:          host.Read,
+		currentTimeFor:    time.Now,
 	}
+}
+
+// currentHostReading returns the cached reading, taking a fresh one when it is
+// too old. The read happens outside the mutex because it touches the file
+// system, and Status must not make every other call wait behind that. Two
+// callers racing past the age check both read, which is harmless.
+func (s *Service) currentHostReading(mediaDirectory string) host.Reading {
+	s.mutex.Lock()
+	cached, readAt := s.hostReading, s.hostReadAt
+	s.mutex.Unlock()
+
+	now := s.currentTimeFor()
+	if !readAt.IsZero() && now.Sub(readAt) < hostReadingMaxAge {
+		return cached
+	}
+
+	fresh := s.readHost(mediaDirectory)
+
+	s.mutex.Lock()
+	s.hostReading = fresh
+	s.hostReadAt = now
+	s.mutex.Unlock()
+
+	return fresh
 }
 
 // Startup runs the work that should happen once the app is up: reclaiming disk
@@ -285,6 +324,8 @@ func (s *Service) Status() StatusView {
 	// way nothing can be promised about the next login.
 	registered, _ := autostart.Enabled()
 
+	hostReading := s.currentHostReading(settings.Storage.MediaDirectory)
+
 	view := StatusView{
 		CameraSource:            describeCameraSource(settings.Detection),
 		AlertsEnabled:           settings.Telegram.Enabled,
@@ -295,6 +336,17 @@ func (s *Service) Status() StatusView {
 		LogPath:                 s.log.Path(),
 		MediaDirectory:          settings.Storage.MediaDirectory,
 		LastFailure:             lastFail,
+		OnMains:                 hostReading.OnMains,
+	}
+
+	if hostReading.BatteryPercent >= 0 {
+		view.BatteryPercent = &hostReading.BatteryPercent
+	}
+	if hostReading.FreeBytes > 0 {
+		view.DiskFreeBytes = &hostReading.FreeBytes
+	}
+	if hostReading.CelsiusOK {
+		view.TemperatureCelsius = &hostReading.Celsius
 	}
 
 	blocked := s.armBlockedProblem(settings)

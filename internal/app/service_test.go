@@ -15,6 +15,7 @@ import (
 	"spareeye/internal/autostart"
 	"spareeye/internal/config"
 	"spareeye/internal/detector"
+	"spareeye/internal/host"
 )
 
 // newTestService builds a service whose media directories are throwaway
@@ -800,5 +801,49 @@ func TestDeliveryOutcomesReachTheActivityList(t *testing.T) {
 	}
 	if view[0].At.IsZero() {
 		t.Fatal("a recorded entry should be stamped with the time it happened")
+	}
+}
+
+func TestStatusReadsTheHostOncePerHalfMinute(t *testing.T) {
+	service := newTestService(t)
+
+	reads := 0
+	now := time.Date(2026, time.October, 30, 12, 0, 0, 0, time.UTC)
+	service.currentTimeFor = func() time.Time { return now }
+	service.readHost = func(string) host.Reading {
+		reads++
+		return host.Reading{BatteryPercent: 64, FreeBytes: 1 << 30, CelsiusOK: true, Celsius: 41}
+	}
+
+	first := service.Status()
+	now = now.Add(10 * time.Second)
+	service.Status()
+
+	if reads != 1 {
+		t.Fatalf("host read %d times within 30s, want 1", reads)
+	}
+	if first.BatteryPercent == nil || *first.BatteryPercent != 64 || first.OnMains {
+		t.Fatalf("battery = %v, onMains = %v, want 64 on battery", first.BatteryPercent, first.OnMains)
+	}
+	if first.DiskFreeBytes == nil || first.TemperatureCelsius == nil {
+		t.Fatalf("disk and temperature should be known: %v %v", first.DiskFreeBytes, first.TemperatureCelsius)
+	}
+
+	now = now.Add(30 * time.Second)
+	service.Status()
+
+	if reads != 2 {
+		t.Fatalf("host read %d times after 30s, want 2", reads)
+	}
+}
+
+func TestStatusLeavesUnknownHostReadingsNull(t *testing.T) {
+	service := newTestService(t)
+	service.readHost = func(string) host.Reading { return host.Reading{BatteryPercent: -1, OnMains: true} }
+
+	status := service.Status()
+
+	if status.BatteryPercent != nil || status.DiskFreeBytes != nil || status.TemperatureCelsius != nil {
+		t.Fatalf("unknown readings should be nil, got %v %v %v", status.BatteryPercent, status.DiskFreeBytes, status.TemperatureCelsius)
 	}
 }

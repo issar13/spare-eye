@@ -5,6 +5,7 @@ import './styles.css';
 import type {app} from '../wailsjs/go/models';
 import {loadDetectionForm, registerDetectionHandlers} from './detection';
 import {requireElement} from './elements';
+import {formatFreeSpace} from './format';
 import {refreshActivity, refreshRecentClips, registerHomeHandlers, updateHome} from './home';
 import {loadLiveViewForm, registerLiveViewHandlers, startPreview, stopPreview, updatePreview} from './preview';
 import {refreshRecordings, registerRecordingHandlers} from './recordings';
@@ -35,9 +36,19 @@ const navButtons = Array.from(document.querySelectorAll<HTMLButtonElement>('[dat
 const statusPill = requireElement<HTMLElement>('#status-pill');
 const statusDot = requireElement<HTMLElement>('#status-dot');
 const statusLabel = requireElement<HTMLElement>('#status-label');
-const cameraChip = requireElement<HTMLElement>('#chip-camera');
-const profileChip = requireElement<HTMLElement>('#chip-profile');
-const profileIcon = requireElement<HTMLElement>('#chip-profile-icon');
+const powerChip = requireElement<HTMLElement>('#chip-power');
+const powerIcon = requireElement<HTMLElement>('#chip-power-icon');
+const powerText = requireElement<HTMLElement>('#chip-power-text');
+const diskChip = requireElement<HTMLElement>('#chip-disk');
+const diskText = requireElement<HTMLElement>('#chip-disk-text');
+const temperatureChip = requireElement<HTMLElement>('#chip-temperature');
+const temperatureIcon = requireElement<HTMLElement>('#chip-temperature-icon');
+const temperatureText = requireElement<HTMLElement>('#chip-temperature-text');
+
+// Below this a laptop on battery has little time left to keep watching.
+const lowBatteryPercent = 20;
+// Sustained heat above this starts to throttle the camera pipeline.
+const hotCelsius = 80;
 
 let activityTimer = 0;
 
@@ -82,11 +93,28 @@ const updateAppBar = (status: app.StatusView): void => {
     statusDot.className = `dot ${status.tone}`;
     statusLabel.textContent = stateLabels[status.tone] ?? status.headline;
 
-    cameraChip.textContent = status.frameWidth === 0
-        ? status.cameraSource || 'No camera'
-        : `${status.frameHeight}p • ${Math.round(status.captureFPS)} fps`;
-    profileChip.textContent = status.night ? 'Night profile' : 'Daylight';
-    profileIcon.className = status.night ? 'icon i-moon tint-blue' : 'icon i-sun tint-amber';
+    // The wire carries null for "unknown" but Wails types it as optional, so
+    // `?? null` settles both into one shape to test against.
+    const batteryPercent = status.batteryPercent ?? null;
+    const diskFreeBytes = status.diskFreeBytes ?? null;
+    const temperatureCelsius = status.temperatureCelsius ?? null;
+
+    // A desktop on mains has no battery but is still worth saying "Plugged in"
+    // for. The chip is only hidden when the machine reports neither, which a
+    // real machine never does; it is there so nothing is shown as a guess.
+    powerChip.hidden = batteryPercent === null && !status.onMains;
+    const powerState = status.onMains ? 'Plugged in' : 'On battery';
+    const isLowBattery = batteryPercent !== null && !status.onMains && batteryPercent < lowBatteryPercent;
+    powerText.textContent = batteryPercent === null ? powerState : `${powerState} ${batteryPercent}%`;
+    powerText.classList.toggle('tint-amber', isLowBattery);
+    powerIcon.className = status.onMains ? 'icon i-zap tint-green' : `icon i-battery ${isLowBattery ? 'tint-amber' : 'tint-muted'}`;
+
+    diskChip.hidden = diskFreeBytes === null;
+    diskText.textContent = diskFreeBytes === null ? '' : formatFreeSpace(diskFreeBytes);
+
+    temperatureChip.hidden = temperatureCelsius === null;
+    temperatureText.textContent = temperatureCelsius === null ? '' : `${Math.round(temperatureCelsius)}°C`;
+    temperatureIcon.className = `icon i-gauge ${temperatureCelsius !== null && temperatureCelsius >= hotCelsius ? 'tint-amber' : 'tint-muted'}`;
 };
 
 const pollStatus = async (): Promise<app.StatusView> => {

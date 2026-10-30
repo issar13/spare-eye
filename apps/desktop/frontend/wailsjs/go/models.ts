@@ -272,6 +272,10 @@ export namespace app {
 	    launchAtLogin: boolean;
 	    launchAtLoginRegistered: boolean;
 	    canArm: boolean;
+	    batteryPercent?: number;
+	    onMains: boolean;
+	    diskFreeBytes?: number;
+	    temperatureCelsius?: number;
 	    lastFailure: string;
 	    logPath: string;
 	    mediaDirectory: string;
@@ -301,6 +305,10 @@ export namespace app {
 	        this.launchAtLogin = source["launchAtLogin"];
 	        this.launchAtLoginRegistered = source["launchAtLoginRegistered"];
 	        this.canArm = source["canArm"];
+	        this.batteryPercent = source["batteryPercent"];
+	        this.onMains = source["onMains"];
+	        this.diskFreeBytes = source["diskFreeBytes"];
+	        this.temperatureCelsius = source["temperatureCelsius"];
 	        this.lastFailure = source["lastFailure"];
 	        this.logPath = source["logPath"];
 	        this.mediaDirectory = source["mediaDirectory"];

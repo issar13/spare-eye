@@ -57,3 +57,12 @@ export const parseMinutesOfDay = (clockText: string): number | null => {
 
     return getHours(parsed) * 60 + getMinutes(parsed);
 };
+
+// formatFreeSpace counts in binary gigabytes (1024^3), matching how the
+// Recordings page totals its files, so the two never disagree about a size.
+// Below 10 GB a decimal matters; above it, it is noise.
+export const formatFreeSpace = (bytes: number): string => {
+    const gigabytes = bytes / 1024 ** 3;
+
+    return gigabytes >= 10 ? `${Math.round(gigabytes)} GB free` : `${gigabytes.toFixed(1)} GB free`;
+};

@@ -67,6 +67,14 @@ type StatusView struct {
 
 	CanArm bool `json:"canArm"`
 
+	// The laptop's own condition. Pointers, so that JSON says null for what
+	// the machine could not report and the app bar hides that chip instead of
+	// showing a made-up zero.
+	BatteryPercent     *int     `json:"batteryPercent"`
+	OnMains            bool     `json:"onMains"`
+	DiskFreeBytes      *uint64  `json:"diskFreeBytes"`
+	TemperatureCelsius *float64 `json:"temperatureCelsius"`
+
 	// LastFailure is the engine's own error text. It is diagnostics only and
 	// must never be the message a user is asked to act on.
 	LastFailure string `json:"lastFailure"`
