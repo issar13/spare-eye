@@ -161,6 +161,38 @@ func TestAssetHandlerServesMediaAndRefusesTraversal(t *testing.T) {
 	}
 }
 
+func TestPosterRouteServesPostersAndRefusesTraversal(t *testing.T) {
+	service := newTestService(t)
+	settings := service.Settings()
+
+	posterDirectory := filepath.Join(settings.MediaDirectory, "videos", ".posters")
+	if err := os.MkdirAll(posterDirectory, 0o700); err != nil {
+		t.Fatalf("creating poster directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(posterDirectory, "motion_a.mp4.jpg"), []byte("poster"), 0o600); err != nil {
+		t.Fatalf("writing poster: %v", err)
+	}
+
+	secret := filepath.Join(settings.MediaDirectory, "secret.txt")
+	if err := os.WriteFile(secret, []byte("private"), 0o600); err != nil {
+		t.Fatalf("writing secret: %v", err)
+	}
+
+	handler := service.AssetHandler()
+
+	served := httptest.NewRecorder()
+	handler.ServeHTTP(served, httptest.NewRequest(http.MethodGet, posterRoute+"motion_a.mp4.jpg", nil))
+	if served.Code != http.StatusOK || served.Body.String() != "poster" {
+		t.Fatalf("serving a poster returned %d: %q", served.Code, served.Body.String())
+	}
+
+	escaped := httptest.NewRecorder()
+	handler.ServeHTTP(escaped, httptest.NewRequest(http.MethodGet, posterRoute+"../../secret.txt", nil))
+	if escaped.Body.String() == "private" {
+		t.Fatal("traversal escaped the poster directory")
+	}
+}
+
 func TestPreviewReportsNoContentWhileDisarmed(t *testing.T) {
 	service := newTestService(t)
 

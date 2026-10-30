@@ -24,6 +24,21 @@ func (r Recording) SizeMegabytes() float64 {
 	return float64(r.SizeBytes) / (1024 * 1024)
 }
 
+const posterDirectoryName = ".posters"
+
+// PosterPath is where the poster image for a clip lives. Posters sit in a
+// hidden subdirectory because listings read only the top level of the media
+// directory, so they never appear as recordings of their own. The clip's full
+// name, extension included, is kept so two clips can never share a poster.
+func PosterPath(clipPath string) string {
+	return filepath.Join(PosterDirectory(filepath.Dir(clipPath)), filepath.Base(clipPath)+".jpg")
+}
+
+// PosterDirectory is the folder holding the posters of the clips in videoDirectory.
+func PosterDirectory(videoDirectory string) string {
+	return filepath.Join(videoDirectory, posterDirectoryName)
+}
+
 // ListVideos returns clips newest first. The order is part of the contract, not
 // a convenience: the Telegram listing is numbered and the user replies with a
 // number, so "1" has to be the most recent clip. Filesystem order is not.
@@ -99,6 +114,12 @@ func Prune(directory string, retentionDays int) (int, error) {
 				return removed, fmt.Errorf("removing %s: %w", recording.Path, err)
 			}
 			removed++
+
+			if extension == ".mp4" {
+				if err := os.Remove(PosterPath(recording.Path)); err != nil && !os.IsNotExist(err) {
+					return removed, fmt.Errorf("removing poster for %s: %w", recording.Path, err)
+				}
+			}
 		}
 	}
 

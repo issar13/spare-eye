@@ -222,16 +222,24 @@ const renderClipCard = (clip: app.RecordingView): HTMLElement => {
     const thumb = document.createElement('div');
     thumb.className = 'clip-thumb';
 
-    const video = document.createElement('video');
-    video.src = clip.url;
-    video.preload = 'metadata';
-    video.muted = true;
+    // The poster is a JPEG saved with the clip: the webview cannot decode the
+    // mp4v video itself, so it could never draw a frame from it. Without a
+    // poster, or if it fails to load, the dark tile behind it shows instead.
+    const poster = document.createElement('img');
+    poster.alt = `Clip from ${format(parseISO(clip.createdAt), 'HH:mm:ss')}`;
+    poster.loading = 'lazy';
+    poster.addEventListener('error', () => poster.remove());
+    if (clip.posterURL) {
+        poster.src = clip.posterURL;
+    } else {
+        poster.hidden = true;
+    }
 
     const time = document.createElement('span');
     time.className = 'glass-pill mono';
     time.textContent = format(parseISO(clip.createdAt), 'HH:mm:ss');
 
-    thumb.append(video, time);
+    thumb.append(poster, time);
 
     const body = document.createElement('div');
     body.className = 'clip-body';

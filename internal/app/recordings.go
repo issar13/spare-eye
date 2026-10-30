@@ -20,6 +20,9 @@ type RecordingView struct {
 	CreatedAt     string  `json:"createdAt"`
 	Manual        bool    `json:"manual"`
 	Video         bool    `json:"video"`
+
+	// PosterURL is empty when the clip has no poster image on disk.
+	PosterURL string `json:"posterURL"`
 }
 
 // Clips returns recorded video, newest first.
@@ -54,6 +57,13 @@ func recordingViews(recordings []media.Recording, route string, video bool) []Re
 	views := make([]RecordingView, 0, len(recordings))
 
 	for _, recording := range recordings {
+		posterURL := ""
+		if video {
+			if _, err := os.Stat(media.PosterPath(recording.Path)); err == nil {
+				posterURL = posterRoute + recording.Name + ".jpg"
+			}
+		}
+
 		views = append(views, RecordingView{
 			Name:          recording.Name,
 			Path:          recording.Path,
@@ -62,6 +72,7 @@ func recordingViews(recordings []media.Recording, route string, video bool) []Re
 			CreatedAt:     recording.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			Manual:        recording.Manual,
 			Video:         video,
+			PosterURL:     posterURL,
 		})
 	}
 
@@ -82,6 +93,11 @@ func (s *Service) DeleteRecording(path string) ActionResult {
 			"That recording could not be deleted",
 			"It may already be gone, or another program may have it open. Refresh the list and try again.",
 		)
+	}
+
+	// Best effort: a leftover poster is harmless, and snapshots have none.
+	if err := os.Remove(media.PosterPath(resolved)); err != nil && !os.IsNotExist(err) {
+		s.log.Warn("deleting poster failed", "path", resolved, "error", err)
 	}
 
 	s.log.Info("recording deleted", "path", resolved)

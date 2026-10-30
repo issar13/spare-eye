@@ -237,7 +237,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .recent-grid > .hint { grid-column: 1 / -1; padding: 28px; background: var(--card); border-radius: var(--radius-card); font-size: 14px; text-align: center; }
 .clip-card { display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: var(--card); border-radius: var(--radius-card); }
 .clip-thumb { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: #070b13; }
-.clip-thumb video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.clip-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .clip-thumb .glass-pill { position: absolute; bottom: 10px; left: 12px; }
 .clip-body { display: flex; flex-direction: column; gap: 4px; padding: 18px 20px 20px; }
 .clip-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
@@ -326,14 +326,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .recordings > .hint { grid-column: 1 / -1; padding: 40px; background: var(--card); border-radius: var(--radius-card); font-size: 15px; text-align: center; }
 .recording { display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: var(--card); border-radius: var(--radius-card); }
 .recording-media { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; background: #070b13; color: var(--muted); }
-.recording-media img, .recording-media video { display: block; width: 100%; height: 100%; object-fit: cover; background: #070b13; }
-.recording-media img.unavailable, .recording-media video.unavailable { opacity: 0; }
+.recording-media img { display: block; width: 100%; height: 100%; object-fit: cover; background: #070b13; }
+.recording-media img.unavailable { opacity: 0; }
 .media-tag { position: absolute; top: 12px; left: 12px; z-index: 1; display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; color: #ffcfc9; background: rgba(147, 0, 10, .55); border-radius: 6px; font-size: 13px; font-weight: 600; letter-spacing: .03em; }
 .media-tag::before { width: 6px; height: 6px; content: ""; border-radius: 50%; background: currentColor; }
 .media-tag.manual { color: #d8e2ff; background: rgba(0, 67, 149, .65); }
 .recording-media .play-button { position: absolute; z-index: 1; width: 58px; height: 58px; min-height: 0; padding: 0; color: #0d1730; background: #98aee0; border-radius: 50%; font-size: 22px; box-shadow: 0 6px 22px rgba(0, 0, 0, .45); }
 .recording-media .play-button:hover:not(:disabled) { background: var(--primary-soft); }
-.recording-media.playing .play-button, .recording-media.playing .media-tag { display: none; }
 .media-placeholder { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; padding: 14px; color: var(--muted); font-size: 12px; text-align: center; }
 .recording-media.unavailable .media-placeholder { display: flex; }
 .recording-media.unavailable .play-button { display: none; }

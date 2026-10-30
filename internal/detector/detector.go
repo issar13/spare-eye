@@ -464,7 +464,7 @@ func (d *Detector) processFrames(
 		}
 
 		if time.Since(motionSince) >= d.settings.Detection.MotionPersist.AsDuration() {
-			d.beginAutomaticClip(frameSize, captureFPS, history)
+			d.beginAutomaticClip(*frame, frameSize, captureFPS, history)
 			// Cleared so a single sustained event cannot immediately queue a
 			// second clip the moment this one finishes.
 			motionSince = time.Now()
@@ -597,7 +597,7 @@ func (d *Detector) feedActiveRecording(frame gocv.Mat) {
 func (d *Detector) handleManualRequests(frame gocv.Mat, frameSize image.Point, captureFPS float64, history *prebuffer) {
 	select {
 	case <-d.manualStart:
-		d.beginClip(frameSize, captureFPS, history, true)
+		d.beginClip(frame, frameSize, captureFPS, history, true)
 	default:
 	}
 
@@ -618,11 +618,11 @@ func (d *Detector) handleManualRequests(frame gocv.Mat, frameSize image.Point, c
 	}
 }
 
-func (d *Detector) beginAutomaticClip(frameSize image.Point, captureFPS float64, history *prebuffer) {
-	d.beginClip(frameSize, captureFPS, history, false)
+func (d *Detector) beginAutomaticClip(frame gocv.Mat, frameSize image.Point, captureFPS float64, history *prebuffer) {
+	d.beginClip(frame, frameSize, captureFPS, history, false)
 }
 
-func (d *Detector) beginClip(frameSize image.Point, captureFPS float64, history *prebuffer, manual bool) {
+func (d *Detector) beginClip(frame gocv.Mat, frameSize image.Point, captureFPS float64, history *prebuffer, manual bool) {
 	d.mutex.Lock()
 	defer d.mutex.Unlock()
 
@@ -644,6 +644,9 @@ func (d *Detector) beginClip(frameSize image.Point, captureFPS float64, history 
 		frameSize: frameSize,
 		manual:    manual,
 		lead:      history.drain(),
+		// Cloned because the capture loop reuses frame for its next read. The
+		// recorder takes ownership and closes the clone.
+		poster: frame.Clone(),
 	}
 	if !manual {
 		request.duration = d.settings.Detection.ClipDuration.AsDuration()

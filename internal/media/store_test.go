@@ -394,3 +394,68 @@ func TestPruneKeepsEverythingWhenNothingIsOldEnough(t *testing.T) {
 	}
 	assertNamesInOrder(t, remaining, "recent.mp4")
 }
+
+func TestPosterPathSitsInHiddenSubdirectoryAndKeepsClipName(t *testing.T) {
+	clipPath := filepath.Join("videos", "motion_2026-01-01_00-00-00.mp4")
+
+	expected := filepath.Join("videos", ".posters", "motion_2026-01-01_00-00-00.mp4.jpg")
+	if actual := PosterPath(clipPath); actual != expected {
+		t.Fatalf("PosterPath returned %s, want %s", actual, expected)
+	}
+}
+
+func TestPostersAreNotListedAsRecordings(t *testing.T) {
+	directory := t.TempDir()
+	clipPath := writeRecording(t, directory, "motion_a.mp4", 10, time.Now())
+
+	posterPath := PosterPath(clipPath)
+	if err := os.MkdirAll(filepath.Dir(posterPath), 0o700); err != nil {
+		t.Fatalf("creating poster directory returned %v", err)
+	}
+	writeRecording(t, filepath.Dir(posterPath), filepath.Base(posterPath), 10, time.Now())
+
+	snapshots, err := ListSnapshots(directory)
+	if err != nil {
+		t.Fatalf("ListSnapshots returned %v", err)
+	}
+	if len(snapshots) != 0 {
+		t.Fatalf("poster listed as a snapshot: %v", recordingNames(snapshots))
+	}
+}
+
+func TestPruneRemovesThePosterOfAPrunedClip(t *testing.T) {
+	directory := t.TempDir()
+	old := time.Now().AddDate(0, 0, -10)
+
+	clipPath := writeRecording(t, directory, "motion_old.mp4", 10, old)
+	keptPath := writeRecording(t, directory, "motion_new.mp4", 10, time.Now())
+
+	for _, path := range []string{clipPath, keptPath} {
+		posterPath := PosterPath(path)
+		if err := os.MkdirAll(filepath.Dir(posterPath), 0o700); err != nil {
+			t.Fatalf("creating poster directory returned %v", err)
+		}
+		writeRecording(t, filepath.Dir(posterPath), filepath.Base(posterPath), 10, time.Now())
+	}
+
+	if _, err := Prune(directory, 7); err != nil {
+		t.Fatalf("Prune returned %v", err)
+	}
+
+	if _, err := os.Stat(PosterPath(clipPath)); !os.IsNotExist(err) {
+		t.Fatalf("poster of the pruned clip survived: %v", err)
+	}
+	if _, err := os.Stat(PosterPath(keptPath)); err != nil {
+		t.Fatalf("poster of the kept clip was removed: %v", err)
+	}
+}
+
+func TestPruneToleratesAClipWithoutAPoster(t *testing.T) {
+	directory := t.TempDir()
+	writeRecording(t, directory, "motion_old.mp4", 10, time.Now().AddDate(0, 0, -10))
+
+	removed, err := Prune(directory, 7)
+	if err != nil || removed != 1 {
+		t.Fatalf("Prune returned %d, %v, want 1, nil", removed, err)
+	}
+}

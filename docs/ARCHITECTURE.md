@@ -24,12 +24,12 @@ Dependencies run in one direction only:
 
 ```
 apps/cli ──┐
-           ├─> internal/detector ─> internal/config
+           ├─> internal/detector ─> internal/config, internal/media
 internal/app ─┤  internal/media   ─> (stdlib only)
            └─> internal/notify   ─> (stdlib only)
 ```
 
-`detector` imports `config` and nothing else of ours. `media` and `notify`
+`detector` imports `config` and `media` (for the poster path) and nothing else of ours. `media` and `notify`
 import nothing of ours at all. Neither the detector nor the notifier knows the
 other exists; the process that wires them together is the only place they meet.
 That is what makes the notifier swappable and the detector testable without a
@@ -241,6 +241,7 @@ for closing**, with every transfer explicit.
 | `prebuffer` entries | the prebuffer, which clones on `add` | evicted on overflow, or by the caller of `drain` |
 | `clipRequest.lead` | the recorder, transferred by `drain` | `run`, after writing each one |
 | Frames in `recorder.frames` | the recorder, cloned by `submit` | `writeFrame`, or `releasePending` on a failed or finished clip |
+| `clipRequest.poster` | the recorder, a clone made by `beginClip` | `writePoster`, once the JPEG is written or skipped |
 | Preview JPEG | copied out of the native buffer into a Go slice immediately | n/a, `IMEncode` result is closed at once |
 
 `submit` clones because the capture loop reuses one `Mat` for every read; handing

@@ -124,42 +124,39 @@ const renderMedia = (recording: app.RecordingView): HTMLElement => {
     fallback.className = 'media-placeholder';
     fallback.textContent = recording.video ? 'Video preview unavailable' : 'Photo preview unavailable';
 
-    if (!recording.video) {
-        const still = document.createElement('img');
-        still.alt = `Photo taken ${formatFullTimestamp(recording.createdAt)}`;
-        still.loading = 'lazy';
-        still.addEventListener('load', () => frame.classList.remove('unavailable'));
-        still.addEventListener('error', () => {
-            still.classList.add('unavailable');
-            frame.classList.add('unavailable');
-        });
-        still.src = recording.url;
-        frame.append(still, tag, fallback);
-        return frame;
-    }
-
-    const player = document.createElement('video');
-    player.src = recording.url;
-    player.preload = 'metadata';
-    player.addEventListener('loadeddata', () => frame.classList.remove('unavailable'));
-    player.addEventListener('error', () => {
-        player.classList.add('unavailable');
+    const picture = document.createElement('img');
+    picture.alt = recording.video
+        ? `Clip recorded ${formatFullTimestamp(recording.createdAt)}`
+        : `Photo taken ${formatFullTimestamp(recording.createdAt)}`;
+    picture.loading = 'lazy';
+    picture.addEventListener('load', () => frame.classList.remove('unavailable'));
+    picture.addEventListener('error', () => {
+        picture.classList.add('unavailable');
         frame.classList.add('unavailable');
     });
 
-    // The clip plays in place once asked to; until then the card shows its
-    // first frame with a play button, rather than a row of native controls.
+    if (!recording.video) {
+        picture.src = recording.url;
+        frame.append(picture, tag, fallback);
+        return frame;
+    }
+
+    // The webview cannot decode the clip's codec, so the card shows its poster
+    // and the play button hands the file to the system player instead.
     const play = document.createElement('button');
     play.type = 'button';
     play.className = 'play-button has-icon i-play';
     play.setAttribute('aria-label', `Play the clip from ${formatFullTimestamp(recording.createdAt)}`);
-    play.addEventListener('click', () => {
-        frame.classList.add('playing');
-        player.controls = true;
-        void player.play();
-    });
+    play.addEventListener('click', async () => showResult(message, await OpenExternally(recording.path)));
 
-    frame.append(player, tag, play, fallback);
+    if (recording.posterURL) {
+        picture.src = recording.posterURL;
+        frame.append(picture);
+    } else {
+        frame.classList.add('unavailable');
+    }
+
+    frame.append(tag, play, fallback);
     return frame;
 };
 

@@ -97,6 +97,7 @@ export namespace app {
 	    createdAt: string;
 	    manual: boolean;
 	    video: boolean;
+	    posterURL: string;
 
 	    static createFrom(source: any = {}) {
 	        return new RecordingView(source);
@@ -111,6 +112,7 @@ export namespace app {
 	        this.createdAt = source["createdAt"];
 	        this.manual = source["manual"];
 	        this.video = source["video"];
+	        this.posterURL = source["posterURL"];
 	    }
 	}
 	export class SensitivityForm {
