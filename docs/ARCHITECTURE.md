@@ -156,11 +156,23 @@ both, raising the sensitivity sampling to once a second would also thin the
 recording to one frame per second. Every captured frame goes to the recorder and
 the prebuffer; only the expensive grayscale/blur/diff work is rate-limited.
 
-Analysis is the standard frame-differencing pipeline: convert to grayscale,
-Gaussian blur (21×21) to suppress sensor noise, absolute difference against the
-previous analysed frame, threshold at the profile's `ThresholdValue`, dilate with
-a 3×3 kernel to close gaps, then find contours and ask whether any exceeds
-`MinimumContourArea`.
+Analysis compares each frame against a running-average background rather than
+the previous frame. Differencing consecutive frames reads a lighting change
+(a cloud, a lamp switching on) as motion for as long as the change lasts. Here
+the frame is converted to grayscale and Gaussian blurred (21×21) to suppress
+sensor noise, then diffed against the background (a float32 `Mat` kept by
+`motionAnalyzer`, converted to 8-bit for the comparison), thresholded at the
+profile's `ThresholdValue`, dilated with a 3×3 kernel to close gaps, and
+checked for any contour larger than `MinimumContourArea`. Only after the
+comparison is the frame blended into the background with a fixed weight
+(`backgroundBlendWeight`, 0.05): high enough to follow gradual lighting, low
+enough that someone standing still is not absorbed within a few samples. The
+first analysed frame only seeds the background. The weight is deliberately not
+a setting. `motionAnalyzer` owns its Mats and `processFrames` closes it with a
+deferred call.
+
+`Status` is stored on every captured frame, before the analysis throttle, so it
+is populated as soon as frames flow rather than after the first sample intervals.
 
 Two independent timers govern what happens when motion is present:
 `AlertCooldown` gates snapshot alerts, and `MotionPersist` gates starting a clip.
