@@ -1,8 +1,8 @@
-import {DeleteRecording, OpenExternally, SendRecording} from '../wailsjs/go/main/App';
+import {DeleteRecording, OpenExternally, SendRecording, Settings} from '../wailsjs/go/main/App';
 import type {app} from '../wailsjs/go/models';
 import {showBanner, showResult} from './banner';
 import {requireElement} from './elements';
-import {formatFullTimestamp} from './format';
+import {formatFullTimestamp, formatWhen} from './format';
 import {loadRecordings} from './queries';
 import {clearButtonPending, setButtonPending} from './button-state';
 
@@ -10,12 +10,26 @@ type Collection = 'clips' | 'snapshots';
 
 const list = requireElement<HTMLElement>('#recording-list');
 const message = requireElement<HTMLElement>('#recordings-message');
+const total = requireElement<HTMLElement>('#recordings-total');
+const summary = requireElement<HTMLElement>('#recordings-summary');
+const retention = requireElement<HTMLElement>('#recordings-retention');
+const retentionDays = requireElement<HTMLElement>('#recordings-days');
+const cleanup = requireElement<HTMLElement>('#recordings-cleanup');
+const protection = requireElement<HTMLElement>('#protection-copy');
+const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-collection]'));
 
 let shown: Collection = 'clips';
 
 export const refreshRecordings = async (): Promise<void> => {
     try {
-        render(await loadRecordings(shown));
+        const [clips, snapshots, settings] = await Promise.all([
+            loadRecordings('clips'),
+            loadRecordings('snapshots'),
+            Settings(),
+        ]);
+
+        renderUsage(clips, snapshots, settings.tuning.retentionDays);
+        render(shown === 'clips' ? clips : snapshots);
     } catch {
         // The listing only fails if the recordings folder cannot be read, which
         // is a storage problem rather than anything the user did wrong. The list
@@ -50,36 +64,61 @@ const render = (recordings: app.RecordingView[]): void => {
     list.replaceChildren(...recordings.map(renderRecording));
 };
 
-const renderRecording = (recording: app.RecordingView): HTMLElement => {
-    const row = document.createElement('div');
-    row.className = 'recording';
+// renderUsage sums what the Go side reported for each file, so the figure is the
+// space these recordings take, not the free space left on the drive.
+const renderUsage = (clips: app.RecordingView[], snapshots: app.RecordingView[], days: number): void => {
+    const megabytes = [...clips, ...snapshots].reduce((sum, recording) => sum + recording.sizeMegabytes, 0);
 
-    const summary = document.createElement('div');
-    summary.className = 'recording-body';
+    total.textContent = megabytes >= 1024 ? `${(megabytes / 1024).toFixed(1)} GB` : `${megabytes.toFixed(1)} MB`;
+    summary.textContent = `${clips.length} videos • ${snapshots.length} photos`;
+    tabs.forEach((tab) => {
+        const count = tab.dataset.collection === 'snapshots' ? snapshots.length : clips.length;
+        tab.textContent = `${tab.dataset.collection === 'snapshots' ? 'Photos' : 'Videos'} (${count})`;
+    });
+
+    if (days === 0) {
+        retention.textContent = '• Kept until you delete them';
+        retentionDays.textContent = 'Keeps everything';
+        cleanup.textContent = 'Automatic cleanup is off, so recordings stay until you delete them.';
+        protection.textContent = 'Automatic cleanup is off. Turn it on to stop old clips from filling your laptop’s drive.';
+        return;
+    }
+
+    retention.textContent = `• Auto-clears after ${days} days`;
+    retentionDays.textContent = `Auto-clears after ${days}d`;
+    cleanup.textContent = `Recordings older than ${days} days are removed each time SpareEye starts.`;
+    protection.textContent = `Old clips are removed automatically after ${days} days, so your laptop’s drive never fills up.`;
+};
+
+const renderRecording = (recording: app.RecordingView): HTMLElement => {
+    const card = document.createElement('article');
+    card.className = 'recording';
+
+    const body = document.createElement('div');
+    body.className = 'recording-body';
 
     const when = document.createElement('h4');
-    when.textContent = formatFullTimestamp(recording.createdAt);
+    when.textContent = formatWhen(recording.createdAt);
 
     const meta = document.createElement('p');
     meta.className = 'meta';
-    meta.textContent = [
-        recording.manual ? 'You started this one' : 'Started by movement',
-        `${recording.sizeMegabytes.toFixed(1)} MB`,
-    ].join(' · ');
+    const metaIcon = document.createElement('i');
+    metaIcon.className = recording.video ? 'icon i-video' : 'icon i-image';
+    meta.append(metaIcon, document.createTextNode(recording.name));
 
-    const name = document.createElement('p');
-    name.className = 'meta filename';
-    name.textContent = recording.name;
+    body.append(when, meta);
+    card.append(renderMedia(recording), body, renderActions(recording));
 
-    summary.append(when, meta, name);
-    row.append(renderMedia(recording), summary, renderActions(recording));
-
-    return row;
+    return card;
 };
 
 const renderMedia = (recording: app.RecordingView): HTMLElement => {
     const frame = document.createElement('div');
     frame.className = 'recording-media';
+
+    const tag = document.createElement('span');
+    tag.className = recording.manual ? 'media-tag manual' : 'media-tag';
+    tag.textContent = recording.manual ? 'Manual recording' : 'Motion detected';
 
     const fallback = document.createElement('span');
     fallback.className = 'media-placeholder';
@@ -95,13 +134,12 @@ const renderMedia = (recording: app.RecordingView): HTMLElement => {
             frame.classList.add('unavailable');
         });
         still.src = recording.url;
-        frame.append(still, fallback);
+        frame.append(still, tag, fallback);
         return frame;
     }
 
     const player = document.createElement('video');
     player.src = recording.url;
-    player.controls = true;
     player.preload = 'metadata';
     player.addEventListener('loadeddata', () => frame.classList.remove('unavailable'));
     player.addEventListener('error', () => {
@@ -109,28 +147,47 @@ const renderMedia = (recording: app.RecordingView): HTMLElement => {
         frame.classList.add('unavailable');
     });
 
-    frame.append(player, fallback);
+    // The clip plays in place once asked to; until then the card shows its
+    // first frame with a play button, rather than a row of native controls.
+    const play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'play-button has-icon i-play';
+    play.setAttribute('aria-label', `Play the clip from ${formatFullTimestamp(recording.createdAt)}`);
+    play.addEventListener('click', () => {
+        frame.classList.add('playing');
+        player.controls = true;
+        void player.play();
+    });
+
+    frame.append(player, tag, play, fallback);
     return frame;
+};
+
+const iconButton = (icon: string, label: string): HTMLButtonElement => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `icon-button has-icon ${icon}`;
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    return button;
 };
 
 const renderActions = (recording: app.RecordingView): HTMLElement => {
     const actions = document.createElement('div');
     actions.className = 'actions';
 
-    const send = document.createElement('button');
-    send.type = 'button';
-    send.textContent = 'Send to Telegram';
+    const size = document.createElement('span');
+    size.className = 'size';
+    size.textContent = `${recording.sizeMegabytes.toFixed(1)} MB on this laptop`;
+
+    const send = iconButton('i-send', 'Send to Telegram');
     send.addEventListener('click', () => void runAction(send, () => SendRecording(recording.path)));
 
-    const open = document.createElement('button');
-    open.type = 'button';
-    open.textContent = recording.video ? 'Open in video player' : 'Open in photo viewer';
+    const open = iconButton('i-external', recording.video ? 'Open in video player' : 'Open in photo viewer');
     open.addEventListener('click', () => void runAction(open, () => OpenExternally(recording.path)));
 
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.className = 'danger';
-    remove.textContent = 'Delete';
+    const remove = iconButton('i-trash', 'Delete');
+    remove.classList.add('danger');
     remove.addEventListener('click', async () => {
         const label = formatFullTimestamp(recording.createdAt);
         if (!window.confirm(`Delete the recording from ${label}? This cannot be undone.`)) {
@@ -141,7 +198,7 @@ const renderActions = (recording: app.RecordingView): HTMLElement => {
         await refreshRecordings();
     });
 
-    actions.append(send, open, remove);
+    actions.append(size, send, open, remove);
 
     return actions;
 };
@@ -162,8 +219,6 @@ const runAction = async (
 };
 
 export const registerRecordingHandlers = (): void => {
-    const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-collection]'));
-
     tabs.forEach((tab) => tab.addEventListener('click', () => {
         shown = tab.dataset.collection === 'snapshots' ? 'snapshots' : 'clips';
         tabs.forEach((other) => other.classList.toggle('selected', other === tab));

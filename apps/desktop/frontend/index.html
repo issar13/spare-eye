@@ -3,22 +3,24 @@
 <head>
     <meta charset="UTF-8"/>
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <meta content="#0b1020" name="theme-color"/>
+    <meta content="#0b111e" name="theme-color"/>
     <title>SpareEye</title>
 </head>
 <body>
 <div class="shell">
     <header class="appbar">
-        <div class="brand" aria-label="SpareEye — private camera">
-            <svg class="brand-mark" aria-hidden="true" viewBox="0 0 40 40">
-                <path d="M4.5 20s5.7-9 15.5-9 15.5 9 15.5 9-5.7 9-15.5 9S4.5 20 4.5 20Z"/>
-                <circle cx="20" cy="20" r="5.5"/>
-                <circle class="brand-glint" cx="22" cy="18" r="1.5"/>
-            </svg>
-            <div>
-                <h1 class="wordmark">Spare<span>Eye</span></h1>
-                <p class="brand-tagline">Private camera</p>
+        <div class="brand-group">
+            <div class="brand" aria-label="SpareEye — offline laptop camera">
+                <span class="brand-mark"><i class="icon i-video"></i></span>
+                <div>
+                    <h1 class="wordmark">SpareEye</h1>
+                    <p class="brand-tagline">Offline Laptop Camera</p>
+                </div>
             </div>
+            <span class="state-pill" id="status-pill">
+                <span class="dot" id="status-dot"></span>
+                <span id="status-label">Starting…</span>
+            </span>
         </div>
 
         <nav class="main-nav" aria-label="Main navigation">
@@ -28,330 +30,451 @@
             <button class="nav" data-panel="settings" type="button">Settings</button>
         </nav>
 
-        <div class="pill">
-            <span class="dot" id="status-dot"></span>
-            <span id="status-label">Starting…</span>
+        <div class="appbar-chips">
+            <span class="chip"><i class="icon i-video tint-cyan"></i><span id="chip-camera">No camera</span></span>
+            <span class="chip"><i class="icon i-hard-drive tint-green"></i><span>Saved locally</span></span>
+            <span class="chip"><i class="icon i-moon tint-blue" id="chip-profile-icon"></i><span id="chip-profile">Daylight</span></span>
         </div>
     </header>
 
     <main class="content">
+        <!-- LIVE / HOME -->
         <section class="panel" id="panel-home">
-            <div class="hero" id="hero">
-                <span class="hero-dot" id="hero-dot"></span>
-                <div>
-                    <h2 id="hero-headline">Starting…</h2>
+            <div class="card hero" id="hero">
+                <div class="hero-text">
+                    <div class="hero-title-row">
+                        <h2 id="hero-headline">Starting…</h2>
+                        <span class="tag tag-green" id="hero-state-chip"><span class="hero-dot" id="hero-dot"></span><span id="hero-state-label">Starting</span></span>
+                        <span class="tag tag-plain-cyan" id="hero-profile-chip">Offline Local Mode</span>
+                    </div>
                     <p id="hero-explanation"></p>
                     <p class="guide" hidden id="hero-guide"></p>
                 </div>
-                <div class="row home-actions">
-                    <button class="primary big" id="watch-button" type="button">Start watching</button>
-                    <button id="record-button" type="button">Record now</button>
+                <div class="home-actions">
+                    <button class="big has-icon i-pause" id="watch-button" type="button">Start watching</button>
+                    <button class="big has-icon i-record" id="record-button" type="button">Record now</button>
                 </div>
             </div>
 
             <div class="banner" hidden id="home-message"></div>
 
             <div class="home-layout">
-                <section class="live-region" aria-label="Live camera preview">
-                    <div class="viewport">
+                <div class="home-main">
+                    <section class="viewport" aria-label="Live camera preview" id="viewport">
                         <div class="feed-placeholder" id="preview-placeholder">
                             <span class="radar" aria-hidden="true"><span></span></span>
                             <strong id="preview-placeholder-title">Camera standby</strong>
                             <span id="preview-placeholder-copy">Start watching to see the live picture here.</span>
                         </div>
-                        <span class="feed-live-chip" hidden id="preview-live-chip"><span></span>Live preview</span>
                         <img alt="Live view from your camera" hidden id="preview-image"/>
-                    </div>
+                        <div class="feed-overlay" hidden id="preview-live-chip">
+                            <div class="feed-row">
+                                <span class="glass-pill"><span class="rec-dot" id="feed-rec-dot"></span><strong id="feed-state">LIVE</strong><span class="divider"></span><span id="feed-source">Camera</span></span>
+                                <span class="glass-pill"><i class="icon i-lock tint-green"></i><span>LOCAL PREVIEW • NOT SAVED</span></span>
+                            </div>
+                            <div class="feed-row">
+                                <span class="glass-pill mono" id="feed-clock"></span>
+                                <span class="glass-pill"><i class="icon i-moon tint-cyan"></i><span id="feed-profile">Daylight profile</span></span>
+                            </div>
+                        </div>
+                    </section>
+
                     <div class="preview-meta">
                         <div class="banner" hidden id="preview-idle"></div>
                         <div class="banner" hidden id="preview-frame-message"></div>
-                        <p class="hint" id="preview-caption"></p>
                     </div>
-                    <div class="banner" hidden id="live-view-message"></div>
-                    <details class="quality-details">
-                        <summary>Live view picture quality</summary>
-                        <form id="live-view-form">
-                            <fieldset>
-                                <legend>How the picture is drawn</legend>
-                                <div class="segmented" id="live-view-quality"></div>
-                                <p class="hint">This changes only the picture on this screen. Saved recordings stay at full quality.</p>
-                            </fieldset>
-                            <details>
-                                <summary>Advanced numbers</summary>
-                                <p class="hint">Picking a named level will overwrite these values.</p>
-                                <label>Picture updates per second, 1–60
-                                    <input max="60" min="1" name="previewFPS" step="1" type="number"/>
-                                </label>
-                                <label>Picture quality, 30–95
-                                    <input max="95" min="30" name="previewQuality" step="1" type="number"/>
-                                </label>
-                            </details>
-                            <div class="row">
-                                <button class="primary" type="submit">Save live view</button>
-                            </div>
-                        </form>
-                    </details>
-                </section>
 
-                <aside class="activity-region">
-                    <h3>Recent motion events</h3>
-                    <div class="banner" hidden id="activity-message"></div>
-                    <div class="events" id="event-list"></div>
-                    <details>
-                        <summary>Technical details</summary>
-                        <p class="hint">Useful if you are reporting a problem. Nothing here needs changing.</p>
-                        <div class="stats" id="diagnostics"></div>
-                        <pre class="log" id="log-view"></pre>
-                    </details>
+                    <div class="card control-bar">
+                        <div class="row">
+                            <button class="ghost has-icon i-maximize" id="fullscreen-button" type="button">Full Screen</button>
+                            <button class="ghost has-icon i-sliders" data-goto="settings" data-scroll="live-view-section" type="button">Picture Quality</button>
+                        </div>
+                        <div class="row control-stats">
+                            <span class="stat-chip"><i class="icon i-gauge tint-green"></i><span id="feed-fps">Not measured yet</span></span>
+                            <span class="stat-chip"><i class="icon i-frame tint-cyan"></i><span id="feed-size">Not measured yet</span></span>
+                        </div>
+                    </div>
+                    <p class="hint caption" id="preview-caption"></p>
+
+                    <div class="card storage-card">
+                        <span class="icon-tile tint-green"><i class="icon i-folder"></i></span>
+                        <div class="storage-text">
+                            <h3>Zero-Cloud Storage Policy <span class="tag tag-green-soft">Strict Local</span></h3>
+                            <p>Clips write directly to <code id="media-directory">your recordings folder</code>. Nothing is uploaded unless you turn on phone alerts.</p>
+                        </div>
+                        <button class="ghost has-icon i-folder-open" id="open-media-folder" type="button">Open Folder</button>
+                    </div>
+                </div>
+
+                <aside class="home-side">
+                    <section class="card side-card">
+                        <div class="side-head">
+                            <h3><i class="icon i-laptop tint-blue"></i>Camera Health</h3>
+                            <span class="side-tag tint-green" id="health-tag">Standing by</span>
+                        </div>
+                        <p class="side-copy">Live numbers measured from the camera this laptop is watching.</p>
+                        <div class="kv-list" id="diagnostics"></div>
+                    </section>
+
+                    <section class="card side-card">
+                        <div class="side-head">
+                            <h3><i class="icon i-bell tint-blue"></i>Instant Alerts</h3>
+                            <span class="side-tag muted">Telegram</span>
+                        </div>
+                        <div class="alert-box">
+                            <div class="alert-box-head">
+                                <strong><i class="icon i-send tint-blue"></i>Your private bot</strong>
+                                <span class="tag" id="alerts-chip">Not set up</span>
+                            </div>
+                            <p id="alerts-copy">Sends a photo straight to your phone when motion trips. There is no SpareEye relay in between.</p>
+                            <button class="wide has-icon i-zap" data-goto="settings" data-scroll="alerts-section" type="button">Alert Settings</button>
+                        </div>
+                        <div class="kv-row">
+                            <span><i class="icon i-sliders tint-muted"></i>Trigger engine</span>
+                            <span class="mono tint-cyan" id="trigger-engine">Pixel difference</span>
+                        </div>
+                    </section>
                 </aside>
             </div>
 
+            <section class="recent-section">
+                <div class="section-head">
+                    <h3>Recent Motion Events <span class="count-tag" id="recent-count">0 clips</span></h3>
+                    <button class="link-button" data-goto="recordings" type="button">View All Recordings <i class="icon i-chevron-right"></i></button>
+                </div>
+                <div class="recent-grid" id="recent-clips"></div>
+            </section>
+
+            <details class="card activity-details">
+                <summary>Activity log &amp; technical details</summary>
+                <div class="banner" hidden id="activity-message"></div>
+                <div class="events" id="event-list"></div>
+                <p class="hint">Useful if you are reporting a problem. Nothing here needs changing.</p>
+                <pre class="log" id="log-view"></pre>
+            </details>
         </section>
 
-        <section class="panel" hidden id="panel-recordings">
-            <header>
-                <h2>Saved recordings</h2>
-                <p class="lede">Photos and clips from your camera, stored on this computer.</p>
+        <!-- CAMERAS -->
+        <section class="panel" hidden id="panel-cameras">
+            <header class="page-head">
+                <div>
+                    <div class="title-row">
+                        <h2>Connected Cameras</h2>
+                        <span class="tag tag-green-soft"><i class="icon i-shield"></i>Local &amp; Private</span>
+                    </div>
+                    <p class="lede">SpareEye captures directly from your laptop's hardware and home network. No accounts, no cloud relays, nothing leaving your home.</p>
+                </div>
+                <div class="row">
+                    <button class="has-icon i-refresh" id="camera-refresh" type="button">Rescan USB</button>
+                    <button class="primary soft has-icon i-plus" data-scroll="stream-address" id="add-camera" type="button">Add Network Camera</button>
+                </div>
             </header>
+
+            <div class="card strip">
+                <div class="strip-items">
+                    <span class="strip-item strong"><span class="dot" id="cameras-dot"></span><span id="cameras-state">Camera standby</span></span>
+                    <span class="strip-sep"></span>
+                    <span class="strip-item"><i class="icon i-gauge tint-cyan"></i><span id="cameras-fps">Not measured yet</span></span>
+                    <span class="strip-sep"></span>
+                    <span class="strip-item"><i class="icon i-hard-drive tint-green"></i><span>Recordings stay on this laptop</span></span>
+                </div>
+                <button class="primary has-icon i-play" id="setup-start" type="button">Start watching</button>
+            </div>
+            <div class="banner" hidden id="start-message"></div>
+            <div class="banner" hidden id="camera-message"></div>
+
+            <div class="camera-grid" id="camera-cards"></div>
+
+            <h3 class="section-title"><i class="icon i-link tint-cyan"></i>Connect a Local Camera</h3>
+            <div class="connect-grid">
+                <section class="card connect-card">
+                    <h4><span class="icon-tile small tint-blue"><i class="icon i-usb"></i></span>Plugged into USB Port</h4>
+                    <p>Plug any standard USB webcam into your laptop. SpareEye finds driverless UVC cameras through the system's own camera drivers, so there is nothing else to install.</p>
+                    <div class="tag-row"><span class="soft-tag">Built-in webcams</span><span class="soft-tag">Logitech series</span><span class="soft-tag">Generic USB UVC</span><span class="soft-tag">HDMI-to-USB capture</span></div>
+                    <p class="hint">Only cameras that actually send a picture are listed. A webcam that is switched off, or already in use by another app, will not appear.</p>
+                    <div class="connect-foot">
+                        <span class="hint-ok"><i class="icon i-check-circle tint-green"></i>Detected automatically</span>
+                        <button class="has-icon i-search" data-click="camera-refresh" type="button">Detect USB Camera</button>
+                    </div>
+                </section>
+
+                <section class="card connect-card">
+                    <h4><span class="icon-tile small tint-cyan"><i class="icon i-router"></i></span>Local Home Wi-Fi / RTSP</h4>
+                    <p>Connect any IP camera on your home Wi-Fi using its local stream address. Traffic stays on your network.</p>
+                    <form id="stream-form">
+                        <label for="stream-address">RTSP local network address</label>
+                        <div class="input-icon">
+                            <i class="icon i-link"></i>
+                            <input id="stream-address" name="cameraURL" placeholder="rtsp://192.168.1.50:554/stream" type="text"/>
+                        </div>
+                        <div class="connect-foot">
+                            <button class="ghost" id="stream-test" type="button">Test it</button>
+                            <button class="primary soft has-icon i-cable" type="submit">Connect IP Stream</button>
+                        </div>
+                    </form>
+                    <div class="banner" hidden id="stream-message"></div>
+                    <details>
+                        <summary>Find the camera's device address (ONVIF search)</summary>
+                        <p class="hint">The camera must have ONVIF enabled and be on the same local network. Search finds the device address, not the stream address — the stream address is in your camera's settings page or manual.</p>
+                        <button class="ghost has-icon i-search" id="network-camera-search" type="button">Search network</button>
+                        <div class="banner" hidden id="network-camera-message"></div>
+                        <ul class="network-camera-list" id="network-camera-list"></ul>
+                    </details>
+                </section>
+            </div>
+
+            <div class="card tip">
+                <i class="icon i-laptop tint-cyan"></i>
+                <p>Running SpareEye on an older laptop? Choose “Easy on the laptop” under Settings › Live view picture to keep it cool and quiet. Saved recordings stay at full quality.</p>
+            </div>
+        </section>
+
+        <!-- RECORDINGS -->
+        <section class="panel" hidden id="panel-recordings">
+            <header class="page-head">
+                <div>
+                    <p class="eyebrow-row"><span class="tag tag-green-soft"><span class="mini-dot"></span>Stored on this laptop</span><span class="muted-small" id="recordings-retention">• Old clips tidied up automatically</span></p>
+                    <h2>Saved Motion Clips</h2>
+                    <p class="lede">Clips automatically saved when movement was noticed. All stored locally on this laptop with zero cloud telemetry.</p>
+                </div>
+                <div class="row">
+                    <button class="has-icon i-folder-open" data-click="open-media-folder" type="button">Open Folder</button>
+                    <button class="has-icon i-refresh" id="recordings-refresh" type="button">Refresh</button>
+                </div>
+            </header>
+
+            <div class="card usage-card">
+                <div class="usage-main">
+                    <div class="usage-head">
+                        <strong>Space used</strong>
+                        <span class="mono-tag" id="recordings-total">0 MB</span>
+                    </div>
+                    <p class="hint-ok"><i class="icon i-shield tint-green"></i><span id="recordings-cleanup">Recordings are kept until you delete them.</span></p>
+                </div>
+                <div class="row">
+                    <span class="stat-chip"><i class="icon i-history tint-cyan"></i><span id="recordings-days">Keeps everything</span></span>
+                    <span class="stat-chip"><i class="icon i-shield tint-green"></i><span>Saved in your own folder</span></span>
+                </div>
+            </div>
 
             <div class="banner" hidden id="recordings-message"></div>
 
-            <div class="row recording-toolbar">
-                <button class="tab selected" data-collection="clips" type="button">Videos</button>
-                <button class="tab" data-collection="snapshots" type="button">Photos</button>
-                <button id="recordings-refresh" type="button">Refresh</button>
+            <div class="recording-toolbar">
+                <div class="segment-tabs">
+                    <button class="tab selected" data-collection="clips" type="button">Videos</button>
+                    <button class="tab" data-collection="snapshots" type="button">Photos</button>
+                </div>
+                <span class="muted-small" id="recordings-summary"></span>
             </div>
 
             <div class="recordings" id="recording-list"></div>
+
+            <div class="card protection-card">
+                <span class="icon-tile"><i class="icon i-laptop"></i></span>
+                <div>
+                    <h3>Laptop Storage Protection</h3>
+                    <p id="protection-copy">Old clips are removed automatically so your laptop's drive never fills up.</p>
+                </div>
+                <button class="has-icon i-sliders" data-goto="settings" data-scroll="power-section" type="button">Change storage retention</button>
+            </div>
         </section>
 
+        <!-- SETTINGS -->
         <section class="panel" hidden id="panel-settings">
-            <header>
-                <h2>Settings</h2>
-                <p class="lede">Adjust motion detection, alerts, and what SpareEye does when your computer starts.</p>
+            <header class="page-head">
+                <div>
+                    <p class="eyebrow"><i class="icon i-sliders"></i>Offline configuration console</p>
+                    <h2>Settings &amp; Laptop Setup</h2>
+                    <p class="lede">A few simple steps and your spare laptop is watching. Everything you enter stays on this machine.</p>
+                </div>
             </header>
 
-            <section aria-labelledby="motion-settings-title" class="settings-section">
-                <h3 id="motion-settings-title">Motion sensitivity and recording</h3>
+            <nav class="step-tabs" aria-label="Settings sections">
+                <button data-scroll="camera-section" type="button"><span>1</span>Camera Device</button>
+                <button data-scroll="motion-section" type="button"><span>2</span>Motion &amp; Night</button>
+                <button data-scroll="alerts-section" type="button"><span>3</span>Phone Alerts</button>
+                <button data-scroll="power-section" type="button"><span>4</span>Power &amp; Startup</button>
+            </nav>
 
-            <div class="banner" hidden id="detection-message"></div>
+            <section class="card settings-card" id="camera-section">
+                <div class="settings-head">
+                    <span class="step-number">1</span>
+                    <div><h3>Choose your camera</h3><p>The video input this laptop watches.</p></div>
+                    <span class="side-tag muted">Hardware probe</span>
+                </div>
+                <div class="camera-summary">
+                    <span class="dot" id="settings-camera-dot"></span>
+                    <span id="settings-camera-summary">No camera chosen yet.</span>
+                    <button class="ghost has-icon i-video" data-goto="cameras" type="button">Manage cameras</button>
+                </div>
+            </section>
 
-            <form id="detection-form" novalidate>
-                <fieldset>
-                    <legend>How much movement should set it off?</legend>
+            <section class="card settings-card" id="motion-section">
+                <div class="settings-head">
+                    <span class="step-number">2</span>
+                    <div><h3>Motion Sensitivity &amp; Night Mode</h3><p>Balance fewer false alerts against catching every intruder.</p></div>
+                    <span class="side-tag tint-green">Pixel difference engine</span>
+                </div>
 
-                    <p class="field-label">In daylight</p>
+                <div class="banner" hidden id="detection-message"></div>
+
+                <form id="detection-form" novalidate>
+                    <div class="field-head"><p class="field-label">In daylight</p><span class="hint">Used during normal ambient light</span></div>
                     <div class="segmented" id="day-sensitivity"></div>
 
-                    <p class="field-label">At night</p>
+                    <div class="field-head"><p class="field-label">At night</p><span class="hint">Allows for sensor noise in low light</span></div>
                     <div class="segmented" id="night-sensitivity"></div>
-                </fieldset>
 
-                <fieldset>
-                    <legend>Night mode</legend>
-                    <p class="hint">Cameras see differently after dark, so night hours get their own
-                        sensitivity setting.</p>
-                    <div class="grid">
-                        <label>Night mode from
-                            <input name="nightStart" type="time"/>
-                        </label>
-                        <label>Night mode until
-                            <input name="nightEnd" type="time"/>
-                        </label>
-                    </div>
-                </fieldset>
-
-                <fieldset>
-                    <legend>Alerts</legend>
-                    <p class="sentence">
-                        Don’t alert me more than once every
-                        <input min="0" name="alertCooldownMinutes" step="1" type="number"/>
-                        minutes
-                    </p>
-                    <p class="hint">Stops a busy street from filling your phone with messages.</p>
-                </fieldset>
-
-                <fieldset>
-                    <legend>Recording</legend>
-                    <p class="sentence">
-                        Only record if movement lasts longer than
-                        <input min="1" name="motionPersistSeconds" step="0.1" type="number"/>
-                        seconds
-                    </p>
-                    <p class="sentence">
-                        Record for
-                        <input min="1" name="clipDurationSeconds" step="0.1" type="number"/>
-                        seconds
-                    </p>
-                    <p class="sentence">
-                        Include
-                        <input min="0" name="prebufferLeadSeconds" step="0.1" type="number"/>
-                        seconds from before the movement started
-                    </p>
-                    <p class="hint">The last one means you see what led up to the movement, not just the
-                        moment it was noticed.</p>
-                </fieldset>
-
-                <fieldset>
-                    <legend>Storage</legend>
-                    <p class="sentence">
-                        Delete recordings older than
-                        <input min="0" name="retentionDays" step="1" type="number"/>
-                        days
-                    </p>
-                    <p class="hint">Set this to 0 to keep everything forever. Old recordings are tidied up
-                        each time the app starts.</p>
-                </fieldset>
-
-                <details>
-                    <summary>Advanced numbers</summary>
-                    <p class="hint">These are the values behind the sensitivity choices above. Picking a
-                        sensitivity level will overwrite them.</p>
-
-                    <div class="profiles">
-                        <fieldset>
-                            <legend>Daylight</legend>
-                            <label>Smallest movement that counts, in pixels
-                                <input min="1" name="day.minimumContourArea" step="1" type="number"/>
-                            </label>
-                            <label>How much a pixel must change, 1–255
-                                <input max="255" min="1" name="day.thresholdValue" step="1" type="number"/>
-                            </label>
-                            <label>Seconds between checks of the picture
-                                <input min="0.1" name="day.sampleIntervalSeconds" step="0.1" type="number"/>
-                            </label>
-                        </fieldset>
-
-                        <fieldset>
-                            <legend>Night</legend>
-                            <label>Smallest movement that counts, in pixels
-                                <input min="1" name="night.minimumContourArea" step="1" type="number"/>
-                            </label>
-                            <label>How much a pixel must change, 1–255
-                                <input max="255" min="1" name="night.thresholdValue" step="1" type="number"/>
-                            </label>
-                            <label>Seconds between checks of the picture
-                                <input min="0.1" name="night.sampleIntervalSeconds" step="0.1" type="number"/>
-                            </label>
-                        </fieldset>
-                    </div>
-                </details>
-
-                <div class="row">
-                    <button class="primary" type="submit">Save settings</button>
-                </div>
-            </form>
-            </section>
-
-            <section aria-labelledby="alerts-title" class="settings-section">
-                <h3 id="alerts-title">Phone alerts</h3>
-                <p class="lede">Connect your private Telegram bot to receive motion notifications.</p>
-                <div class="step" id="step-telegram">
-                    <div class="step-head">
-                        <h3>Get alerts on your phone</h3>
-                    </div>
-                    <p class="hint">Your bot and footage stay between this computer and Telegram. There is no SpareEye relay or shared account.</p>
-                    <ol class="connect-guide">
-                        <li>Create a private bot through <strong>@BotFather</strong>.</li>
-                        <li>Paste its token below—once.</li>
-                        <li>Open your new bot and send it any message.</li>
-                        <li>Press <strong>Connect Telegram</strong>. SpareEye finds the chat automatically.</li>
-                    </ol>
-                    <form id="telegram-form">
-                        <label class="checkbox"><input name="enabled" type="checkbox"/>Send me alerts on Telegram</label>
-                        <label>Bot token <span class="hint">From @BotFather in Telegram</span>
-                            <input autocomplete="off" name="botToken" placeholder="Paste your bot token" type="password"/>
-                        </label>
-                        <input name="chatID" type="hidden"/>
-                        <div class="row">
-                            <button class="primary" id="test-telegram" type="button">Connect Telegram</button>
-                            <button type="submit">Save alert preference</button>
+                    <div class="inset">
+                        <div class="inset-head">
+                            <h4><i class="icon i-moon tint-cyan"></i>Night Mode Schedule</h4>
+                            <span class="hint">Cameras see differently after dark, so night hours get their own sensitivity.</span>
                         </div>
-                    </form>
-                    <div class="banner" hidden id="setup-message"></div>
-                </div>
-            </section>
-
-            <section aria-labelledby="startup-title" class="settings-section">
-                <h3 id="startup-title">When your computer starts</h3>
-                <p class="hint">Opening SpareEye and starting camera monitoring are separate choices.</p>
-                <form id="startup-form">
-                    <label class="checkbox"><input name="launchAtLogin" type="checkbox"/>Open SpareEye when I log in to this computer</label>
-                    <label class="checkbox"><input name="watchOnLaunch" type="checkbox"/>Start watching as soon as SpareEye opens</label>
-                    <p class="hint">When SpareEye opens automatically, its window stays tucked away in the taskbar.</p>
-                    <div class="row"><button class="primary" type="submit">Save startup settings</button></div>
-                </form>
-                <div class="banner" hidden id="startup-message"></div>
-            </section>
-        </section>
-
-        <section class="panel" hidden id="panel-cameras">
-            <header>
-                <h2>Connected cameras</h2>
-                <p class="lede">Choose one camera for SpareEye to watch. Camera access and recordings stay on this computer.</p>
-            </header>
-
-            <ol class="steps">
-                <li class="step" id="step-camera">
-                    <div class="step-head">
-                        <span class="step-number">1</span>
-                        <h3>Choose your camera</h3>
+                        <div class="grid two">
+                            <label>Night mode starts from<input name="nightStart" type="time"/></label>
+                            <label>Night mode ends at<input name="nightEnd" type="time"/></label>
+                        </div>
                     </div>
 
-                    <p class="hint">Only cameras that actually send a picture are listed. A webcam that is
-                        switched off, or already in use by another app, will not appear.</p>
-
-                    <div class="row">
-                        <select id="camera-picker"></select>
-                        <button id="camera-refresh" type="button">Look again</button>
+                    <div class="inset">
+                        <div class="inset-head"><h4><i class="icon i-video tint-green"></i>Recording Buffer &amp; Clip Length</h4></div>
+                        <div class="grid three">
+                            <div class="unit-field">
+                                <span>Only record if movement lasts longer than</span>
+                                <span class="unit-input"><input min="1" name="motionPersistSeconds" step="0.1" type="number"/>seconds</span>
+                                <small>Ignores fleeting flickers</small>
+                            </div>
+                            <div class="unit-field">
+                                <span>Record clip length</span>
+                                <span class="unit-input"><input min="1" name="clipDurationSeconds" step="0.1" type="number"/>seconds</span>
+                                <small>Length of each saved video</small>
+                            </div>
+                            <div class="unit-field">
+                                <span>Include from before the movement</span>
+                                <span class="unit-input"><input min="0" name="prebufferLeadSeconds" step="0.1" type="number"/>seconds</span>
+                                <small>Shows what led up to the event</small>
+                            </div>
+                        </div>
                     </div>
-
-                    <div class="banner" hidden id="camera-message"></div>
 
                     <details>
-                        <summary>My camera is on the network, not plugged in</summary>
-
-                        <p class="hint">Search for ONVIF cameras on this network to find their device
-                            address. The camera must have ONVIF enabled and be on the same local network.
-                            This does not find every network camera.</p>
-
-                        <button class="network-search" id="network-camera-search" type="button">Search network</button>
-                        <div class="banner" hidden id="network-camera-message"></div>
-                        <ul class="network-camera-list" id="network-camera-list"></ul>
-
-                        <p class="hint">To connect, enter the video stream address from your camera's
-                            settings page or manual. It usually starts with rtsp:// or http://. Search finds
-                            the device address, not that stream address.</p>
-
-                        <form id="stream-form">
-                            <div class="row">
-                                <input id="stream-address" name="cameraURL"
-                                       placeholder="rtsp://192.168.1.50:554/stream" type="text"/>
-                                <button id="stream-test" type="button">Test it</button>
-                                <button type="submit">Use this camera</button>
-                            </div>
-                        </form>
-
-                        <div class="banner" hidden id="stream-message"></div>
+                        <summary>Advanced numbers</summary>
+                        <p class="hint">These are the values behind the sensitivity choices above. Picking a sensitivity level will overwrite them.</p>
+                        <div class="grid two">
+                            <fieldset>
+                                <legend>Daylight</legend>
+                                <label>Smallest movement that counts, in pixels<input min="1" name="day.minimumContourArea" step="1" type="number"/></label>
+                                <label>How much a pixel must change, 1–255<input max="255" min="1" name="day.thresholdValue" step="1" type="number"/></label>
+                                <label>Seconds between checks of the picture<input min="0.1" name="day.sampleIntervalSeconds" step="0.1" type="number"/></label>
+                            </fieldset>
+                            <fieldset>
+                                <legend>Night</legend>
+                                <label>Smallest movement that counts, in pixels<input min="1" name="night.minimumContourArea" step="1" type="number"/></label>
+                                <label>How much a pixel must change, 1–255<input max="255" min="1" name="night.thresholdValue" step="1" type="number"/></label>
+                                <label>Seconds between checks of the picture<input min="0.1" name="night.sampleIntervalSeconds" step="0.1" type="number"/></label>
+                            </fieldset>
+                        </div>
                     </details>
-                </li>
+                </form>
+            </section>
 
-                <li class="step" id="step-start">
-                    <div class="step-head">
-                        <span class="step-number">2</span>
-                        <h3>Start watching</h3>
+            <section class="card settings-card" id="alerts-section">
+                <div class="settings-head">
+                    <span class="step-number">3</span>
+                    <div><h3>Get alerts on your phone (Direct &amp; Cloudless)</h3><p>Motion photos pushed by your own Telegram bot.</p></div>
+                    <span class="side-tag tint-cyan">No SpareEye server</span>
+                </div>
+                <p class="section-copy">Your bot token and footage stay strictly between this laptop and Telegram's official API servers. There is no SpareEye relay, middleman proxy, or shared account.</p>
+
+                <div class="inset">
+                    <p class="inset-label">Telegram quick connect</p>
+                    <ol class="connect-guide">
+                        <li>Create a private bot through <strong>@BotFather</strong> on Telegram.</li>
+                        <li>Paste its HTTP API token below — once.</li>
+                        <li>Open your new bot and send it any message (e.g. <code>/start</code>).</li>
+                        <li>Click <strong>Connect Telegram</strong>. SpareEye finds your chat automatically.</li>
+                    </ol>
+                </div>
+
+                <form id="telegram-form">
+                    <label class="checkbox"><input name="enabled" type="checkbox"/>Send me motion alerts with a snapshot on Telegram</label>
+                    <label for="bot-token">Bot token (from @BotFather in Telegram)</label>
+                    <div class="input-action">
+                        <input autocomplete="off" id="bot-token" name="botToken" placeholder="Paste your bot token" type="password"/>
+                        <button class="ghost small" id="reveal-token" type="button">Reveal</button>
                     </div>
+                    <input name="chatID" type="hidden"/>
+                </form>
 
-                    <p class="hint">You can start and stop monitoring here or from Live / Home.</p>
+                <div class="inline-setting">
+                    <i class="icon i-bell tint-muted"></i>
+                    <span>Don’t alert me more than once every</span>
+                    <input form="detection-form" min="0" name="alertCooldownMinutes" step="1" type="number"/>
+                    <span>minutes</span>
+                    <small>Stops a busy street from filling your phone</small>
+                </div>
 
-                    <button class="primary big" id="setup-start" type="button">Start watching</button>
+                <div class="settings-foot">
+                    <button class="ghost has-icon i-check-circle tint-green-text" id="test-telegram" type="button">Connect Telegram</button>
+                </div>
+                <div class="banner" hidden id="setup-message"></div>
+            </section>
 
-                    <div class="banner" hidden id="start-message"></div>
-                </li>
-            </ol>
+            <section class="card settings-card" id="power-section">
+                <div class="settings-head">
+                    <span class="step-number">4</span>
+                    <div><h3>Laptop Power &amp; Startup Behavior</h3><p>Settings for running unattended on a dedicated laptop.</p></div>
+                    <span class="side-tag muted">Laptop friendly</span>
+                </div>
 
+                <div class="inset">
+                    <h4><i class="icon i-power tint-cyan"></i>When your laptop starts up</h4>
+                    <form class="grid two" id="startup-form">
+                        <label class="check-tile"><input name="launchAtLogin" type="checkbox"/><span><strong>Open SpareEye when I log in</strong><small>Its window stays tucked away in the taskbar</small></span></label>
+                        <label class="check-tile"><input name="watchOnLaunch" type="checkbox"/><span><strong>Start watching as soon as SpareEye opens</strong><small>Turns the camera on without a click</small></span></label>
+                    </form>
+                    <div class="banner" hidden id="startup-message"></div>
+                </div>
+
+                <div class="inset inline-setting">
+                    <i class="icon i-broom tint-green"></i>
+                    <span class="grow"><strong>Automatic storage cleanup</strong><small>Keeps the laptop's drive from filling up. Set 0 to keep everything.</small></span>
+                    <span>Delete recordings older than</span>
+                    <input form="detection-form" min="0" name="retentionDays" step="1" type="number"/>
+                    <span>days</span>
+                </div>
+
+                <div class="inset" id="live-view-section">
+                    <h4><i class="icon i-gauge tint-blue"></i>Live view picture</h4>
+                    <p class="hint">This changes only the picture on the Live screen. Saved recordings stay at full quality.</p>
+                    <form id="live-view-form">
+                        <div class="segmented" id="live-view-quality"></div>
+                        <details>
+                            <summary>Advanced numbers</summary>
+                            <p class="hint">Picking a named level will overwrite these values.</p>
+                            <div class="grid two">
+                                <label>Picture updates per second, 1–60<input max="60" min="1" name="previewFPS" step="1" type="number"/></label>
+                                <label>Picture quality, 30–95<input max="95" min="30" name="previewQuality" step="1" type="number"/></label>
+                            </div>
+                        </details>
+                    </form>
+                    <div class="banner" hidden id="live-view-message"></div>
+                </div>
+            </section>
+
+            <div class="card save-bar">
+                <i class="icon i-shield tint-green"></i>
+                <div class="grow"><strong id="save-bar-title">Ready to apply changes</strong><small>All settings are stored locally on this laptop.</small></div>
+                <button class="ghost" id="discard-changes" type="button">Discard Changes</button>
+                <button class="primary has-icon i-save" id="save-all" type="button">Save &amp; Apply Settings</button>
+            </div>
         </section>
     </main>
+
+    <footer class="statusbar">
+        <span><i class="icon i-wifi-off tint-green"></i>Local Storage Only • No SpareEye Cloud</span>
+        <span>© SpareEye • Private Home Camera</span>
+    </footer>
 </div>
 <script src="./src/main.ts" type="module"></script>
 </body>

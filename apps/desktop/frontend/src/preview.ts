@@ -1,3 +1,4 @@
+import {format} from 'date-fns';
 import {PreviewFrame, SaveLiveView, Settings} from '../wailsjs/go/main/App';
 import {app} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
@@ -5,7 +6,6 @@ import {requireElement, requireField} from './elements';
 import {LiveViewLevel, liveViewLevelFor, liveViewOrder, liveViewPresets} from './presets';
 import {describeIssue, liveViewSchema} from './schemas';
 import {renderSegmented} from './segmented';
-import {clearButtonPending, setButtonPending} from './button-state';
 
 // Matches previewInterval in internal/detector: asking faster than the
 // detector re-encodes only re-fetches bytes we already have, and asking slower
@@ -23,6 +23,11 @@ const placeholder = requireElement<HTMLElement>('#preview-placeholder');
 const placeholderTitle = requireElement<HTMLElement>('#preview-placeholder-title');
 const placeholderCopy = requireElement<HTMLElement>('#preview-placeholder-copy');
 const liveChip = requireElement<HTMLElement>('#preview-live-chip');
+const feedState = requireElement<HTMLElement>('#feed-state');
+const feedRecDot = requireElement<HTMLElement>('#feed-rec-dot');
+const feedSource = requireElement<HTMLElement>('#feed-source');
+const feedClock = requireElement<HTMLElement>('#feed-clock');
+const feedProfile = requireElement<HTMLElement>('#feed-profile');
 const form = requireElement<HTMLFormElement>('#live-view-form');
 const message = requireElement<HTMLElement>('#live-view-message');
 
@@ -118,6 +123,8 @@ export const updatePreview = (status: app.StatusView): void => {
     placeholder.hidden = cameraArmed && frameReady;
     liveChip.hidden = !cameraArmed || !frameReady;
 
+    renderOverlay(status);
+
     if (cameraArmed) {
         hideBanner(idleBanner);
         placeholderTitle.textContent = 'Connecting to camera';
@@ -155,43 +162,45 @@ const renderLiveView = (): void => {
     });
 };
 
-export const registerLiveViewHandlers = (): void => {
-    form.addEventListener('submit', async (submission) => {
-        submission.preventDefault();
+// renderOverlay labels the picture the way a camera would: what is being
+// watched, whether it is being saved, and the time on this computer's clock.
+const renderOverlay = (status: app.StatusView): void => {
+    feedState.textContent = status.recording ? 'REC' : 'LIVE';
+    feedRecDot.className = status.recording ? 'rec-dot recording' : 'rec-dot';
+    feedSource.textContent = status.frameWidth === 0
+        ? status.cameraSource
+        : `${status.cameraSource} • ${status.frameHeight}p ${Math.round(status.captureFPS)}fps`;
+    feedClock.textContent = format(new Date(), 'yyyy-MM-dd HH:mm:ss');
+    feedProfile.textContent = status.night ? 'Night profile' : 'Daylight profile';
+};
 
-        const parsed = liveViewSchema.safeParse({
-            previewFPS: requireField(form, 'previewFPS').value,
-            previewQuality: requireField(form, 'previewQuality').value,
-        });
-        if (!parsed.success) {
-            showBanner(message, describeIssue(parsed.error), 'error');
-            return;
-        }
-
-        const saveButton = form.querySelector<HTMLButtonElement>('button[type="submit"]');
-        if (saveButton === null || saveButton.disabled) {
-            return;
-        }
-
-        saveButton.disabled = true;
-        setButtonPending(saveButton, true);
-        const originalLabel = saveButton.textContent;
-        saveButton.textContent = 'Saving…';
-
-        try {
-            showBanner(message, 'Saving live view settings…');
-            const result = await SaveLiveView(app.LiveViewForm.createFrom(parsed.data));
-            showResult(message, result);
-
-            if (result.ok) {
-                await loadLiveViewForm();
-            }
-        } catch {
-            showBanner(message, 'Could not save live view settings. Try again.', 'error');
-        } finally {
-            await clearButtonPending(saveButton);
-            saveButton.disabled = false;
-            saveButton.textContent = originalLabel;
-        }
+// saveLiveView is run by the Settings save bar alongside the other sections. It
+// reports into its own banner and tells the bar whether it went through.
+export const saveLiveView = async (): Promise<boolean> => {
+    const parsed = liveViewSchema.safeParse({
+        previewFPS: requireField(form, 'previewFPS').value,
+        previewQuality: requireField(form, 'previewQuality').value,
     });
+    if (!parsed.success) {
+        showBanner(message, describeIssue(parsed.error), 'error');
+        return false;
+    }
+
+    try {
+        const result = await SaveLiveView(app.LiveViewForm.createFrom(parsed.data));
+        if (result.ok) {
+            hideBanner(message);
+            await loadLiveViewForm();
+        } else {
+            showResult(message, result);
+        }
+        return result.ok;
+    } catch {
+        showBanner(message, 'Could not save live view settings. Try again.', 'error');
+        return false;
+    }
+};
+
+export const registerLiveViewHandlers = (): void => {
+    form.addEventListener('submit', (submission) => submission.preventDefault());
 };
