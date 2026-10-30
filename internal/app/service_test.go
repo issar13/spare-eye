@@ -849,3 +849,43 @@ func TestStatusLeavesUnknownHostReadingsNull(t *testing.T) {
 		t.Fatalf("unknown readings should be nil, got %v %v %v", status.BatteryPercent, status.DiskFreeBytes, status.TemperatureCelsius)
 	}
 }
+
+func TestSaveCameraLocationTrimsAndCountsCharactersNotBytes(t *testing.T) {
+	isolateStartupRegistration(t)
+
+	service := newTestService(t)
+
+	if result := service.SaveCameraLocation("  Living Room \n"); !result.OK {
+		t.Fatalf("SaveCameraLocation() reported %+v", result)
+	}
+	if got := service.Status().CameraLocation; got != "Living Room" {
+		t.Errorf("status location = %q, want the trimmed label", got)
+	}
+
+	// Forty multi-byte characters are well over forty bytes, and still allowed.
+	fortyCharacters := strings.Repeat("é", 40)
+	if result := service.SaveCameraLocation(fortyCharacters); !result.OK {
+		t.Errorf("a label of exactly 40 characters was refused: %+v", result)
+	}
+
+	if result := service.SaveCameraLocation(fortyCharacters + "é"); result.OK {
+		t.Error("a label of 41 characters was accepted")
+	}
+	if got := service.Settings().CameraLocation; got != fortyCharacters {
+		t.Errorf("a refused label changed the saved one to %q", got)
+	}
+}
+
+func TestSaveCameraLocationWithNothingClearsTheLabel(t *testing.T) {
+	isolateStartupRegistration(t)
+
+	service := newTestService(t)
+	service.SaveCameraLocation("Garage")
+
+	if result := service.SaveCameraLocation("   "); !result.OK {
+		t.Fatalf("SaveCameraLocation() reported %+v", result)
+	}
+	if got := service.Status().CameraLocation; got != "" {
+		t.Errorf("status location = %q, want it cleared", got)
+	}
+}

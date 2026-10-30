@@ -167,9 +167,12 @@ const renderLiveView = (): void => {
 const renderOverlay = (status: app.StatusView): void => {
     feedState.textContent = status.recording ? 'REC' : 'LIVE';
     feedRecDot.className = status.recording ? 'rec-dot recording' : 'rec-dot';
-    feedSource.textContent = status.frameWidth === 0
+    const cameraName = status.cameraLocation === ''
         ? status.cameraSource
-        : `${status.cameraSource} • ${status.frameHeight}p ${Math.round(status.captureFPS)}fps`;
+        : `${status.cameraLocation} • ${status.cameraSource}`;
+    feedSource.textContent = status.frameWidth === 0
+        ? cameraName
+        : `${cameraName} • ${status.frameHeight}p ${Math.round(status.captureFPS)}fps`;
     feedClock.textContent = format(new Date(), 'yyyy-MM-dd HH:mm:ss');
     feedProfile.textContent = status.night ? 'Night profile' : 'Daylight profile';
 };

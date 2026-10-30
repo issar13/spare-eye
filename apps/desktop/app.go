@@ -91,6 +91,10 @@ func (a *App) SelectCameraURL(address string) app.ActionResult {
 	return a.service.SelectCameraURL(address)
 }
 
+func (a *App) SaveCameraLocation(name string) app.ActionResult {
+	return a.service.SaveCameraLocation(name)
+}
+
 func (a *App) SaveTuning(form app.TuningForm) app.ActionResult { return a.service.SaveTuning(form) }
 
 func (a *App) SaveLiveView(form app.LiveViewForm) app.ActionResult {

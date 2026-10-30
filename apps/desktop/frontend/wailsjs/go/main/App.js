@@ -54,6 +54,10 @@ export function RescanCameras() {
   return window['go']['main']['App']['RescanCameras']();
 }
 
+export function SaveCameraLocation(arg1) {
+  return window['go']['main']['App']['SaveCameraLocation'](arg1);
+}
+
 export function SaveLiveView(arg1) {
   return window['go']['main']['App']['SaveLiveView'](arg1);
 }

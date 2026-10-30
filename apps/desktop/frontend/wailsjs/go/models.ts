@@ -219,6 +219,7 @@ export namespace app {
 	    cameraIndex: number;
 	    cameraURL: string;
 	    cameraChosen: boolean;
+	    cameraLocation: string;
 	    mediaDirectory: string;
 
 	    static createFrom(source: any = {}) {
@@ -234,6 +235,7 @@ export namespace app {
 	        this.cameraIndex = source["cameraIndex"];
 	        this.cameraURL = source["cameraURL"];
 	        this.cameraChosen = source["cameraChosen"];
+	        this.cameraLocation = source["cameraLocation"];
 	        this.mediaDirectory = source["mediaDirectory"];
 	    }
 
@@ -270,6 +272,7 @@ export namespace app {
 	    frameWidth: number;
 	    frameHeight: number;
 	    cameraSource: string;
+	    cameraLocation: string;
 	    alertsEnabled: boolean;
 	    alertsConfigured: boolean;
 	    telegramConnected: boolean;
@@ -303,6 +306,7 @@ export namespace app {
 	        this.frameWidth = source["frameWidth"];
 	        this.frameHeight = source["frameHeight"];
 	        this.cameraSource = source["cameraSource"];
+	        this.cameraLocation = source["cameraLocation"];
 	        this.alertsEnabled = source["alertsEnabled"];
 	        this.alertsConfigured = source["alertsConfigured"];
 	        this.telegramConnected = source["telegramConnected"];

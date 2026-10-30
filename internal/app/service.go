@@ -335,6 +335,7 @@ func (s *Service) Status() StatusView {
 
 	view := StatusView{
 		CameraSource:            describeCameraSource(settings.Detection),
+		CameraLocation:          settings.Detection.CameraLocation,
 		AlertsEnabled:           settings.Telegram.Enabled,
 		AlertsConfigured:        settings.ConfiguredForAlerts(),
 		TelegramConnected:       s.messenger.connected(),

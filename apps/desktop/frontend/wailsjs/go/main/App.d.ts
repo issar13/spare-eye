@@ -30,6 +30,8 @@ export function RecentEvents():Promise<Array<app.EventView>>;
 
 export function RescanCameras():Promise<Array<detector.Camera>>;
 
+export function SaveCameraLocation(arg1:string):Promise<app.ActionResult>;
+
 export function SaveLiveView(arg1:app.LiveViewForm):Promise<app.ActionResult>;
 
 export function SaveStartup(arg1:app.StartupForm):Promise<app.ActionResult>;

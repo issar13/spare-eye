@@ -7,12 +7,17 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"spareeye/internal/autostart"
 	"spareeye/internal/config"
 	"spareeye/internal/detector"
 	"spareeye/internal/notify"
 )
+
+// maximumCameraLocationLength keeps the label short enough for the live-view
+// overlay and the app bar, which are the narrowest places it appears.
+const maximumCameraLocationLength = 40
 
 // verifyTimeout bounds the Telegram round trip so a wrong host cannot leave the
 // Setup screen spinning.
@@ -50,6 +55,10 @@ type StatusView struct {
 	// bare index says nothing about an installation watching a stream and an
 	// address says nothing about one watching a webcam.
 	CameraSource string `json:"cameraSource"`
+
+	// CameraLocation is the room the user said the camera is pointed at, empty
+	// when they have not said.
+	CameraLocation string `json:"cameraLocation"`
 
 	// AlertsEnabled is what the user asked for; AlertsConfigured is whether the
 	// credentials to honour it are actually present. Setup needs both, so that
@@ -98,6 +107,8 @@ type SettingsView struct {
 	// CameraChosen is what tells Setup to wait for an answer instead of showing
 	// the shipped default as though somebody had picked it.
 	CameraChosen bool `json:"cameraChosen"`
+
+	CameraLocation string `json:"cameraLocation"`
 
 	MediaDirectory string `json:"mediaDirectory"`
 }
@@ -177,6 +188,7 @@ func settingsView(settings config.Config) SettingsView {
 		CameraIndex:    settings.Detection.CameraIndex,
 		CameraURL:      settings.Detection.CameraURL,
 		CameraChosen:   settings.Detection.CameraChosen,
+		CameraLocation: settings.Detection.CameraLocation,
 		MediaDirectory: settings.Storage.MediaDirectory,
 	}
 }
@@ -364,6 +376,36 @@ func (s *Service) SelectCamera(index int) ActionResult {
 	}
 
 	return succeeded("Camera selected")
+}
+
+// SaveCameraLocation labels the camera with the room it watches. An empty name
+// clears the label. The detector is left alone: the label is only ever shown,
+// so changing it must not interrupt a watch.
+func (s *Service) SaveCameraLocation(name string) ActionResult {
+	name = strings.TrimSpace(name)
+	if utf8.RuneCountInString(name) > maximumCameraLocationLength {
+		return failed(
+			"That camera location is too long",
+			fmt.Sprintf("Use %d characters or fewer, such as Living Room or Front Door.", maximumCameraLocationLength),
+		)
+	}
+
+	s.mutex.Lock()
+	updated := s.settings
+	updated.Detection.CameraLocation = name
+	s.mutex.Unlock()
+
+	if s.persist(updated) != nil {
+		return couldNotSave()
+	}
+
+	s.log.Info("camera location saved", "labelled", name != "")
+
+	if name == "" {
+		return succeeded("Camera location cleared")
+	}
+
+	return succeeded("Camera location saved")
 }
 
 // TestCameraURL opens an address the user has typed but not saved, so a wrong

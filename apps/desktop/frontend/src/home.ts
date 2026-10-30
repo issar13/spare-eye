@@ -15,6 +15,7 @@ const heroGuide = requireElement<HTMLElement>('#hero-guide');
 const heroStateChip = requireElement<HTMLElement>('#hero-state-chip');
 const heroStateLabel = requireElement<HTMLElement>('#hero-state-label');
 const heroProfileChip = requireElement<HTMLElement>('#hero-profile-chip');
+const heroLocationChip = requireElement<HTMLElement>('#hero-location-chip');
 const messageBanner = requireElement<HTMLElement>('#home-message');
 const watchButton = requireElement<HTMLButtonElement>('#watch-button');
 const recordButton = requireElement<HTMLButtonElement>('#record-button');
@@ -52,6 +53,8 @@ export const updateHome = (status: app.StatusView): void => {
     heroStateChip.className = status.armed ? 'tag tag-green' : 'tag';
     heroStateLabel.textContent = status.armed ? 'ACTIVE' : 'OFF';
     heroProfileChip.textContent = status.night ? 'Night profile • Offline local mode' : 'Daylight profile • Offline local mode';
+    heroLocationChip.hidden = status.cameraLocation === '';
+    heroLocationChip.textContent = status.cameraLocation;
 
     if (!busy) {
         watchButton.textContent = status.armed ? 'Stop watching' : 'Start watching';

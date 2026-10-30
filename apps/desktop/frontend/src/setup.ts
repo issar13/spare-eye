@@ -4,6 +4,7 @@ import {
     DiscoverNetworkCameras,
     PreviewFrame,
     RescanCameras,
+    SaveCameraLocation,
     SaveStartup,
     SaveTelegram,
     SelectCamera,
@@ -17,7 +18,7 @@ import type {onvif} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
 import {clearButtonPending, setButtonPending} from './button-state';
 import {requireElement, requireField} from './elements';
-import {cameraStreamSchema, describeIssue, startupSchema, telegramSchema} from './schemas';
+import {cameraLocationSchema, cameraStreamSchema, describeIssue, startupSchema, telegramSchema} from './schemas';
 
 const telegramForm = requireElement<HTMLFormElement>('#telegram-form');
 const startupForm = requireElement<HTMLFormElement>('#startup-form');
@@ -36,6 +37,11 @@ const camerasState = requireElement<HTMLElement>('#cameras-state');
 const camerasFps = requireElement<HTMLElement>('#cameras-fps');
 const settingsCameraDot = requireElement<HTMLElement>('#settings-camera-dot');
 const settingsCameraSummary = requireElement<HTMLElement>('#settings-camera-summary');
+const locationForm = requireElement<HTMLFormElement>('#location-form');
+const locationChips = requireElement<HTMLElement>('#location-chips');
+const locationMessage = requireElement<HTMLElement>('#location-message');
+
+const suggestedLocations = ['Living Room', 'Front Door', 'Backyard', 'Garage', 'Baby Crib'];
 
 let startBusy = false;
 
@@ -69,6 +75,8 @@ export const loadSetup = async (): Promise<void> => {
     requireField(startupForm, 'watchOnLaunch').checked = settings.startup.watchOnLaunch;
 
     requireField(streamForm, 'cameraURL').value = settings.cameraURL;
+    requireField(locationForm, 'cameraLocation').value = settings.cameraLocation;
+    renderLocationChips();
 
     renderCameraCards([], settings, '');
     renderSettingsSummary(settings);
@@ -90,12 +98,35 @@ const renderSettingsSummary = (settings: app.SettingsView): void => {
     settingsCameraDot.className = settings.cameraChosen ? 'dot watching' : 'dot';
 
     if (usingStream(settings)) {
-        settingsCameraSummary.textContent = `Using your network camera at ${settings.cameraURL}.`;
+        settingsCameraSummary.textContent = `Using your network camera at ${settings.cameraURL}.${locationSentence(settings)}`;
     } else if (usingDevice(settings)) {
-        settingsCameraSummary.textContent = `Using camera ${settings.cameraIndex} plugged into this laptop.`;
+        settingsCameraSummary.textContent = `Using camera ${settings.cameraIndex} plugged into this laptop.${locationSentence(settings)}`;
     } else {
         settingsCameraSummary.textContent = 'No camera chosen yet. Pick one on the Cameras screen.';
     }
+};
+
+const locationSentence = (settings: app.SettingsView): string =>
+    settings.cameraLocation === '' ? '' : ` Pointed at ${settings.cameraLocation}.`;
+
+// The chip matching what is typed shows as selected, so a chip and the input
+// never disagree about the current choice.
+const renderLocationChips = (): void => {
+    const typedLocation = requireField(locationForm, 'cameraLocation').value.trim();
+
+    locationChips.replaceChildren(...suggestedLocations.map((location) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'location-chip';
+        chip.textContent = location;
+        chip.setAttribute('aria-pressed', String(location === typedLocation));
+        chip.addEventListener('click', () => {
+            requireField(locationForm, 'cameraLocation').value = location;
+            renderLocationChips();
+        });
+
+        return chip;
+    }));
 };
 
 type CardState = 'watching' | 'in-use' | 'available' | 'missing';
@@ -167,10 +198,10 @@ const renderCameraCards = (cameras: detector.Camera[], settings: app.SettingsVie
         return;
     }
 
-    cameraCards.replaceChildren(...cards.map((card) => renderCameraCard(card, card.state === 'watching' ? frame : '')));
+    cameraCards.replaceChildren(...cards.map((card) => renderCameraCard(card, card.state === 'watching' ? frame : '', settings.cameraLocation)));
 };
 
-const renderCameraCard = (details: CardDetails, frame: string): HTMLElement => {
+const renderCameraCard = (details: CardDetails, frame: string, location: string): HTMLElement => {
     const card = document.createElement('article');
     card.className = details.state === 'watching' || details.state === 'in-use' ? 'camera-card active' : 'camera-card';
 
@@ -234,6 +265,20 @@ const renderCameraCard = (details: CardDetails, frame: string): HTMLElement => {
     resolutionValue.textContent = details.resolution;
     resolution.append(resolutionLabel, resolutionValue);
 
+    // Only the camera in use has a room; the others on the list are not pointed
+    // at anything the user has named.
+    const showsLocation = location !== '' && (details.state === 'watching' || details.state === 'in-use');
+    const locationRow = document.createElement('div');
+    locationRow.className = 'kv-row';
+    locationRow.hidden = !showsLocation;
+    const locationLabel = document.createElement('span');
+    const locationIcon = document.createElement('i');
+    locationIcon.className = 'icon i-frame tint-green';
+    locationLabel.append(locationIcon, document.createTextNode('Location'));
+    const locationValue = document.createElement('span');
+    locationValue.textContent = location;
+    locationRow.append(locationLabel, locationValue);
+
     const action = document.createElement('button');
     action.type = 'button';
 
@@ -252,7 +297,7 @@ const renderCameraCard = (details: CardDetails, frame: string): HTMLElement => {
         action.disabled = true;
     }
 
-    body.append(heading, resolution, action);
+    body.append(heading, resolution, locationRow, action);
     card.append(thumb, body);
 
     return card;
@@ -454,6 +499,42 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
 
         onSettingsChanged();
     });
+
+    locationForm.addEventListener('submit', async (submission) => {
+        submission.preventDefault();
+
+        const parsed = cameraLocationSchema.safeParse(requireField(locationForm, 'cameraLocation').value);
+        if (!parsed.success) {
+            showBanner(locationMessage, describeIssue(parsed.error), 'error');
+            return;
+        }
+
+        const saveButton = locationForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+        if (saveButton === null || saveButton.disabled) {
+            return;
+        }
+
+        saveButton.disabled = true;
+        setButtonPending(saveButton, true);
+
+        try {
+            const result = await SaveCameraLocation(parsed.data);
+            showResult(locationMessage, result);
+            if (result.ok) {
+                requireField(locationForm, 'cameraLocation').value = parsed.data;
+                renderLocationChips();
+                await showCameras(Cameras);
+            }
+        } catch {
+            showBanner(locationMessage, 'Could not save the camera location. Try again.', 'error');
+        } finally {
+            await clearButtonPending(saveButton);
+            saveButton.disabled = false;
+            onSettingsChanged();
+        }
+    });
+
+    requireField(locationForm, 'cameraLocation').addEventListener('input', renderLocationChips);
 
     const cameraRefreshButton = requireElement<HTMLButtonElement>('#camera-refresh');
     cameraRefreshButton.addEventListener('click', async () => {

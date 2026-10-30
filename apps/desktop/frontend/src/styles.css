@@ -298,6 +298,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-v
 .connect-card > .connect-foot { margin-top: auto; }
 .connect-foot button { min-height: 46px; font-size: 16px; font-weight: 500; }
 .tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.location-chip { min-height: 0; padding: 6px 14px; color: var(--text); background: var(--raised); border-radius: 999px; font-size: 13.5px; font-weight: 600; letter-spacing: .02em; }
+.location-chip[aria-pressed="true"] { color: var(--cyan); box-shadow: inset 0 0 0 1px var(--cyan); }
 .soft-tag { padding: 4px 12px; color: var(--text); background: var(--raised); border-radius: 8px; font-size: 13.5px; font-weight: 600; letter-spacing: .02em; }
 .hint-ok { display: inline-flex; align-items: center; gap: 8px; color: var(--text-soft); font-size: 13.5px; font-weight: 600; letter-spacing: .02em; }
 .input-icon { position: relative; display: flex; align-items: center; }

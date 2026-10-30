@@ -46,6 +46,7 @@
                         <h2 id="hero-headline">Starting…</h2>
                         <span class="tag tag-green" id="hero-state-chip"><span class="hero-dot" id="hero-dot"></span><span id="hero-state-label">Starting</span></span>
                         <span class="tag tag-plain-cyan" id="hero-profile-chip">Offline Local Mode</span>
+                        <span class="tag" hidden id="hero-location-chip"></span>
                     </div>
                     <p id="hero-explanation"></p>
                     <p class="guide" hidden id="hero-guide"></p>
@@ -185,6 +186,21 @@
             <div class="banner" hidden id="camera-message"></div>
 
             <div class="camera-grid" id="camera-cards"></div>
+
+            <section class="card connect-card">
+                <h4><span class="icon-tile small tint-green"><i class="icon i-frame"></i></span>Camera location</h4>
+                <p>Say which room this camera is pointed at. The name appears on the live view and the home screen, so you can tell at a glance what you are looking at.</p>
+                <div class="tag-row" id="location-chips"></div>
+                <form id="location-form">
+                    <label for="camera-location">Or type your own</label>
+                    <input autocomplete="off" id="camera-location" name="cameraLocation" placeholder="Living Room" type="text"/>
+                    <div class="connect-foot">
+                        <span class="hint">Leave it empty and save to remove the label.</span>
+                        <button class="primary soft has-icon i-save" type="submit">Save location</button>
+                    </div>
+                </form>
+                <div class="banner" hidden id="location-message"></div>
+            </section>
 
             <h3 class="section-title"><i class="icon i-link tint-cyan"></i>Connect a Local Camera</h3>
             <div class="connect-grid">

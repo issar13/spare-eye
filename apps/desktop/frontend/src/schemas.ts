@@ -90,4 +90,11 @@ export const cameraStreamSchema = z.object({
         ),
 });
 
+// The room name is a label on the screens, never a lookup key, so any text is
+// fine as long as it fits the overlay. The Go service enforces the same limit.
+export const cameraLocationSchema = z.string().trim().max(
+    40,
+    'Use 40 characters or fewer for the camera location, such as Living Room or Front Door.',
+);
+
 export const describeIssue = (error: z.ZodError): string => error.issues[0].message;

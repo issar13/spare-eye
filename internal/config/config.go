@@ -70,6 +70,12 @@ type DetectionSettings struct {
 	// camera the app had helped itself to.
 	CameraChosen bool `json:"cameraChosen"`
 
+	// CameraLocation is the room the camera is pointed at, in the user's own
+	// words. It is a label only: nothing is detected from it, and an empty one
+	// (which is also what a config written before labels existed holds) means
+	// the screens simply say nothing about where the camera is.
+	CameraLocation string `json:"cameraLocation"`
+
 	Day   SensitivityProfile `json:"day"`
 	Night SensitivityProfile `json:"night"`
 
