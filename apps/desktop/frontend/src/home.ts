@@ -92,7 +92,7 @@ const describeAlerts = (status: app.StatusView): string => {
         return 'Turned off';
     }
     if (!status.alertsConfigured) {
-        return 'Not set up yet';
+        return 'Not set up (optional)';
     }
 
     return status.telegramConnected ? 'Connected' : 'Connecting…';

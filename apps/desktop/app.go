@@ -98,6 +98,10 @@ func (a *App) SaveStartup(form app.StartupForm) app.ActionResult {
 	return a.service.SaveStartup(form)
 }
 
+func (a *App) SaveNotifications(form app.NotificationsForm) app.ActionResult {
+	return a.service.SaveNotifications(form)
+}
+
 func (a *App) StartManualRecording() app.ActionResult { return a.service.StartManualRecording() }
 func (a *App) StopManualRecording() app.ActionResult  { return a.service.StopManualRecording() }
 

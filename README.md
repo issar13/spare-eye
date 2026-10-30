@@ -8,20 +8,24 @@
   Turn a spare computer into a private, subscription-free security camera.
 </p>
 
-SpareEye watches a camera for movement, saves the evidence locally, and sends
-alerts to your phone through your own Telegram bot. Arm it from the desktop app
-or run it headlessly on a machine tucked out of sight.
+SpareEye watches a camera for movement and saves the evidence locally. It can
+notify you on the computer it runs on, and, if you choose, send alerts to your
+phone through your own Telegram bot. Arm it from the desktop app or run it
+headlessly on a machine tucked out of sight.
 
 > [!IMPORTANT]
-> Telegram alerts upload clips and snapshots to Telegram's servers. Read the
+> Telegram is optional. If you turn it on, alerts upload clips and snapshots to
+> Telegram's servers. Without it, nothing leaves your computer. Read the
 > [privacy and security guide](docs/SECURITY.md) before recording a shared
 > space.
 
 ## Features
 
 - Motion-triggered snapshots and video clips
-- Instant alerts through your own Telegram bot
-- Remote recording and retrieval with Telegram commands
+- Works fully offline: snapshots and clips are saved on your computer with no account
+- Desktop notifications on motion (on by default, can be switched off)
+- Optional alerts to your phone through your own Telegram bot
+- Optional remote recording and retrieval with Telegram commands
 - Automatic day and night sensitivity profiles
 - Local recording browser and configurable retention
 - Built-in, USB, and other connected camera support
@@ -37,14 +41,15 @@ flowchart LR
     Detector --> Recorder[Video recorder]
     Snapshot --> Storage[(Local storage)]
     Recorder --> Storage
-    Snapshot --> Telegram[Telegram bot]
-    Recorder --> Telegram
+    Snapshot --> Desktop[Desktop notification]
+    Snapshot -.->|optional| Telegram[Telegram bot]
+    Recorder -.->|optional| Telegram
     UI[Desktop app] --> Detector
     Telegram -->|record · stop · get| Detector
 ```
 
-Motion is detected and recorded locally. Only alerts are sent through Telegram;
-SpareEye has no cloud account or subscription of its own. See
+Motion is detected and recorded locally. Only the optional Telegram alerts leave
+your computer; SpareEye has no cloud account or subscription of its own. See
 [Architecture](docs/ARCHITECTURE.md) for the package design and data flow.
 
 ## Quick start
@@ -57,18 +62,19 @@ Download a Windows or Linux package from the
 Building from source instead? Follow the
 [development guide](docs/DEVELOPMENT.md).
 
-### 2. Create a Telegram bot
+### 2. Choose a camera and arm it
+
+Open **Setup**, choose one of the detected cameras, and press **Start
+watching**. That is all SpareEye needs: motion is saved on your computer and
+shown as a desktop notification.
+
+### 3. Optional: get alerts on your phone
 
 Create your own bot with BotFather, start a chat with it, then paste its token
 into SpareEye. The [Telegram setup guide](docs/SETUP-TELEGRAM.md) walks through
 the five-minute process.
 
-### 3. Choose a camera and arm it
-
-Open **Setup**, connect Telegram, choose one of the detected cameras, and press
-**Start watching**.
-
-That is all the desktop app requires. To run from source without a window:
+To run from source without a window (Telegram variables are optional):
 
 ```bash
 export TELEGRAM_BOT_TOKEN=...

@@ -73,6 +73,18 @@ export namespace app {
 	        this.previewQuality = source["previewQuality"];
 	    }
 	}
+	export class NotificationsForm {
+	    desktop: boolean;
+
+	    static createFrom(source: any = {}) {
+	        return new NotificationsForm(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.desktop = source["desktop"];
+	    }
+	}
 	export class Problem {
 	    headline: string;
 	    nextStep: string;
@@ -212,6 +224,7 @@ export namespace app {
 	    tuning: TuningForm;
 	    liveView: LiveViewForm;
 	    startup: StartupForm;
+	    notifications: NotificationsForm;
 	    cameraIndex: number;
 	    cameraURL: string;
 	    cameraChosen: boolean;
@@ -227,6 +240,7 @@ export namespace app {
 	        this.tuning = this.convertValues(source["tuning"], TuningForm);
 	        this.liveView = this.convertValues(source["liveView"], LiveViewForm);
 	        this.startup = this.convertValues(source["startup"], StartupForm);
+	        this.notifications = this.convertValues(source["notifications"], NotificationsForm);
 	        this.cameraIndex = source["cameraIndex"];
 	        this.cameraURL = source["cameraURL"];
 	        this.cameraChosen = source["cameraChosen"];

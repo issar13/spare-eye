@@ -14,6 +14,7 @@ import (
 
 	"spareeye/internal/autostart"
 	"spareeye/internal/config"
+	"spareeye/internal/desktopnotify"
 	"spareeye/internal/detector"
 )
 
@@ -122,28 +123,126 @@ func TestPreviewReportsNoContentWhileDisarmed(t *testing.T) {
 	}
 }
 
-func TestArmIsRefusedWhenTelegramIsHalfConfigured(t *testing.T) {
+// TestTelegramIsNotRequiredToArm covers the states a Telegram-less user is in:
+// config.Default enables Telegram without credentials, which is a first run,
+// and a half-pasted token is the same user part way through changing their mind.
+func TestTelegramIsNotRequiredToArm(t *testing.T) {
+	cases := map[string]config.TelegramSettings{
+		"first run, enabled with no credentials": {Enabled: true},
+		"token pasted but no chat":               {Enabled: true, BotToken: "123:abc"},
+		"turned off":                             {Enabled: false},
+	}
+
+	for name, telegram := range cases {
+		t.Run(name, func(t *testing.T) {
+			service := newTestService(t)
+
+			service.mutex.Lock()
+			service.settings.Telegram = telegram
+			service.mutex.Unlock()
+
+			status := service.Status()
+			if !status.CanArm || status.Problem != nil {
+				t.Fatalf("arming was blocked without Telegram: %+v", status.Problem)
+			}
+			if status.AlertsConfigured {
+				t.Fatal("status claims alerts are configured")
+			}
+		})
+	}
+}
+
+func TestRestartingTheMessengerWithoutCredentialsConnectsNothing(t *testing.T) {
 	service := newTestService(t)
 
-	// config.Default enables Telegram without credentials, which is exactly the
-	// state a first run is in.
-	result := service.Arm()
-	if result.OK {
-		t.Fatal("arming succeeded without credentials, want a refusal")
+	service.restartMessenger()
+
+	if service.messenger.connected() {
+		t.Fatal("the messenger reports a connection with no credentials")
 	}
-	if !strings.Contains(result.Headline, "Telegram") || result.NextStep == "" {
-		t.Fatalf("refusal did not name Telegram or say what to do: %+v", result)
-	}
-	if result.DocPath == "" {
-		t.Fatal("a credentials problem should point at the setup guide")
+	if service.messenger.telegram != nil {
+		t.Fatal("a Telegram client was created with no credentials")
 	}
 
-	status := service.Status()
-	if status.CanArm || status.Problem == nil {
-		t.Fatalf("status did not report a problem: %+v", status)
+	// Deliveries are skipped silently, so a snapshot with no Telegram is not an
+	// error and leaves no failure in the history.
+	service.deliverSnapshot(filepath.Join(t.TempDir(), "photo.jpg"), false)
+	if recorded := service.events.view(); len(recorded) != 0 {
+		t.Fatalf("delivering without Telegram recorded %+v", recorded)
 	}
-	if status.Headline != status.Problem.Headline {
-		t.Fatalf("headline %q does not match the problem %q", status.Headline, status.Problem.Headline)
+}
+
+func captureDesktopNotifications(service *Service, outcome error) <-chan desktopnotify.Message {
+	shown := make(chan desktopnotify.Message, 1)
+	service.showDesktopNotification = func(message desktopnotify.Message) error {
+		shown <- message
+		return outcome
+	}
+
+	return shown
+}
+
+func TestASavedSnapshotShowsADesktopNotificationByDefault(t *testing.T) {
+	service := newTestService(t)
+	shown := captureDesktopNotifications(service, nil)
+
+	service.deliverDesktopAlert("/media/snapshots/motion.jpg", true)
+
+	select {
+	case message := <-shown:
+		if message.ImagePath != "/media/snapshots/motion.jpg" {
+			t.Errorf("notification image = %q, want the snapshot", message.ImagePath)
+		}
+		if !strings.Contains(message.Title, "night") {
+			t.Errorf("notification title %q does not say it was night", message.Title)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("no desktop notification was shown")
+	}
+}
+
+func TestDesktopNotificationsStaySilentWhenSwitchedOff(t *testing.T) {
+	service := newTestService(t)
+	shown := captureDesktopNotifications(service, nil)
+
+	if result := service.SaveNotifications(NotificationsForm{Desktop: false}); !result.OK {
+		t.Fatalf("SaveNotifications() reported %+v", result)
+	}
+	if service.Settings().Notifications.Desktop {
+		t.Fatal("the setting was not stored")
+	}
+
+	service.deliverDesktopAlert("/media/snapshots/motion.jpg", false)
+
+	select {
+	case message := <-shown:
+		t.Fatalf("a notification was shown although they are switched off: %+v", message)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestADesktopNotificationFailureIsLoggedAndNotFatal(t *testing.T) {
+	service := newTestService(t)
+	shown := captureDesktopNotifications(service, errors.New("no notification daemon"))
+
+	service.deliverDesktopAlert("/media/snapshots/motion.jpg", false)
+	<-shown
+
+	loggedFailure := func() bool {
+		for _, line := range service.log.Recent() {
+			if strings.Contains(line, "desktop notification failed") && strings.Contains(line, "no notification daemon") {
+				return true
+			}
+		}
+		return false
+	}
+
+	deadline := time.Now().Add(time.Second)
+	for !loggedFailure() && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !loggedFailure() {
+		t.Fatalf("the failure was not logged: %v", service.log.Recent())
 	}
 }
 
@@ -685,17 +784,22 @@ func TestTelegramDiscoveryCredentialFailuresKeepTokenAdvice(t *testing.T) {
 func TestStatusSpeaksPlainlyThroughEveryState(t *testing.T) {
 	service := newTestService(t)
 
-	// A half-configured install reports the obstacle, not "not running".
+	// An install with no camera chosen reports the obstacle, not "not running".
+	service.mutex.Lock()
+	service.settings.Detection.CameraChosen = false
+	service.mutex.Unlock()
+
 	blocked := service.Status()
 	if blocked.Tone != "problem" || blocked.Headline == "" {
 		t.Fatalf("blocked status is %+v", blocked)
 	}
 
-	// With alerts switched off there is nothing in the way, so the headline
-	// becomes the ordinary idle one.
-	if result := service.SaveTelegram(TelegramForm{Enabled: false}); !result.OK {
-		t.Fatalf("turning alerts off: %+v", result)
-	}
+	// Once a camera is chosen nothing is in the way, with or without Telegram,
+	// so the headline becomes the ordinary idle one.
+	service.mutex.Lock()
+	service.settings.Detection.CameraChosen = true
+	service.mutex.Unlock()
+
 	idle := service.Status()
 	if idle.Headline != "Not running" || idle.Tone != "idle" {
 		t.Fatalf("idle status is %+v", idle)

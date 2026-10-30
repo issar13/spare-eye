@@ -14,9 +14,12 @@ reasonably expect privacy.
 
 ## Know where footage goes
 
-Snapshots and clips are written to local disk. When Telegram alerts are
-enabled, alert media is also uploaded to Telegram's servers. SpareEye does not
-operate its own cloud service.
+Snapshots and clips are written to local disk. Telegram is optional: only when
+you connect it is alert media also uploaded to Telegram's servers. Desktop
+notifications are handed to your operating system and never leave the computer,
+though the notification can show the snapshot on screen, so switch them off
+(`notifications.desktop`) if the screen is visible to other people. SpareEye does
+not operate its own cloud service.
 
 By default, local media is retained for 30 days and old recordings are removed
 at startup. A retention value of `0` keeps everything and can eventually fill

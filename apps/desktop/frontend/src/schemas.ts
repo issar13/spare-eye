@@ -61,6 +61,10 @@ export const startupSchema = z.object({
     watchOnLaunch: z.boolean(),
 });
 
+export const notificationsSchema = z.object({
+    desktop: z.boolean(),
+});
+
 export const telegramSchema = z.object({
     botToken: z.string().trim(),
     chatID: z.string().trim(),

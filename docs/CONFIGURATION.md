@@ -14,11 +14,28 @@ sensible to edit by hand. Any field you leave out keeps its default, so an older
 
 ## Telegram
 
+Telegram is optional. With no token or chat ID, or with `telegram.enabled` off,
+SpareEye still arms, detects motion, and saves snapshots and clips on this
+computer.
+
 | Field | Default | Meaning |
 |---|---|---|
 | `telegram.botToken` | empty | Your bot's token from @BotFather |
 | `telegram.chatID` | empty | The only chat that receives alerts and may send commands |
 | `telegram.enabled` | `true` | Turn alerting off without deleting your credentials |
+
+## Notifications
+
+| Field | Default | Meaning |
+|---|---|---|
+| `notifications.desktop` | `true` | Show a notification from the operating system when motion saves a snapshot |
+
+Desktop notifications use the Linux notification service (D-Bus
+`org.freedesktop.Notifications`) or Windows toasts, and never contact the
+network. They share the alert cooldown with Telegram. If the system cannot show
+one, for example when no notification service is running, SpareEye writes the
+reason to the log and carries on recording. On other platforms the setting has
+no effect yet.
 
 ## Detection
 
