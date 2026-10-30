@@ -45,6 +45,9 @@ export const tuningSchema = z.object({
     minimumFreeGigabytes: z.coerce.number().int().nonnegative(
         'The free space to keep cannot be negative. Use 0 to turn this off.',
     ),
+    maxStorageGigabytes: z.coerce.number().nonnegative(
+        'The most disk space recordings may use cannot be negative. Use 0 for no limit.',
+    ),
 });
 
 export const liveViewSchema = z.object({
@@ -59,6 +62,10 @@ export const liveViewSchema = z.object({
 export const startupSchema = z.object({
     launchAtLogin: z.boolean(),
     watchOnLaunch: z.boolean(),
+});
+
+export const notificationsSchema = z.object({
+    desktop: z.boolean(),
 });
 
 export const telegramSchema = z.object({

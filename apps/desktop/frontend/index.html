@@ -120,15 +120,15 @@
 
                     <section class="card side-card">
                         <div class="side-head">
-                            <h3><i class="icon i-bell tint-blue"></i>Instant Alerts</h3>
-                            <span class="side-tag muted">Telegram</span>
+                            <h3><i class="icon i-bell tint-blue"></i>Phone Alerts</h3>
+                            <span class="side-tag muted">Optional</span>
                         </div>
                         <div class="alert-box">
                             <div class="alert-box-head">
                                 <strong><i class="icon i-send tint-blue"></i>Your private bot</strong>
-                                <span class="tag" id="alerts-chip">Not set up</span>
+                                <span class="tag" id="alerts-chip">Not set up (optional)</span>
                             </div>
-                            <p id="alerts-copy">Sends a photo straight to your phone when motion trips. There is no SpareEye relay in between.</p>
+                            <p id="alerts-copy">Optional. With Telegram connected, a photo goes straight to your phone when motion trips. There is no SpareEye relay in between.</p>
                             <button class="wide has-icon i-zap" data-goto="settings" data-scroll="alerts-section" type="button">Alert Settings</button>
                         </div>
                         <div class="kv-row">
@@ -311,7 +311,7 @@
             <nav class="step-tabs" aria-label="Settings sections">
                 <button data-scroll="camera-section" type="button"><span>1</span>Camera Device</button>
                 <button data-scroll="motion-section" type="button"><span>2</span>Motion &amp; Night</button>
-                <button data-scroll="alerts-section" type="button"><span>3</span>Phone Alerts</button>
+                <button data-scroll="alerts-section" type="button"><span>3</span>Alerts</button>
                 <button data-scroll="power-section" type="button"><span>4</span>Power &amp; Startup</button>
             </nav>
 
@@ -400,10 +400,16 @@
             <section class="card settings-card" id="alerts-section">
                 <div class="settings-head">
                     <span class="step-number">3</span>
-                    <div><h3>Get alerts on your phone (Direct &amp; Cloudless)</h3><p>Motion photos pushed by your own Telegram bot.</p></div>
+                    <div><h3>Alerts</h3><p>Desktop notifications, plus phone alerts if you connect Telegram.</p></div>
                     <span class="side-tag tint-cyan">No SpareEye server</span>
                 </div>
-                <p class="section-copy">Your bot token and footage stay strictly between this laptop and Telegram's official API servers. There is no SpareEye relay, middleman proxy, or shared account.</p>
+
+                <form id="notifications-form">
+                    <label class="check-tile"><input name="desktop" type="checkbox"/><span><strong>Show a notification on this computer when motion is detected</strong><small>Nothing leaves your machine</small></span></label>
+                </form>
+                <div class="banner" hidden id="notifications-message"></div>
+
+                <p class="section-copy"><strong>Phone alerts are optional.</strong> SpareEye works fully without them. To also get motion photos on your phone, connect your own private Telegram bot. The bot token and footage stay strictly between this laptop and Telegram's official API servers. There is no SpareEye relay, middleman proxy, or shared account.</p>
 
                 <div class="inset">
                     <p class="inset-label">Telegram quick connect</p>
@@ -416,7 +422,7 @@
                 </div>
 
                 <form id="telegram-form">
-                    <label class="checkbox"><input name="enabled" type="checkbox"/>Send me motion alerts with a snapshot on Telegram</label>
+                    <label class="checkbox"><input name="enabled" type="checkbox"/>Also send motion alerts with a snapshot on Telegram</label>
                     <label for="bot-token">Bot token (from @BotFather in Telegram)</label>
                     <div class="input-action">
                         <input autocomplete="off" id="bot-token" name="botToken" placeholder="Paste your bot token" type="password"/>
@@ -461,6 +467,14 @@
                     <span>Delete recordings older than</span>
                     <input form="detection-form" min="0" name="retentionDays" step="1" type="number"/>
                     <span>days</span>
+                </div>
+
+                <div class="inset inline-setting">
+                    <i class="icon i-broom tint-green"></i>
+                    <span class="grow"><strong>Cap total recording size</strong><small>When clips and photos add up to more than this, the oldest are removed until they fit. Starred ones are kept. Set 0 for no limit.</small></span>
+                    <span>Use at most</span>
+                    <input form="detection-form" min="0" name="maxStorageGigabytes" step="any" type="number"/>
+                    <span>GB</span>
                 </div>
 
                 <div class="inset inline-setting">

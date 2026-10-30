@@ -35,7 +35,7 @@ export const refreshRecordings = async (): Promise<void> => {
             Settings(),
         ]);
 
-        renderUsage(clips, snapshots, settings.tuning.retentionDays, settings.tuning.minimumFreeGigabytes);
+        renderUsage(clips, snapshots, settings.tuning.retentionDays, settings.tuning.minimumFreeGigabytes, settings.tuning.maxStorageGigabytes);
         render(recordingsToShow(clips, snapshots));
     } catch {
         // The listing only fails if the recordings folder cannot be read, which
@@ -92,7 +92,7 @@ const render = (recordings: app.RecordingView[]): void => {
 
 // renderUsage sums what the Go side reported for each file, so the figure is the
 // space these recordings take, not the free space left on the drive.
-const renderUsage = (clips: app.RecordingView[], snapshots: app.RecordingView[], days: number, minimumFreeGigabytes: number): void => {
+const renderUsage = (clips: app.RecordingView[], snapshots: app.RecordingView[], days: number, minimumFreeGigabytes: number, maxStorageGigabytes: number): void => {
     const megabytes = [...clips, ...snapshots].reduce((sum, recording) => sum + recording.sizeMegabytes, 0);
 
     total.textContent = megabytes >= 1024 ? `${(megabytes / 1024).toFixed(1)} GB` : `${megabytes.toFixed(1)} MB`;
@@ -107,21 +107,23 @@ const renderUsage = (clips: app.RecordingView[], snapshots: app.RecordingView[],
         tab.textContent = `${tabLabels[collection]} (${counts[collection]})`;
     });
 
+    const sizeCap = maxStorageGigabytes > 0 ? ` • Capped at ${maxStorageGigabytes} GB` : '';
     const recycling = minimumFreeGigabytes > 0
         ? ` • Recycles the oldest clips if free space drops under ${minimumFreeGigabytes} GB`
         : '';
+    const limits = `${sizeCap}${recycling}`;
 
     if (days === 0) {
-        retention.textContent = `• Kept until you delete them${recycling}`;
+        retention.textContent = `• Kept until you delete them${limits}`;
         retentionDays.textContent = 'Keeps everything';
         cleanup.textContent = 'Automatic cleanup is off, so recordings stay until you delete them.';
         protection.textContent = 'Automatic cleanup is off. Turn it on to stop old clips from filling your laptop’s drive.';
         return;
     }
 
-    retention.textContent = `• Auto-clears after ${days} days${recycling}`;
+    retention.textContent = `• Auto-clears after ${days} days${limits}`;
     retentionDays.textContent = `Auto-clears after ${days}d`;
-    cleanup.textContent = `Recordings older than ${days} days are removed each time SpareEye starts. Starred recordings are never removed automatically.`;
+    cleanup.textContent = `Recordings older than ${days} days are removed when SpareEye starts and every hour after. Starred recordings are never removed automatically.`;
     protection.textContent = `Old clips are removed automatically after ${days} days, so your laptop’s drive never fills up. Starred recordings are never removed automatically.`;
 };
 
@@ -176,13 +178,28 @@ const renderMedia = (recording: app.RecordingView): HTMLElement => {
         return frame;
     }
 
-    // The webview cannot decode the clip's codec, so the card shows its poster
-    // and the play button hands the file to the system player instead.
+    // Clips are H.264, which the webview plays in place. The video is only
+    // created on press so a page of clips does not open every file. A clip
+    // recorded with the MPEG-4 fallback codec fails to decode here, so it is
+    // handed to the system player instead.
     const play = document.createElement('button');
     play.type = 'button';
     play.className = 'play-button has-icon i-play';
     play.setAttribute('aria-label', `Play the clip from ${formatFullTimestamp(recording.createdAt)}`);
-    play.addEventListener('click', async () => showResult(message, await OpenExternally(recording.path)));
+    play.addEventListener('click', () => {
+        const player = document.createElement('video');
+        player.controls = true;
+        player.autoplay = true;
+        player.src = recording.url;
+        player.poster = recording.posterURL;
+        player.addEventListener('error', async () => {
+            player.remove();
+            frame.append(play);
+            showResult(message, await OpenExternally(recording.path));
+        });
+        play.remove();
+        frame.append(player);
+    });
 
     if (recording.posterURL) {
         picture.src = recording.posterURL;

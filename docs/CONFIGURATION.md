@@ -14,11 +14,28 @@ sensible to edit by hand. Any field you leave out keeps its default, so an older
 
 ## Telegram
 
+Telegram is optional. With no token or chat ID, or with `telegram.enabled` off,
+SpareEye still arms, detects motion, and saves snapshots and clips on this
+computer.
+
 | Field | Default | Meaning |
 |---|---|---|
 | `telegram.botToken` | empty | Your bot's token from @BotFather |
 | `telegram.chatID` | empty | The only chat that receives alerts and may send commands |
 | `telegram.enabled` | `true` | Turn alerting off without deleting your credentials |
+
+## Notifications
+
+| Field | Default | Meaning |
+|---|---|---|
+| `notifications.desktop` | `true` | Show a notification from the operating system when motion saves a snapshot |
+
+Desktop notifications use the Linux notification service (D-Bus
+`org.freedesktop.Notifications`) or Windows toasts, and never contact the
+network. They share the alert cooldown with Telegram. If the system cannot show
+one, for example when no notification service is running, SpareEye writes the
+reason to the log and carries on recording. On other platforms the setting has
+no effect yet.
 
 ## Detection
 
@@ -67,7 +84,9 @@ disables the night profile entirely.
 | Field | Default | Meaning |
 |---|---|---|
 | `storage.mediaDirectory` | per-user media directory | Where snapshots and clips are written |
-| `storage.retentionDays` | `30` | Recordings older than this are deleted at startup. `0` keeps everything, which will eventually fill the disk |
+| `storage.retentionDays` | `30` | Recordings older than this are deleted at startup and hourly while running. `0` keeps everything, which will eventually fill the disk |
+| `storage.maxStorageGigabytes` | `0` | Cap on the combined size of clips and snapshots, in gigabytes (fractions allowed). When over, the oldest recordings are deleted at startup and hourly while running, after age-based retention, until the rest fit. A clip still being recorded and any starred recording are never deleted. `0` means no cap; negative values are treated as `0`. Off by default so upgrading never deletes recordings nobody asked to lose |
+| `storage.minimumFreeGigabytes` | `5` | While the desktop app runs, the oldest clips are deleted hourly, after the two limits above, if the media drive has less than this much free space. Starred clips and clips still being recorded are kept. `0` turns it off |
 
 Clips are written at the frame rate measured from the camera on startup, not a
 configured one. A guessed rate is what makes recordings play back too fast or too

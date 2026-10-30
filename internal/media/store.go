@@ -101,6 +101,80 @@ func list(directory, extension string, protected map[string]bool) ([]Recording, 
 	return recordings, nil
 }
 
+const bytesPerGigabyte = 1024 * 1024 * 1024
+
+// PruneToSizeCap deletes the oldest recordings across all directories, clips
+// and snapshots together, until their combined size fits maxGigabytes, and
+// returns how many were removed. A cap of zero or less keeps everything.
+//
+// inUse names clips still being written. They count toward the total, since
+// they occupy the disk, but are never removed: that would lose the footage
+// being recorded, and on Windows the open handle makes the removal fail and
+// abort the prune. Starred recordings count toward the total and are kept too,
+// so a cap smaller than the starred footage simply stops at what it may delete.
+// A removed clip takes its poster with it.
+//
+// mediaDirectory is where protected.json lives, read under protectedMutex for
+// the same reason Prune does.
+func PruneToSizeCap(directories []string, maxGigabytes float64, inUse []string, mediaDirectory string) (int, error) {
+	if maxGigabytes <= 0 {
+		return 0, nil
+	}
+
+	protectedMutex.Lock()
+	defer protectedMutex.Unlock()
+
+	protected, err := loadProtected(mediaDirectory)
+	if err != nil {
+		return 0, err
+	}
+
+	recordings := make([]Recording, 0)
+	for _, directory := range directories {
+		for _, extension := range []string{".mp4", ".jpg"} {
+			listed, err := list(directory, extension, protected)
+			if err != nil {
+				return 0, err
+			}
+			recordings = append(recordings, listed...)
+		}
+	}
+
+	sort.Slice(recordings, func(first, second int) bool {
+		return recordings[first].CreatedAt.Before(recordings[second].CreatedAt)
+	})
+
+	totalBytes := int64(0)
+	for _, recording := range recordings {
+		totalBytes += recording.SizeBytes
+	}
+
+	capBytes := int64(maxGigabytes * bytesPerGigabyte)
+	removed := 0
+
+	for _, recording := range recordings {
+		if totalBytes <= capBytes {
+			break
+		}
+		if recording.Protected || slices.Contains(inUse, recording.Path) {
+			continue
+		}
+		if err := os.Remove(recording.Path); err != nil {
+			return removed, fmt.Errorf("removing %s: %w", recording.Path, err)
+		}
+		totalBytes -= recording.SizeBytes
+		removed++
+
+		if strings.EqualFold(filepath.Ext(recording.Path), ".mp4") {
+			if err := os.Remove(PosterPath(recording.Path)); err != nil && !os.IsNotExist(err) {
+				return removed, fmt.Errorf("removing poster for %s: %w", recording.Path, err)
+			}
+		}
+	}
+
+	return removed, nil
+}
+
 // Prune deletes unprotected recordings in directory older than retentionDays
 // and returns how many were removed. A retention of zero or less keeps
 // everything. Starred recordings are kept along with their posters.
@@ -151,10 +225,11 @@ func Prune(directory string, retentionDays int, mediaDirectory string) (int, err
 }
 
 // RemoveOldestUnprotectedVideo deletes the oldest clip in videoDirectory that
-// is not starred, along with its poster, and returns its name. An empty name
-// means there was nothing it was allowed to remove. It takes protectedMutex for
-// the same reason Prune does: a star set mid-sweep must never lose to a delete.
-func RemoveOldestUnprotectedVideo(videoDirectory, mediaDirectory string) (string, error) {
+// is neither starred nor still being written (inUse), along with its poster,
+// and returns its name. An empty name means there was nothing it was allowed to
+// remove. It takes protectedMutex for the same reason Prune does: a star set
+// mid-sweep must never lose to a delete.
+func RemoveOldestUnprotectedVideo(videoDirectory, mediaDirectory string, inUse []string) (string, error) {
 	protectedMutex.Lock()
 	defer protectedMutex.Unlock()
 
@@ -168,7 +243,9 @@ func RemoveOldestUnprotectedVideo(videoDirectory, mediaDirectory string) (string
 		return "", err
 	}
 
-	removable := slices.DeleteFunc(clips, func(clip Recording) bool { return clip.Protected })
+	removable := slices.DeleteFunc(clips, func(clip Recording) bool {
+		return clip.Protected || slices.Contains(inUse, clip.Path)
+	})
 	if len(removable) == 0 {
 		return "", nil
 	}

@@ -2,7 +2,7 @@ import {clearButtonPending, setButtonPending} from './button-state';
 import {loadDetectionForm, saveDetection} from './detection';
 import {requireElement} from './elements';
 import {loadLiveViewForm, saveLiveView} from './preview';
-import {loadSetup, saveStartup, saveTelegram} from './setup';
+import {loadSetup, saveNotifications, saveStartup, saveTelegram} from './setup';
 
 // The Settings screen saves as one page: each section keeps its own banner for
 // anything it needs to say, and the bar at the bottom reports the overall result.
@@ -36,7 +36,13 @@ export const registerSaveBar = (onSettingsChanged: () => void): void => {
         showState('Saving…', false);
 
         try {
-            const outcomes = await Promise.all([saveDetection(), saveTelegram(), saveStartup(), saveLiveView()]);
+            const outcomes = await Promise.all([
+                saveDetection(),
+                saveTelegram(),
+                saveNotifications(),
+                saveStartup(),
+                saveLiveView(),
+            ]);
 
             showState(
                 outcomes.every(Boolean)

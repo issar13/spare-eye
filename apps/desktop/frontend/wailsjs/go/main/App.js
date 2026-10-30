@@ -62,6 +62,10 @@ export function SaveLiveView(arg1) {
   return window['go']['main']['App']['SaveLiveView'](arg1);
 }
 
+export function SaveNotifications(arg1) {
+  return window['go']['main']['App']['SaveNotifications'](arg1);
+}
+
 export function SaveStartup(arg1) {
   return window['go']['main']['App']['SaveStartup'](arg1);
 }

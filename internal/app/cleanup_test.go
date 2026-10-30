@@ -86,3 +86,38 @@ func TestRecycleOldestClipsTreatsAnUnreadableDriveAsNotLow(t *testing.T) {
 		t.Fatalf("the clip was removed on an unreadable drive: %v", err)
 	}
 }
+
+func TestRecycleOldestClipsSparesClipsStillBeingWritten(t *testing.T) {
+	service := newTestService(t)
+	settings := service.Settings()
+	videoDirectory := filepath.Join(settings.MediaDirectory, "videos")
+	now := time.Now()
+
+	openClip := filepath.Join(videoDirectory, "a-recording.mp4")
+	finishedClip := filepath.Join(videoDirectory, "b-finished.mp4")
+	for index, path := range []string{openClip, finishedClip} {
+		if err := os.WriteFile(path, []byte("clip"), 0o600); err != nil {
+			t.Fatalf("writing %s returned %v", path, err)
+		}
+		modified := now.Add(time.Duration(index-10) * time.Hour)
+		if err := os.Chtimes(path, modified, modified); err != nil {
+			t.Fatalf("setting the time on %s returned %v", path, err)
+		}
+	}
+
+	service.mutex.Lock()
+	service.settings.Storage.MinimumFreeGigabytes = 5
+	service.openClips = []string{openClip}
+	service.mutex.Unlock()
+
+	service.readHost = func(string) host.Reading { return host.Reading{FreeBytes: 1 << 30} }
+
+	service.recycleOldestClips()
+
+	if _, err := os.Stat(openClip); err != nil {
+		t.Errorf("the clip being written was recycled: %v", err)
+	}
+	if _, err := os.Stat(finishedClip); !os.IsNotExist(err) {
+		t.Errorf("the finished clip survived: %v", err)
+	}
+}

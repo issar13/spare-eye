@@ -767,3 +767,99 @@ func TestSavedConfigIsHandEditable(t *testing.T) {
 		t.Error("saved config is not indented, which makes hand editing impractical")
 	}
 }
+
+func TestStorageCapIsOffByDefaultAndClampedWhenNegative(t *testing.T) {
+	if Default().Storage.MaxStorageGigabytes != 0 {
+		t.Errorf("default cap = %v GB, want 0 (no cap)", Default().Storage.MaxStorageGigabytes)
+	}
+
+	testCases := map[string]struct {
+		storage string
+		want    float64
+	}{
+		"absent keeps the default":   {`{}`, 0},
+		"a fraction is preserved":    {`{"maxStorageGigabytes": 2.5}`, 2.5},
+		"negative is clamped to off": {`{"maxStorageGigabytes": -4}`, 0},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			isolateConfigDirectory(t)
+
+			directory, err := Directory()
+			if err != nil {
+				t.Fatalf("Directory() returned %v", err)
+			}
+			contents := `{"storage": ` + testCase.storage + `}`
+			if err := os.WriteFile(filepath.Join(directory, configFileName), []byte(contents), 0o600); err != nil {
+				t.Fatalf("writing the config returned %v", err)
+			}
+
+			settings, err := Load()
+			if err != nil {
+				t.Fatalf("Load() returned %v", err)
+			}
+			if settings.Storage.MaxStorageGigabytes != testCase.want {
+				t.Errorf("cap = %v GB, want %v", settings.Storage.MaxStorageGigabytes, testCase.want)
+			}
+		})
+	}
+}
+
+// TestDesktopNotificationsAreOnUnlessSwitchedOff covers a fresh install and an
+// upgrade over a config.json written before the setting existed: both should
+// get the notification, and only an explicit false should remove it.
+func TestDesktopNotificationsAreOnUnlessSwitchedOff(t *testing.T) {
+	cases := map[string]struct {
+		contents string
+		expected bool
+	}{
+		"no notifications section": {`{"detection":{"cameraIndex":1}}`, true},
+		"section without the key":  {`{"notifications":{}}`, true},
+		"switched off":             {`{"notifications":{"desktop":false}}`, false},
+		"switched on":              {`{"notifications":{"desktop":true}}`, true},
+	}
+
+	if !Default().Notifications.Desktop {
+		t.Fatal("Default().Notifications.Desktop = false, want on")
+	}
+
+	for name, testCase := range cases {
+		t.Run(name, func(t *testing.T) {
+			temporaryHome := isolateConfigDirectory(t)
+			path := filepath.Join(temporaryHome, applicationDirectoryName, configFileName)
+			if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+				t.Fatalf("creating %s: %v", filepath.Dir(path), err)
+			}
+			if err := os.WriteFile(path, []byte(testCase.contents), 0o600); err != nil {
+				t.Fatalf("writing config: %v", err)
+			}
+
+			loaded, err := Load()
+			if err != nil {
+				t.Fatalf("Load() returned %v", err)
+			}
+			if loaded.Notifications.Desktop != testCase.expected {
+				t.Errorf("Notifications.Desktop = %v, want %v", loaded.Notifications.Desktop, testCase.expected)
+			}
+		})
+	}
+}
+
+func TestSwitchedOffDesktopNotificationsSurviveSaveAndLoad(t *testing.T) {
+	isolateConfigDirectory(t)
+
+	settings := Default()
+	settings.Notifications.Desktop = false
+	if err := Save(settings); err != nil {
+		t.Fatalf("Save() returned %v", err)
+	}
+
+	loaded, err := Load()
+	if err != nil {
+		t.Fatalf("Load() returned %v", err)
+	}
+	if loaded.Notifications.Desktop {
+		t.Error("Notifications.Desktop came back on after being saved off")
+	}
+}

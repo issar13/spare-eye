@@ -357,17 +357,8 @@ func (d *Detector) processFrames(
 	grayscale := gocv.NewMat()
 	defer grayscale.Close()
 
-	previousGrayscale := gocv.NewMat()
-	defer previousGrayscale.Close()
-
-	difference := gocv.NewMat()
-	defer difference.Close()
-
-	thresholded := gocv.NewMat()
-	defer thresholded.Close()
-
-	dilationKernel := gocv.GetStructuringElement(gocv.MorphRect, image.Pt(3, 3))
-	defer dilationKernel.Close()
+	analyzer := newMotionAnalyzer()
+	defer analyzer.Close()
 
 	var (
 		lastAnalysis  time.Time
@@ -426,6 +417,11 @@ func (d *Detector) processFrames(
 			lastPreview = time.Now()
 		}
 
+		// Stored every frame, ahead of the analysis throttle, so Status is
+		// populated from the first frame instead of the first sample or two.
+		// It costs one small allocation per frame.
+		d.storeStatus(night, motionSince, captureFPS, frameSize)
+
 		// Analysis is throttled independently of capture, so sampling cadence
 		// no longer dictates the frame rate clips are written at.
 		if time.Since(lastAnalysis) < profile.SampleInterval.AsDuration() {
@@ -436,21 +432,7 @@ func (d *Detector) processFrames(
 		gocv.CvtColor(*frame, &grayscale, gocv.ColorBGRToGray)
 		gocv.GaussianBlur(grayscale, &grayscale, image.Pt(21, 21), 0, 0, gocv.BorderDefault)
 
-		if previousGrayscale.Empty() {
-			grayscale.CopyTo(&previousGrayscale)
-			continue
-		}
-
-		gocv.AbsDiff(previousGrayscale, grayscale, &difference)
-		gocv.Threshold(difference, &thresholded, float32(profile.ThresholdValue), 255, gocv.ThresholdBinary)
-		gocv.Dilate(thresholded, &thresholded, dilationKernel)
-
-		motionPresent := exceedsArea(thresholded, profile.MinimumContourArea)
-		grayscale.CopyTo(&previousGrayscale)
-
-		d.storeStatus(night, motionSince, captureFPS, frameSize)
-
-		if !motionPresent {
+		if !analyzer.motionPresent(grayscale, profile.ThresholdValue, profile.MinimumContourArea) {
 			if motionOngoing {
 				d.publish(Event{Kind: EventMotionStopped, Night: night})
 			}

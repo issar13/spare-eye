@@ -139,8 +139,9 @@ const renderAlerts = (status: app.StatusView): void => {
         return;
     }
     if (!status.alertsConfigured) {
-        alertsChip.className = 'tag warn';
-        alertsChip.textContent = 'Not set up yet';
+        // Telegram is optional, so leaving it unset up is not a fault.
+        alertsChip.className = 'tag';
+        alertsChip.textContent = 'Not set up (optional)';
         return;
     }
 
@@ -230,9 +231,8 @@ const renderClipCard = (clip: app.RecordingView): HTMLElement => {
     const thumb = document.createElement('div');
     thumb.className = 'clip-thumb';
 
-    // The poster is a JPEG saved with the clip: the webview cannot decode the
-    // mp4v video itself, so it could never draw a frame from it. Without a
-    // poster, or if it fails to load, the dark tile behind it shows instead.
+    // The poster is a JPEG saved with the clip, shown until it is played.
+    // Without a poster, or if it fails to load, the dark tile behind it shows.
     const poster = document.createElement('img');
     poster.alt = `Clip from ${format(parseISO(clip.createdAt), 'HH:mm:ss')}`;
     poster.loading = 'lazy';
@@ -268,18 +268,41 @@ const renderClipCard = (clip: app.RecordingView): HTMLElement => {
     detail.className = 'mono';
     detail.textContent = `${clip.name} • ${clip.sizeMegabytes.toFixed(1)} MB`;
 
-    const play = document.createElement('button');
-    play.type = 'button';
-    play.className = 'has-icon i-play';
-    play.textContent = 'Play Clip';
-    play.addEventListener('click', async () => {
+    const openExternally = async (): Promise<void> => {
         const result = await OpenExternally(clip.path);
         if (!result.ok) {
             showResult(messageBanner, result);
         }
+    };
+
+    // Clips are H.264, which the webview plays in place. One recorded with the
+    // MPEG-4 fallback codec fails to decode, so it goes to the system player.
+    const play = document.createElement('button');
+    play.type = 'button';
+    play.className = 'has-icon i-play';
+    play.textContent = 'Play Clip';
+    play.addEventListener('click', () => {
+        const player = document.createElement('video');
+        player.controls = true;
+        player.autoplay = true;
+        player.src = clip.url;
+        player.poster = clip.posterURL;
+        player.addEventListener('error', async () => {
+            player.remove();
+            thumb.prepend(poster);
+            await openExternally();
+        });
+        thumb.replaceChildren(player);
     });
 
-    body.append(title, detail, play);
+    const external = document.createElement('button');
+    external.type = 'button';
+    external.className = 'ghost has-icon i-external';
+    external.title = 'Open in video player';
+    external.setAttribute('aria-label', 'Open in video player');
+    external.addEventListener('click', openExternally);
+
+    body.append(title, detail, play, external);
     card.append(thumb, body);
 
     return card;

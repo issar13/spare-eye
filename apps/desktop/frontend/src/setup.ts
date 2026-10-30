@@ -5,6 +5,7 @@ import {
     PreviewFrame,
     RescanCameras,
     SaveCameraLocation,
+    SaveNotifications,
     SaveStartup,
     SaveTelegram,
     SelectCamera,
@@ -18,12 +19,21 @@ import type {onvif} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
 import {clearButtonPending, setButtonPending} from './button-state';
 import {requireElement, requireField} from './elements';
-import {cameraLocationSchema, cameraStreamSchema, describeIssue, startupSchema, telegramSchema} from './schemas';
+import {
+    cameraLocationSchema,
+    cameraStreamSchema,
+    describeIssue,
+    notificationsSchema,
+    startupSchema,
+    telegramSchema,
+} from './schemas';
 
 const telegramForm = requireElement<HTMLFormElement>('#telegram-form');
 const startupForm = requireElement<HTMLFormElement>('#startup-form');
+const notificationsForm = requireElement<HTMLFormElement>('#notifications-form');
 const streamForm = requireElement<HTMLFormElement>('#stream-form');
 const startupMessage = requireElement<HTMLElement>('#startup-message');
+const notificationsMessage = requireElement<HTMLElement>('#notifications-message');
 const setupMessage = requireElement<HTMLElement>('#setup-message');
 const cameraMessage = requireElement<HTMLElement>('#camera-message');
 const streamMessage = requireElement<HTMLElement>('#stream-message');
@@ -64,6 +74,10 @@ const readStartupForm = (): app.StartupForm => startupSchema.parse({
     watchOnLaunch: requireField(startupForm, 'watchOnLaunch').checked,
 });
 
+const readNotificationsForm = (): app.NotificationsForm => notificationsSchema.parse({
+    desktop: requireField(notificationsForm, 'desktop').checked,
+});
+
 export const loadSetup = async (): Promise<void> => {
     const settings = await Settings();
 
@@ -73,6 +87,8 @@ export const loadSetup = async (): Promise<void> => {
 
     requireField(startupForm, 'launchAtLogin').checked = settings.startup.launchAtLogin;
     requireField(startupForm, 'watchOnLaunch').checked = settings.startup.watchOnLaunch;
+
+    requireField(notificationsForm, 'desktop').checked = settings.notifications.desktop;
 
     requireField(streamForm, 'cameraURL').value = settings.cameraURL;
     requireField(locationForm, 'cameraLocation').value = settings.cameraLocation;
@@ -421,7 +437,7 @@ const readStreamAddress = (): string | undefined => {
     return parsed.data.cameraURL;
 };
 
-// saveTelegram and saveStartup are run by the Settings save bar alongside the
+// saveTelegram, saveStartup and saveNotifications are run by the Settings save bar alongside the
 // other sections. Each reports into its own banner and says whether it went
 // through.
 export const saveTelegram = async (): Promise<boolean> => {
@@ -454,6 +470,21 @@ export const saveStartup = async (): Promise<boolean> => {
     }
 };
 
+export const saveNotifications = async (): Promise<boolean> => {
+    try {
+        const result = await SaveNotifications(readNotificationsForm());
+        if (result.ok) {
+            hideBanner(notificationsMessage);
+        } else {
+            showResult(notificationsMessage, result);
+        }
+        return result.ok;
+    } catch {
+        showBanner(notificationsMessage, 'Could not save the notification setting. Try again.', 'error');
+        return false;
+    }
+};
+
 export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching: () => void): void => {
     notifySettingsChanged = onSettingsChanged;
 
@@ -475,6 +506,8 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         token.type = hidden ? 'text' : 'password';
         button.textContent = hidden ? 'Hide' : 'Reveal';
     });
+
+    notificationsForm.addEventListener('submit', (submission) => submission.preventDefault());
 
     requireElement<HTMLButtonElement>('#test-telegram').addEventListener('click', async (event) => {
         const button = event.currentTarget as HTMLButtonElement;

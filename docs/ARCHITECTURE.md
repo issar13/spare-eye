@@ -10,14 +10,15 @@ behaviour see the [README](../README.md).
 ## Package map
 
 ```
-apps/desktop/        Wails entry point and webview UI
-apps/cli/             headless CLI application
-internal/app/         service layer bound to the UI
-internal/autostart/   launch-at-login registration
-internal/config/      settings persistence
-internal/detector/   camera, motion analysis, recording
-internal/media/       listing and retention
-internal/notify/      messaging providers
+apps/desktop/           Wails entry point and webview UI
+apps/cli/               headless CLI application
+internal/app/           service layer bound to the UI
+internal/autostart/     launch-at-login registration
+internal/config/        settings persistence
+internal/desktopnotify/ notifications on this computer
+internal/detector/      camera, motion analysis, recording
+internal/media/         listing and retention
+internal/notify/        messaging providers
 ```
 
 Dependencies run in one direction only:
@@ -26,11 +27,12 @@ Dependencies run in one direction only:
 apps/cli ──┐
            ├─> internal/detector ─> internal/config, internal/media
 internal/app ─┤  internal/media   ─> (stdlib only)
-           └─> internal/notify   ─> (stdlib only)
+           ├─> internal/notify   ─> (stdlib only)
+           └─> internal/desktopnotify ─> (D-Bus / Windows toast libraries)
 ```
 
 `detector` imports `config` and `media` (for the poster path) and nothing else of ours. `media` and `notify`
-import nothing of ours at all. Neither the detector nor the notifier knows the
+import nothing of ours at all. Neither the detector nor either notifier knows the
 other exists; the process that wires them together is the only place they meet.
 That is what makes the notifier swappable and the detector testable without a
 network.
@@ -156,11 +158,23 @@ both, raising the sensitivity sampling to once a second would also thin the
 recording to one frame per second. Every captured frame goes to the recorder and
 the prebuffer; only the expensive grayscale/blur/diff work is rate-limited.
 
-Analysis is the standard frame-differencing pipeline: convert to grayscale,
-Gaussian blur (21×21) to suppress sensor noise, absolute difference against the
-previous analysed frame, threshold at the profile's `ThresholdValue`, dilate with
-a 3×3 kernel to close gaps, then find contours and ask whether any exceeds
-`MinimumContourArea`.
+Analysis compares each frame against a running-average background rather than
+the previous frame. Differencing consecutive frames reads a lighting change
+(a cloud, a lamp switching on) as motion for as long as the change lasts. Here
+the frame is converted to grayscale and Gaussian blurred (21×21) to suppress
+sensor noise, then diffed against the background (a float32 `Mat` kept by
+`motionAnalyzer`, converted to 8-bit for the comparison), thresholded at the
+profile's `ThresholdValue`, dilated with a 3×3 kernel to close gaps, and
+checked for any contour larger than `MinimumContourArea`. Only after the
+comparison is the frame blended into the background with a fixed weight
+(`backgroundBlendWeight`, 0.05): high enough to follow gradual lighting, low
+enough that someone standing still is not absorbed within a few samples. The
+first analysed frame only seeds the background. The weight is deliberately not
+a setting. `motionAnalyzer` owns its Mats and `processFrames` closes it with a
+deferred call.
+
+`Status` is stored on every captured frame, before the analysis throttle, so it
+is populated as soon as frames flow rather than after the first sample intervals.
 
 Two independent timers govern what happens when motion is present:
 `AlertCooldown` gates snapshot alerts, and `MotionPersist` gates starting a clip.
@@ -213,6 +227,12 @@ unrequested footage on the front.
 
 One goroutine per clip, created by `startRecorder` and living exactly as long as
 that clip. Encoding and disk I/O never run on the capture goroutine.
+
+`openWriter` tries H.264 (`avc1`) first and falls back to MPEG-4 (`mp4v`).
+H.264 is the only codec the webview can play, but not every OpenCV build can
+encode it. gocv reports an unusable codec as a writer that is not open rather
+than as an error, so every attempt is checked with `IsOpened`; without that
+check a missing encoder produces a clip of nothing and no error at all.
 
 Frames arrive through a bounded channel sized at two seconds of footage
 (`frameRate × 2`, floor 8). Bounded is the point: `submit` does a non-blocking
@@ -354,6 +374,45 @@ everything", and reports how many it removed. It scans one directory, so both
 callers loop over the clip and snapshot directories in turn; pruning only clips
 left snapshots accumulating forever, which on a busy camera is the larger share
 of the files.
+
+`PruneToSizeCap` takes both directories at once, because the oldest file overall
+may be in either, and deletes oldest first until the combined size fits
+`maxStorageGigabytes` (zero or less keeps everything). It runs after `Prune`.
+
+Starred recordings are listed by name in `protected.json` in the media
+directory. `Prune`, `PruneToSizeCap` and `RemoveOldestUnprotectedVideo` all read
+it under `protectedMutex` and never delete a starred file, so a star set
+mid-sweep cannot lose to a delete. A clip's poster lives in a hidden `.posters`
+subdirectory (so listings never show it as a recording) and is removed with the
+clip by all three.
+
+`RemoveOldestUnprotectedVideo` is the free-space step: it deletes the oldest
+clip that is neither starred nor still being written, and the desktop service
+calls it repeatedly until `minimumFreeGigabytes` is free on the media drive. A
+free-space reading of zero means "unknown" and never triggers a deletion.
+
+The desktop service has one cleanup, run at startup and then hourly: retention
+`Prune`, then `PruneToSizeCap`, then the free-space step. The CLI runs the first
+two on the same schedule. Cleaning only at launch let a camera left running for
+weeks outgrow the limits. A scheduled cleanup can land mid-recording, so callers
+pass the clips still being written as `inUse`: they count toward the total but
+are never removed. The open clips are
+known from `EventClipStarted` and `EventClipFinished`, which is why the desktop
+service tracks them in `consumeEvents` and the CLI prunes on the same goroutine
+that reads events. `Prune` needs no such list, because an open clip's
+modification time is always recent.
+
+## desktopnotify
+
+One function, `Show(Message)`, that asks the operating system to display a
+notification: D-Bus `org.freedesktop.Notifications` on Linux, a toast on
+Windows, and an "unsupported" error elsewhere, split into build-tagged files
+like `autostart`. It exists so Telegram stays optional: it needs no account and
+sends nothing off the machine. `internal/app` calls it when a snapshot is saved
+and the `notifications.desktop` setting is on. It runs off the event reader's
+goroutine and a failure is only logged, because the snapshot is already saved
+and a missing notification daemon must never stop the camera. The detector does
+not know it exists.
 
 ## notify
 
@@ -527,9 +586,11 @@ time back.
 
 Tracked in [ROADMAP.md](../ROADMAP.md), noted here where they touch the design:
 
-- **Clips are `mp4v`.** WebKit cannot decode it, so in-app playback does not
-  work and the working path is opening the file externally. Fixing it properly
-  means moving the recorder to H.264.
+- **In-app playback depends on the platform's H.264 support.** Clips are H.264
+  where OpenCV can encode it, and WebKitGTK only decodes that with
+  `gstreamer1.0-libav` or the openh264 plugin installed. A Windows OpenCV build
+  usually lacks an H.264 encoder, so clips there fall back to `mp4v`, which
+  WebView2 cannot play; opening the file externally works either way.
 - **No config hot-reload for the capture path.** Everything except the live-view
   settings is fixed when the camera opens, so changing it restarts the detector.
 - **The CLI prints with `fmt`.** Acceptable for a terminal program, but it means

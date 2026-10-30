@@ -25,6 +25,16 @@ type Config struct {
 	Detection DetectionSettings `json:"detection"`
 	Storage   StorageSettings   `json:"storage"`
 	Startup   StartupSettings   `json:"startup"`
+
+	Notifications NotificationSettings `json:"notifications"`
+}
+
+// NotificationSettings are the alerts that stay on this computer.
+type NotificationSettings struct {
+	// Desktop shows a notification from the operating system when motion saves a
+	// snapshot. It is on by default because it needs no account and sends nothing
+	// anywhere, so it is the one alert a user who skipped Telegram still gets.
+	Desktop bool `json:"desktop"`
 }
 
 // StartupSettings decide what happens without anybody pressing anything.
@@ -137,6 +147,11 @@ type StorageSettings struct {
 	// the oldest unstarred clips are recycled while the app runs, whatever
 	// their age. Zero turns that off.
 	MinimumFreeGigabytes int `json:"minimumFreeGigabytes"`
+
+	// MaxStorageGigabytes caps the combined size of clips and snapshots; the
+	// oldest are deleted first once it is exceeded. Zero means no cap. It is a
+	// float so a small disk can be given a fraction of a gigabyte.
+	MaxStorageGigabytes float64 `json:"maxStorageGigabytes"`
 }
 
 // Duration is a time.Duration that serialises as a readable string such as
@@ -197,7 +212,8 @@ func Default() Config {
 		// Both startup choices stay off until they are asked for. A fresh
 		// install that registered itself with the operating system, or reached
 		// for the webcam on its own, would be doing something nobody agreed to.
-		Startup: StartupSettings{LaunchAtLogin: false, WatchOnLaunch: false},
+		Startup:       StartupSettings{LaunchAtLogin: false, WatchOnLaunch: false},
+		Notifications: NotificationSettings{Desktop: true},
 	}
 }
 
@@ -273,6 +289,10 @@ func Load() (Config, error) {
 	// unrelated fields, over a control the user may never have opened.
 	settings.Detection.PreviewFPS = clamp(settings.Detection.PreviewFPS, MinPreviewFPS, MaxPreviewFPS)
 	settings.Detection.PreviewQuality = clamp(settings.Detection.PreviewQuality, MinPreviewQuality, MaxPreviewQuality)
+
+	// A negative cap is meaningless, and zero already means "no cap", so the
+	// nearest valid value is clamped to rather than refusing to start.
+	settings.Storage.MaxStorageGigabytes = max(0, settings.Storage.MaxStorageGigabytes)
 
 	// An installation that predates being asked which camera to use has an index
 	// somebody has been running with, and sending it back to the Setup screen to

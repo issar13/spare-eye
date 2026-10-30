@@ -568,7 +568,7 @@ func TestRemoveOldestUnprotectedVideoSkipsStarredClipsAndTakesThePoster(t *testi
 		t.Fatalf("SetProtected returned %v", err)
 	}
 
-	removed, err := RemoveOldestUnprotectedVideo(videoDirectory, mediaDirectory)
+	removed, err := RemoveOldestUnprotectedVideo(videoDirectory, mediaDirectory, nil)
 	if err != nil {
 		t.Fatalf("RemoveOldestUnprotectedVideo returned %v", err)
 	}
@@ -595,7 +595,7 @@ func TestRemoveOldestUnprotectedVideoRemovesNothingWhenNothingQualifies(t *testi
 		t.Fatalf("creating the video directory returned %v", err)
 	}
 
-	removed, err := RemoveOldestUnprotectedVideo(videoDirectory, mediaDirectory)
+	removed, err := RemoveOldestUnprotectedVideo(videoDirectory, mediaDirectory, nil)
 	if err != nil || removed != "" {
 		t.Fatalf("an empty directory gave %q, %v; want nothing", removed, err)
 	}
@@ -605,8 +605,160 @@ func TestRemoveOldestUnprotectedVideoRemovesNothingWhenNothingQualifies(t *testi
 		t.Fatalf("SetProtected returned %v", err)
 	}
 
-	removed, err = RemoveOldestUnprotectedVideo(videoDirectory, mediaDirectory)
+	removed, err = RemoveOldestUnprotectedVideo(videoDirectory, mediaDirectory, nil)
 	if err != nil || removed != "" {
 		t.Fatalf("a directory of starred clips gave %q, %v; want nothing", removed, err)
+	}
+}
+
+func TestPruneToSizeCapRemovesOldestAcrossDirectoriesUntilItFits(t *testing.T) {
+	videos := t.TempDir()
+	snapshots := t.TempDir()
+	now := time.Now()
+	megabyte := 1024 * 1024
+
+	writeRecording(t, videos, "oldest.mp4", megabyte, now.Add(-4*time.Hour))
+	writeRecording(t, snapshots, "second.jpg", megabyte, now.Add(-3*time.Hour))
+	writeRecording(t, videos, "third.mp4", megabyte, now.Add(-2*time.Hour))
+	writeRecording(t, snapshots, "newest.jpg", megabyte, now.Add(-1*time.Hour))
+
+	// 4 MB on disk against a 2.5 MB cap: the two oldest go, across both folders.
+	removed, err := PruneToSizeCap([]string{videos, snapshots}, 2.5/1024, nil, videos)
+	if err != nil {
+		t.Fatalf("PruneToSizeCap returned %v", err)
+	}
+	if removed != 2 {
+		t.Errorf("removed %d recordings, want 2", removed)
+	}
+
+	for _, gone := range []string{filepath.Join(videos, "oldest.mp4"), filepath.Join(snapshots, "second.jpg")} {
+		if _, err := os.Stat(gone); !os.IsNotExist(err) {
+			t.Errorf("%s survived the cap", gone)
+		}
+	}
+	for _, kept := range []string{filepath.Join(videos, "third.mp4"), filepath.Join(snapshots, "newest.jpg")} {
+		if _, err := os.Stat(kept); err != nil {
+			t.Errorf("%s was removed although the cap was already met: %v", kept, err)
+		}
+	}
+}
+
+func TestPruneToSizeCapKeepsEverythingWhenUnderTheCapOrDisabled(t *testing.T) {
+	testCases := map[string]float64{"under the cap": 1, "zero disables": 0, "negative disables": -1}
+
+	for name, maxGigabytes := range testCases {
+		t.Run(name, func(t *testing.T) {
+			directory := t.TempDir()
+			writeRecording(t, directory, "clip.mp4", 1024, time.Now().Add(-time.Hour))
+
+			removed, err := PruneToSizeCap([]string{directory}, maxGigabytes, nil, directory)
+			if err != nil {
+				t.Fatalf("PruneToSizeCap returned %v", err)
+			}
+			if removed != 0 {
+				t.Errorf("removed %d recordings, want 0", removed)
+			}
+		})
+	}
+}
+
+func TestPruneToSizeCapLeavesFileTypesItDoesNotManage(t *testing.T) {
+	directory := t.TempDir()
+	now := time.Now()
+
+	notes := writeRecording(t, directory, "notes.txt", 4096, now.Add(-10*time.Hour))
+	writeRecording(t, directory, "clip.mp4", 4096, now.Add(-time.Hour))
+
+	// A cap smaller than any file empties the managed types but not the rest.
+	if _, err := PruneToSizeCap([]string{directory}, 1.0/(1024*1024), nil, directory); err != nil {
+		t.Fatalf("PruneToSizeCap returned %v", err)
+	}
+	if _, err := os.Stat(notes); err != nil {
+		t.Errorf("notes.txt was removed: %v", err)
+	}
+}
+
+func TestPruneToSizeCapOfMissingDirectoriesIsANoOp(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "never-created")
+
+	removed, err := PruneToSizeCap([]string{missing}, 1, nil, missing)
+	if err != nil || removed != 0 {
+		t.Errorf("got (%d, %v), want (0, nil)", removed, err)
+	}
+}
+
+// A clip still being written is the newest file, so the cap only reaches it
+// once everything older is gone. Deleting it then would lose the footage being
+// recorded, and on Windows the open handle makes the removal fail outright.
+func TestPruneToSizeCapNeverRemovesARecordingInUse(t *testing.T) {
+	directory := t.TempDir()
+	now := time.Now()
+	megabyte := 1024 * 1024
+
+	writeRecording(t, directory, "finished.mp4", megabyte, now.Add(-time.Hour))
+	recording := writeRecording(t, directory, "recording.mp4", 2*megabyte, now)
+
+	removed, err := PruneToSizeCap([]string{directory}, 1.0/1024, []string{recording}, directory)
+	if err != nil {
+		t.Fatalf("PruneToSizeCap returned %v", err)
+	}
+	if removed != 1 {
+		t.Errorf("removed %d recordings, want 1", removed)
+	}
+	if _, err := os.Stat(recording); err != nil {
+		t.Errorf("the clip in use was removed: %v", err)
+	}
+}
+
+func TestPruneToSizeCapKeepsStarredRecordingsAndRemovesPostersOfDeletedClips(t *testing.T) {
+	mediaDirectory := t.TempDir()
+	videoDirectory := filepath.Join(mediaDirectory, "videos")
+	if err := os.MkdirAll(PosterDirectory(videoDirectory), 0o700); err != nil {
+		t.Fatalf("creating the poster directory returned %v", err)
+	}
+	now := time.Now()
+	megabyte := 1024 * 1024
+
+	starredPath := writeRecording(t, videoDirectory, "starred.mp4", megabyte, now.Add(-3*time.Hour))
+	oldestPath := writeRecording(t, videoDirectory, "oldest.mp4", megabyte, now.Add(-2*time.Hour))
+	newestPath := writeRecording(t, videoDirectory, "newest.mp4", megabyte, now.Add(-time.Hour))
+	writeRecording(t, PosterDirectory(videoDirectory), "oldest.mp4.jpg", 10, now)
+	if err := SetProtected(mediaDirectory, "starred.mp4", true); err != nil {
+		t.Fatalf("SetProtected returned %v", err)
+	}
+
+	// 3 MB on disk against a 1.5 MB cap: the starred clip is oldest but must
+	// stay, so the unstarred oldest goes and the cap stays unmet.
+	removed, err := PruneToSizeCap([]string{videoDirectory}, 1.5/1024, nil, mediaDirectory)
+	if err != nil || removed != 2 {
+		t.Fatalf("PruneToSizeCap returned %d, %v, want 2, nil", removed, err)
+	}
+
+	if _, err := os.Stat(starredPath); err != nil {
+		t.Errorf("the starred clip was removed: %v", err)
+	}
+	for _, path := range []string{oldestPath, newestPath, PosterPath(oldestPath)} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Errorf("%s should be gone, Stat returned %v", path, err)
+		}
+	}
+}
+
+func TestRemoveOldestUnprotectedVideoSkipsClipsStillBeingWritten(t *testing.T) {
+	mediaDirectory := t.TempDir()
+	now := time.Now()
+
+	openPath := writeRecording(t, mediaDirectory, "open.mp4", 10, now.Add(-2*time.Hour))
+	finishedPath := writeRecording(t, mediaDirectory, "finished.mp4", 10, now.Add(-time.Hour))
+
+	removed, err := RemoveOldestUnprotectedVideo(mediaDirectory, mediaDirectory, []string{openPath})
+	if err != nil || removed != "finished.mp4" {
+		t.Fatalf("RemoveOldestUnprotectedVideo returned %q, %v, want finished.mp4, nil", removed, err)
+	}
+	if _, err := os.Stat(openPath); err != nil {
+		t.Errorf("the clip being written was removed: %v", err)
+	}
+	if _, err := os.Stat(finishedPath); !os.IsNotExist(err) {
+		t.Errorf("the finished clip survived: %v", err)
 	}
 }

@@ -101,6 +101,8 @@ type SettingsView struct {
 	LiveView LiveViewForm `json:"liveView"`
 	Startup  StartupForm  `json:"startup"`
 
+	Notifications NotificationsForm `json:"notifications"`
+
 	CameraIndex int    `json:"cameraIndex"`
 	CameraURL   string `json:"cameraURL"`
 
@@ -120,6 +122,11 @@ type TelegramForm struct {
 	Enabled  bool   `json:"enabled"`
 }
 
+// NotificationsForm is the switch for alerts that stay on this computer.
+type NotificationsForm struct {
+	Desktop bool `json:"desktop"`
+}
+
 // TuningForm is the sensitivity and schedule screen.
 type TuningForm struct {
 	Day   SensitivityForm `json:"day"`
@@ -132,8 +139,9 @@ type TuningForm struct {
 	PrebufferLeadSeconds float64 `json:"prebufferLeadSeconds"`
 	ClipDurationSeconds  float64 `json:"clipDurationSeconds"`
 
-	RetentionDays        int `json:"retentionDays"`
-	MinimumFreeGigabytes int `json:"minimumFreeGigabytes"`
+	RetentionDays        int     `json:"retentionDays"`
+	MaxStorageGigabytes  float64 `json:"maxStorageGigabytes"`
+	MinimumFreeGigabytes int     `json:"minimumFreeGigabytes"`
 }
 
 // LiveViewForm is the Live view screen's speed and sharpness. Both govern the
@@ -176,6 +184,7 @@ func settingsView(settings config.Config) SettingsView {
 			ClipDurationSeconds:  settings.Detection.ClipDuration.AsDuration().Seconds(),
 			RetentionDays:        settings.Storage.RetentionDays,
 			MinimumFreeGigabytes: settings.Storage.MinimumFreeGigabytes,
+			MaxStorageGigabytes:  settings.Storage.MaxStorageGigabytes,
 		},
 		LiveView: LiveViewForm{
 			PreviewFPS:     settings.Detection.PreviewFPS,
@@ -185,6 +194,7 @@ func settingsView(settings config.Config) SettingsView {
 			LaunchAtLogin: settings.Startup.LaunchAtLogin,
 			WatchOnLaunch: settings.Startup.WatchOnLaunch,
 		},
+		Notifications:  NotificationsForm{Desktop: settings.Notifications.Desktop},
 		CameraIndex:    settings.Detection.CameraIndex,
 		CameraURL:      settings.Detection.CameraURL,
 		CameraChosen:   settings.Detection.CameraChosen,
@@ -488,6 +498,7 @@ func (s *Service) SaveTuning(form TuningForm) ActionResult {
 	updated.Detection.ClipDuration = seconds(form.ClipDurationSeconds)
 	updated.Storage.RetentionDays = form.RetentionDays
 	updated.Storage.MinimumFreeGigabytes = form.MinimumFreeGigabytes
+	updated.Storage.MaxStorageGigabytes = form.MaxStorageGigabytes
 	s.mutex.Unlock()
 
 	if s.persist(updated) != nil {
@@ -573,6 +584,23 @@ func (s *Service) SaveStartup(form StartupForm) ActionResult {
 	return succeeded("Saved")
 }
 
+// SaveNotifications stores whether motion shows a notification on this computer.
+// It takes effect for the next alert, so nothing is restarted.
+func (s *Service) SaveNotifications(form NotificationsForm) ActionResult {
+	s.mutex.Lock()
+	updated := s.settings
+	updated.Notifications = config.NotificationSettings{Desktop: form.Desktop}
+	s.mutex.Unlock()
+
+	if s.persist(updated) != nil {
+		return couldNotSave()
+	}
+
+	s.log.Info("notification settings saved", "desktop", form.Desktop)
+
+	return succeeded("Saved")
+}
+
 // validateTuning rejects values that would make the detector behave absurdly.
 // This is the boundary where numbers a user typed become engine settings, and
 // each rejection names the control on screen rather than the field underneath.
@@ -618,6 +646,12 @@ func validateTuning(form TuningForm) *Problem {
 		return &Problem{
 			Headline: "That is not an amount of free space",
 			NextStep: "Set the free space to keep to 0 or more gigabytes. 0 turns it off.",
+		}
+	}
+	if form.MaxStorageGigabytes < 0 {
+		return &Problem{
+			Headline: "That is not a storage limit",
+			NextStep: "Set the most space recordings may use to 0 or more gigabytes. 0 means no limit.",
 		}
 	}
 
