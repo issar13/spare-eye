@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"net/url"
+	"path/filepath"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -150,4 +153,57 @@ func (a *App) OpenRecordingsFolder() app.ActionResult {
 	runtime.BrowserOpenURL(a.windowContext, (&url.URL{Scheme: "file", Path: folder}).String())
 
 	return app.ActionResult{OK: true, Headline: "Opening your recordings folder"}
+}
+
+// ExportRecordings saves one tab's recordings as a zip archive the user places
+// with a save dialog. It takes only the tab's name: the file list is built by
+// the service and the destination chosen in the native dialog, so the webview
+// never names a path. It runs synchronously; a few hundred megabytes take
+// seconds, and the button shows a pending state meanwhile.
+//
+// Cancelling the dialog is not an error. It returns OK with the headline
+// "Export cancelled" so the UI can show a neutral confirmation, not a red one.
+func (a *App) ExportRecordings(collection string) app.ActionResult {
+	paths, err := a.service.ExportPaths(collection)
+	if err != nil {
+		return app.ActionResult{
+			Headline: "Your recordings could not be listed",
+			NextStep: "Check that the recordings folder in Settings exists, then try again.",
+		}
+	}
+
+	if len(paths) == 0 {
+		return app.ActionResult{
+			Headline: "Nothing to export",
+			NextStep: "This tab has no recordings yet.",
+		}
+	}
+
+	destination, err := runtime.SaveFileDialog(a.windowContext, runtime.SaveDialogOptions{
+		DefaultFilename: fmt.Sprintf("spareeye-%s-%s.zip", collection, time.Now().Format("2006-01-02")),
+		Title:           "Export recordings",
+		Filters:         []runtime.FileFilter{{DisplayName: "Zip archive (*.zip)", Pattern: "*.zip"}},
+	})
+	if err != nil {
+		return app.ActionResult{
+			Headline: "The save dialog could not be opened",
+			NextStep: "Try again, or copy the files from the recordings folder by hand.",
+		}
+	}
+
+	if destination == "" {
+		return app.ActionResult{OK: true, Headline: "Export cancelled"}
+	}
+
+	if err := a.service.WriteExportArchive(paths, destination); err != nil {
+		return app.ActionResult{
+			Headline: "The recordings could not be exported",
+			NextStep: "Check there is enough free space at that location and that it is writable, then try again.",
+		}
+	}
+
+	return app.ActionResult{
+		OK:       true,
+		Headline: fmt.Sprintf("Exported %d recordings to %s", len(paths), filepath.Base(destination)),
+	}
 }

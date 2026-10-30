@@ -1,5 +1,5 @@
 import {compareDesc, parseISO} from 'date-fns';
-import {DeleteRecording, OpenExternally, SendRecording, SetProtected, Settings} from '../wailsjs/go/main/App';
+import {DeleteRecording, ExportRecordings, OpenExternally, SendRecording, SetProtected, Settings} from '../wailsjs/go/main/App';
 import type {app} from '../wailsjs/go/models';
 import {showBanner, showResult} from './banner';
 import {requireElement} from './elements';
@@ -277,4 +277,9 @@ export const registerRecordingHandlers = (): void => {
             refreshButton.textContent = originalLabel;
         }
     });
+
+    // The Go side builds the file list for the tab being shown, so only its
+    // name crosses over; the save dialog is native and picks the destination.
+    const exportButton = requireElement<HTMLButtonElement>('#recordings-export');
+    exportButton.addEventListener('click', () => void runAction(exportButton, () => ExportRecordings(shown)));
 };

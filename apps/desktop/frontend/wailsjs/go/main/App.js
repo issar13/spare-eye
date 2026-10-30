@@ -26,6 +26,10 @@ export function DiscoverNetworkCameras() {
   return window['go']['main']['App']['DiscoverNetworkCameras']();
 }
 
+export function ExportRecordings(arg1) {
+  return window['go']['main']['App']['ExportRecordings'](arg1);
+}
+
 export function LogLines() {
   return window['go']['main']['App']['LogLines']();
 }

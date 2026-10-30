@@ -16,6 +16,8 @@ export function Disarm():Promise<app.ActionResult>;
 
 export function DiscoverNetworkCameras():Promise<Array<onvif.Camera>>;
 
+export function ExportRecordings(arg1:string):Promise<app.ActionResult>;
+
 export function LogLines():Promise<Array<string>>;
 
 export function OpenExternally(arg1:string):Promise<app.ActionResult>;

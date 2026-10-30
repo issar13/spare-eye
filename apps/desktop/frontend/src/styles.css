@@ -145,7 +145,7 @@ button.wide { width: 100%; }
 button.danger { color: #ffb4ab; background: rgba(255, 107, 94, .12); }
 button.icon-button { width: 36px; min-height: 36px; padding: 0; color: var(--text-soft); background: transparent; font-size: 17px; }
 button.icon-button:hover:not(:disabled) { color: var(--text); background: var(--raised); }
-button.icon-button.starred { color: var(--cyan); background: rgba(76, 215, 246, .12); }
+button.icon-button.starred, button.icon-button.starred:hover:not(:disabled) { color: var(--cyan); background: rgba(76, 215, 246, .12); }
 button.icon-button.danger:hover:not(:disabled) { color: #ffb4ab; background: rgba(255, 107, 94, .12); }
 .tint-green-text { color: var(--green) !important; }
 .link-button { min-height: 0; padding: 4px 0; color: var(--cyan); background: none; font-size: 16px; font-weight: 500; }
