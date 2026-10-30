@@ -102,16 +102,9 @@ func (r *recorder) wait() error {
 func (r *recorder) run() {
 	defer close(r.done)
 
-	writer, err := gocv.VideoWriterFile(
-		r.request.path,
-		"mp4v",
-		r.request.frameRate,
-		r.request.frameSize.X,
-		r.request.frameSize.Y,
-		true,
-	)
+	writer, err := r.openWriter()
 	if err != nil {
-		r.writeError = fmt.Errorf("opening %s: %w", r.request.path, err)
+		r.writeError = err
 		r.releasePending()
 		return
 	}
@@ -135,6 +128,37 @@ func (r *recorder) run() {
 	}
 
 	r.releasePending()
+}
+
+// clipCodecs are tried in order. H.264 is first because it is the only one the
+// desktop app's webview can play. OpenCV builds without an H.264 encoder (the
+// FFmpeg bundled with a Windows build of OpenCV, unless openh264 is installed)
+// fall back to MPEG-4, which still opens in an external player.
+var clipCodecs = []string{"avc1", "mp4v"}
+
+// openWriter opens the clip with the first codec this OpenCV build can encode.
+// gocv returns no error for a codec it cannot use, only a writer that is not
+// open, so each attempt is checked with IsOpened.
+func (r *recorder) openWriter() (*gocv.VideoWriter, error) {
+	for _, codec := range clipCodecs {
+		writer, err := gocv.VideoWriterFile(
+			r.request.path,
+			codec,
+			r.request.frameRate,
+			r.request.frameSize.X,
+			r.request.frameSize.Y,
+			true,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("opening %s: %w", r.request.path, err)
+		}
+		if writer.IsOpened() {
+			return writer, nil
+		}
+		writer.Close()
+	}
+
+	return nil, fmt.Errorf("opening %s: no video encoder available for %v", r.request.path, clipCodecs)
 }
 
 func (r *recorder) writeUntilStopped(writer *gocv.VideoWriter) {

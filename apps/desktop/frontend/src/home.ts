@@ -3,7 +3,9 @@ import type {app} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
 import {requireElement} from './elements';
 import {formatElapsedSeconds, formatWhen} from './format';
+import {guideText} from './home-guide';
 import {loadRecentEvents} from './queries';
+import {clearButtonPending, setButtonPending} from './button-state';
 
 const heroDot = requireElement<HTMLElement>('#hero-dot');
 const heroHeadline = requireElement<HTMLElement>('#hero-headline');
@@ -46,10 +48,10 @@ export const updateHome = (status: app.StatusView): void => {
 // obstacle itself is already the hero headline, and its remedy the explanation
 // underneath, so only the pointer to the guide is left to add.
 const renderGuide = (problem: app.Problem | null | undefined): void => {
-    const path = problem?.docPath ?? '';
+    const text = guideText(problem);
 
-    heroGuide.hidden = path === '';
-    heroGuide.textContent = path === '' ? '' : `Step-by-step instructions are in ${path}`;
+    heroGuide.hidden = text === '';
+    heroGuide.textContent = text;
 };
 
 // renderDiagnostics is the only place the technical numbers appear, and it
@@ -90,7 +92,7 @@ const describeAlerts = (status: app.StatusView): string => {
         return 'Turned off';
     }
     if (!status.alertsConfigured) {
-        return 'Not set up yet';
+        return 'Not set up (optional)';
     }
 
     return status.telegramConnected ? 'Connected' : 'Connecting…';
@@ -148,6 +150,7 @@ export const registerHomeHandlers = (onStateChanged: () => void): void => {
 
         busy = true;
         watchButton.disabled = true;
+        setButtonPending(watchButton, true);
         watchButton.textContent = starting ? 'Turning your camera on…' : 'Stopping…';
         hideBanner(messageBanner);
 
@@ -163,6 +166,7 @@ export const registerHomeHandlers = (onStateChanged: () => void): void => {
             showBanner(messageBanner, 'SpareEye could not change the camera state. Try again.', 'error');
         } finally {
             busy = false;
+            await clearButtonPending(watchButton);
             onStateChanged();
         }
     });
@@ -172,6 +176,7 @@ export const registerHomeHandlers = (onStateChanged: () => void): void => {
 
         recordingBusy = true;
         recordButton.disabled = true;
+        setButtonPending(recordButton, true);
         recordButton.textContent = starting ? 'Starting…' : 'Stopping…';
         try {
             const result = await (starting ? StartManualRecording() : StopManualRecording());
@@ -184,6 +189,7 @@ export const registerHomeHandlers = (onStateChanged: () => void): void => {
             showBanner(messageBanner, 'SpareEye could not change the recording state. Try again.', 'error');
         } finally {
             recordingBusy = false;
+            await clearButtonPending(recordButton);
             recordButton.disabled = false;
             onStateChanged();
         }

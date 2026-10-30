@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -73,6 +74,61 @@ func list(directory, extension string) ([]Recording, error) {
 	})
 
 	return recordings, nil
+}
+
+const bytesPerGigabyte = 1024 * 1024 * 1024
+
+// PruneToSizeCap deletes the oldest recordings across all directories, clips
+// and snapshots together, until their combined size fits maxGigabytes, and
+// returns how many were removed. A cap of zero or less keeps everything.
+//
+// inUse names clips still being written. They count toward the total, since
+// they occupy the disk, but are never removed: that would lose the footage
+// being recorded, and on Windows the open handle makes the removal fail and
+// abort the prune.
+func PruneToSizeCap(directories []string, maxGigabytes float64, inUse []string) (int, error) {
+	if maxGigabytes <= 0 {
+		return 0, nil
+	}
+
+	recordings := make([]Recording, 0)
+	for _, directory := range directories {
+		for _, extension := range []string{".mp4", ".jpg"} {
+			listed, err := list(directory, extension)
+			if err != nil {
+				return 0, err
+			}
+			recordings = append(recordings, listed...)
+		}
+	}
+
+	sort.Slice(recordings, func(first, second int) bool {
+		return recordings[first].CreatedAt.Before(recordings[second].CreatedAt)
+	})
+
+	totalBytes := int64(0)
+	for _, recording := range recordings {
+		totalBytes += recording.SizeBytes
+	}
+
+	capBytes := int64(maxGigabytes * bytesPerGigabyte)
+	removed := 0
+
+	for _, recording := range recordings {
+		if totalBytes <= capBytes {
+			break
+		}
+		if slices.Contains(inUse, recording.Path) {
+			continue
+		}
+		if err := os.Remove(recording.Path); err != nil {
+			return removed, fmt.Errorf("removing %s: %w", recording.Path, err)
+		}
+		totalBytes -= recording.SizeBytes
+		removed++
+	}
+
+	return removed, nil
 }
 
 // Prune deletes recordings older than retentionDays and returns how many were

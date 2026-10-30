@@ -6,6 +6,7 @@ import {formatMinutesOfDay, parseMinutesOfDay} from './format';
 import {applyLevel, levelFor, sensitivityOrder, sensitivityPresets} from './presets';
 import {describeIssue, tuningSchema} from './schemas';
 import {renderSegmented} from './segmented';
+import {clearButtonPending, setButtonPending} from './button-state';
 
 const form = requireElement<HTMLFormElement>('#detection-form');
 const message = requireElement<HTMLElement>('#detection-message');
@@ -37,6 +38,7 @@ export const loadDetectionForm = async (): Promise<void> => {
     requireField(form, 'clipDurationSeconds').value = String(tuning.clipDurationSeconds);
     requireField(form, 'prebufferLeadSeconds').value = String(tuning.prebufferLeadSeconds);
     requireField(form, 'retentionDays').value = String(tuning.retentionDays);
+    requireField(form, 'maxStorageGigabytes').value = String(tuning.maxStorageGigabytes);
 };
 
 const renderSensitivity = (): void => {
@@ -85,6 +87,7 @@ const readForm = () => {
         prebufferLeadSeconds: requireField(form, 'prebufferLeadSeconds').value,
         clipDurationSeconds: requireField(form, 'clipDurationSeconds').value,
         retentionDays: requireField(form, 'retentionDays').value,
+        maxStorageGigabytes: requireField(form, 'maxStorageGigabytes').value,
     });
 };
 
@@ -104,6 +107,7 @@ export const registerDetectionHandlers = (onSettingsChanged: () => void): void =
         }
 
         saveButton.disabled = true;
+        setButtonPending(saveButton, true);
         const originalLabel = saveButton.textContent;
         saveButton.textContent = 'Saving…';
         showBanner(message, 'Saving your motion settings…');
@@ -120,6 +124,7 @@ export const registerDetectionHandlers = (onSettingsChanged: () => void): void =
         } catch (error) {
             showBanner(message, error instanceof Error ? error.message : 'Could not save motion settings.', 'error');
         } finally {
+            await clearButtonPending(saveButton);
             saveButton.disabled = false;
             saveButton.textContent = originalLabel;
         }

@@ -9,6 +9,7 @@ import (
 
 	"spareeye/internal/autostart"
 	"spareeye/internal/config"
+	"spareeye/internal/desktopnotify"
 	"spareeye/internal/detector"
 	"spareeye/internal/media"
 )
@@ -17,6 +18,12 @@ import (
 // up. Opening a device and measuring its frame rate takes a second or two; a
 // device that has not produced a frame well past that is not going to.
 const cameraOpenTimeout = 25 * time.Second
+
+// mediaPruneInterval is how often retention and the storage cap are applied
+// while the app is open. Pruning only at launch let a camera left running for
+// weeks outgrow both. An hour is far below the one-day retention granularity
+// and a clip's worth of disk, so neither limit drifts meaningfully past itself.
+const mediaPruneInterval = time.Hour
 
 // Service owns the detector for the desktop UI: one camera, one notifier, one
 // set of settings, and the history the UI reads back.
@@ -40,6 +47,13 @@ type Service struct {
 	// of finding a screen that simply reads "Not running".
 	launchProblem *Problem
 
+	// openClips are clips the detector is still writing, kept so a prune
+	// running mid-recording never removes one.
+	openClips []string
+
+	// stopPruning ends the scheduled pruning started by Startup.
+	stopPruning context.CancelFunc
+
 	cameras []detector.Camera
 	// camerasScanned distinguishes "no camera found" from "not looked yet",
 	// which decide whether arming is refused or merely unproven.
@@ -47,6 +61,10 @@ type Service struct {
 
 	events    eventHistory
 	messenger messenger
+
+	// showDesktopNotification is a field so tests can observe alerts without a
+	// notification daemon, and so the platform choice stays in desktopnotify.
+	showDesktopNotification func(desktopnotify.Message) error
 }
 
 // detectorSession is one run of the detector, from opening the camera to the
@@ -73,6 +91,8 @@ func NewService(log *Log, settings config.Config, instanceLockError error) *Serv
 		instanceLockError: instanceLockError,
 		settings:          settings,
 		events:            eventHistory{limit: retainedEvents},
+
+		showDesktopNotification: desktopnotify.Show,
 	}
 }
 
@@ -96,6 +116,12 @@ func (s *Service) Startup(ctx context.Context) {
 
 	s.pruneExpiredMedia()
 	s.restartMessenger()
+
+	pruningContext, stopPruning := context.WithCancel(ctx)
+	s.mutex.Lock()
+	s.stopPruning = stopPruning
+	s.mutex.Unlock()
+	go s.pruneOnSchedule(pruningContext)
 
 	// Probing opens every device in turn, which takes long enough to be worth
 	// keeping off the path that paints the window. Arming waits for it to
@@ -199,14 +225,37 @@ func containsCamera(cameras []detector.Camera, index int) bool {
 // Shutdown stops the detector and the notifier. Wails calls it while the window
 // is closing, so a clip in progress still gets flushed to disk.
 func (s *Service) Shutdown(ctx context.Context) {
+	s.mutex.Lock()
+	stopPruning := s.stopPruning
+	s.mutex.Unlock()
+	if stopPruning != nil {
+		stopPruning()
+	}
+
 	s.stopSession()
 	s.messenger.stop()
 	s.log.Info("shutdown complete")
 }
 
+// pruneOnSchedule reapplies retention and the storage cap until ctx ends.
+func (s *Service) pruneOnSchedule(ctx context.Context) {
+	ticker := time.NewTicker(mediaPruneInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.pruneExpiredMedia()
+		}
+	}
+}
+
 func (s *Service) pruneExpiredMedia() {
 	s.mutex.Lock()
 	settings := s.settings
+	openClips := slices.Clone(s.openClips)
 	s.mutex.Unlock()
 
 	// Prune scans one directory at a time, and snapshots and clips live in
@@ -220,6 +269,21 @@ func (s *Service) pruneExpiredMedia() {
 		if removed > 0 {
 			s.log.Info("pruned expired media", "directory", directory, "removed", removed)
 		}
+	}
+
+	// The cap spans both directories, so it cannot be applied per directory
+	// above: the oldest file overall may be in either.
+	removed, err := media.PruneToSizeCap(
+		[]string{settings.VideoDirectory(), settings.SnapshotDirectory()},
+		settings.Storage.MaxStorageGigabytes,
+		openClips,
+	)
+	if err != nil {
+		s.log.Error("enforcing the storage cap failed", "error", err)
+		return
+	}
+	if removed > 0 {
+		s.log.Info("pruned media over the storage cap", "removed", removed)
 	}
 }
 
@@ -424,17 +488,9 @@ func (s *Service) armBlockedProblem(settings config.Config) *Problem {
 		return &problem
 	}
 
-	// Alerts are opt-out: a user who turns Telegram off is choosing to record
-	// locally, which is a legitimate way to run. Half-configured credentials
-	// are the actual mistake worth blocking on.
-	if settings.Telegram.Enabled && !settings.ConfiguredForAlerts() {
-		return &Problem{
-			Headline: "Telegram is not finished being set up",
-			NextStep: "Go to Setup and enter both the bot token and the chat ID, or turn off Telegram alerts " +
-				"to record to this computer only.",
-			DocPath: telegramSetupDoc,
-		}
-	}
+	// Telegram is optional, so missing or half-entered credentials are not a
+	// reason to refuse: detection runs and saves everything locally, and
+	// restartMessenger only connects once both values are present.
 
 	return nil
 }
@@ -545,8 +601,18 @@ func (s *Service) consumeEvents(session *detectorSession, drained chan struct{})
 
 		case detector.EventSnapshotSaved:
 			s.deliverSnapshot(event.MediaPath, event.Night)
+			s.deliverDesktopAlert(event.MediaPath, event.Night)
+
+		case detector.EventClipStarted:
+			s.mutex.Lock()
+			s.openClips = append(s.openClips, event.MediaPath)
+			s.mutex.Unlock()
 
 		case detector.EventClipFinished:
+			s.mutex.Lock()
+			s.openClips = slices.DeleteFunc(s.openClips, func(path string) bool { return path == event.MediaPath })
+			s.mutex.Unlock()
+
 			if event.Err == nil {
 				s.deliverClip(event.MediaPath, event.Manual)
 			}

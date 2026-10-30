@@ -394,3 +394,102 @@ func TestPruneKeepsEverythingWhenNothingIsOldEnough(t *testing.T) {
 	}
 	assertNamesInOrder(t, remaining, "recent.mp4")
 }
+
+func TestPruneToSizeCapRemovesOldestAcrossDirectoriesUntilItFits(t *testing.T) {
+	videos := t.TempDir()
+	snapshots := t.TempDir()
+	now := time.Now()
+	megabyte := 1024 * 1024
+
+	writeRecording(t, videos, "oldest.mp4", megabyte, now.Add(-4*time.Hour))
+	writeRecording(t, snapshots, "second.jpg", megabyte, now.Add(-3*time.Hour))
+	writeRecording(t, videos, "third.mp4", megabyte, now.Add(-2*time.Hour))
+	writeRecording(t, snapshots, "newest.jpg", megabyte, now.Add(-1*time.Hour))
+
+	// 4 MB on disk against a 2.5 MB cap: the two oldest go, across both folders.
+	removed, err := PruneToSizeCap([]string{videos, snapshots}, 2.5/1024, nil)
+	if err != nil {
+		t.Fatalf("PruneToSizeCap returned %v", err)
+	}
+	if removed != 2 {
+		t.Errorf("removed %d recordings, want 2", removed)
+	}
+
+	for _, gone := range []string{filepath.Join(videos, "oldest.mp4"), filepath.Join(snapshots, "second.jpg")} {
+		if _, err := os.Stat(gone); !os.IsNotExist(err) {
+			t.Errorf("%s survived the cap", gone)
+		}
+	}
+	for _, kept := range []string{filepath.Join(videos, "third.mp4"), filepath.Join(snapshots, "newest.jpg")} {
+		if _, err := os.Stat(kept); err != nil {
+			t.Errorf("%s was removed although the cap was already met: %v", kept, err)
+		}
+	}
+}
+
+func TestPruneToSizeCapKeepsEverythingWhenUnderTheCapOrDisabled(t *testing.T) {
+	testCases := map[string]float64{"under the cap": 1, "zero disables": 0, "negative disables": -1}
+
+	for name, maxGigabytes := range testCases {
+		t.Run(name, func(t *testing.T) {
+			directory := t.TempDir()
+			writeRecording(t, directory, "clip.mp4", 1024, time.Now().Add(-time.Hour))
+
+			removed, err := PruneToSizeCap([]string{directory}, maxGigabytes, nil)
+			if err != nil {
+				t.Fatalf("PruneToSizeCap returned %v", err)
+			}
+			if removed != 0 {
+				t.Errorf("removed %d recordings, want 0", removed)
+			}
+		})
+	}
+}
+
+func TestPruneToSizeCapLeavesFileTypesItDoesNotManage(t *testing.T) {
+	directory := t.TempDir()
+	now := time.Now()
+
+	notes := writeRecording(t, directory, "notes.txt", 4096, now.Add(-10*time.Hour))
+	writeRecording(t, directory, "clip.mp4", 4096, now.Add(-time.Hour))
+
+	// A cap smaller than any file empties the managed types but not the rest.
+	if _, err := PruneToSizeCap([]string{directory}, 1.0/(1024*1024), nil); err != nil {
+		t.Fatalf("PruneToSizeCap returned %v", err)
+	}
+	if _, err := os.Stat(notes); err != nil {
+		t.Errorf("notes.txt was removed: %v", err)
+	}
+}
+
+func TestPruneToSizeCapOfMissingDirectoriesIsANoOp(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "never-created")
+
+	removed, err := PruneToSizeCap([]string{missing}, 1, nil)
+	if err != nil || removed != 0 {
+		t.Errorf("got (%d, %v), want (0, nil)", removed, err)
+	}
+}
+
+// A clip still being written is the newest file, so the cap only reaches it
+// once everything older is gone. Deleting it then would lose the footage being
+// recorded, and on Windows the open handle makes the removal fail outright.
+func TestPruneToSizeCapNeverRemovesARecordingInUse(t *testing.T) {
+	directory := t.TempDir()
+	now := time.Now()
+	megabyte := 1024 * 1024
+
+	writeRecording(t, directory, "finished.mp4", megabyte, now.Add(-time.Hour))
+	recording := writeRecording(t, directory, "recording.mp4", 2*megabyte, now)
+
+	removed, err := PruneToSizeCap([]string{directory}, 1.0/1024, []string{recording})
+	if err != nil {
+		t.Fatalf("PruneToSizeCap returned %v", err)
+	}
+	if removed != 1 {
+		t.Errorf("removed %d recordings, want 1", removed)
+	}
+	if _, err := os.Stat(recording); err != nil {
+		t.Errorf("the clip in use was removed: %v", err)
+	}
+}

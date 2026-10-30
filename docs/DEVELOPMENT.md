@@ -244,7 +244,8 @@ installer provisions if it is missing.
   headers or pin GCC 11 or 12 via `egor-tensin/setup-mingw@v2`.
 - **Camera backend.** Linux requests V4L2 explicitly to suppress GStreamer
   noise; Windows takes OpenCV's default, DirectShow. Untested.
-- **`mp4v` clip encoding on Windows** is likewise unconfirmed.
+- **Clip encoding on Windows** is likewise unconfirmed. The recorder tries H.264
+  and falls back to `mp4v`; which one a Windows build ends up with is unknown.
 
 ---
 
