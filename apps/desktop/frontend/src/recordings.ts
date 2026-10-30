@@ -4,6 +4,7 @@ import {showBanner, showResult} from './banner';
 import {requireElement} from './elements';
 import {formatFullTimestamp} from './format';
 import {loadRecordings} from './queries';
+import {setButtonPending} from './button-state';
 
 type Collection = 'clips' | 'snapshots';
 
@@ -150,10 +151,12 @@ const runAction = async (
     action: () => Promise<app.ActionResult>,
 ): Promise<void> => {
     button.disabled = true;
+    setButtonPending(button, true);
 
     try {
         showResult(message, await action());
     } finally {
+        setButtonPending(button, false);
         button.disabled = false;
     }
 };
@@ -167,6 +170,19 @@ export const registerRecordingHandlers = (): void => {
         void refreshRecordings();
     }));
 
-    requireElement<HTMLButtonElement>('#recordings-refresh')
-        .addEventListener('click', () => void refreshRecordings());
+    const refreshButton = requireElement<HTMLButtonElement>('#recordings-refresh');
+    refreshButton.addEventListener('click', async () => {
+        refreshButton.disabled = true;
+        setButtonPending(refreshButton, true);
+        const originalLabel = refreshButton.textContent;
+        refreshButton.textContent = 'Refreshing…';
+
+        try {
+            await refreshRecordings();
+        } finally {
+            setButtonPending(refreshButton, false);
+            refreshButton.disabled = false;
+            refreshButton.textContent = originalLabel;
+        }
+    });
 };

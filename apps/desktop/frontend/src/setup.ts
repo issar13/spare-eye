@@ -14,6 +14,7 @@ import {
 import type {app, detector} from '../wailsjs/go/models';
 import type {onvif} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
+import {setButtonPending} from './button-state';
 import {requireElement, requireField} from './elements';
 import {cameraStreamSchema, describeIssue, startupSchema, telegramSchema} from './schemas';
 
@@ -219,6 +220,7 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         }
 
         saveButton.disabled = true;
+        setButtonPending(saveButton, true);
         const originalLabel = saveButton.textContent;
         saveButton.textContent = 'Saving…';
 
@@ -227,6 +229,7 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         } catch {
             showBanner(setupMessage, 'Could not save Telegram settings. Try again.', 'error');
         } finally {
+            setButtonPending(saveButton, false);
             saveButton.disabled = false;
             saveButton.textContent = originalLabel;
         }
@@ -243,6 +246,7 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         }
 
         saveButton.disabled = true;
+        setButtonPending(saveButton, true);
         const originalLabel = saveButton.textContent;
         saveButton.textContent = 'Saving…';
 
@@ -251,6 +255,7 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         } catch {
             showBanner(startupMessage, 'Could not save startup settings. Try again.', 'error');
         } finally {
+            setButtonPending(saveButton, false);
             saveButton.disabled = false;
             saveButton.textContent = originalLabel;
         }
@@ -262,6 +267,9 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         const button = event.currentTarget as HTMLButtonElement;
 
         button.disabled = true;
+        setButtonPending(button, true);
+        const originalLabel = button.textContent;
+        button.textContent = 'Testing…';
         showBanner(setupMessage, 'Looking for the message you sent your bot…');
 
         try {
@@ -271,17 +279,36 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
                 await loadSetup();
             }
         } finally {
+            setButtonPending(button, false);
             button.disabled = false;
+            button.textContent = originalLabel;
         }
 
         onSettingsChanged();
     });
 
-    requireElement<HTMLButtonElement>('#camera-refresh').addEventListener('click', () => void showCameras(RescanCameras));
+    const cameraRefreshButton = requireElement<HTMLButtonElement>('#camera-refresh');
+    cameraRefreshButton.addEventListener('click', async () => {
+        cameraRefreshButton.disabled = true;
+        setButtonPending(cameraRefreshButton, true);
+        const originalLabel = cameraRefreshButton.textContent;
+        cameraRefreshButton.textContent = 'Looking…';
+
+        try {
+            await showCameras(RescanCameras);
+        } finally {
+            setButtonPending(cameraRefreshButton, false);
+            cameraRefreshButton.disabled = false;
+            cameraRefreshButton.textContent = originalLabel;
+        }
+    });
 
     requireElement<HTMLButtonElement>('#network-camera-search').addEventListener('click', async (event) => {
         const searchButton = event.currentTarget as HTMLButtonElement;
         searchButton.disabled = true;
+        setButtonPending(searchButton, true);
+        const originalLabel = searchButton.textContent;
+        searchButton.textContent = 'Searching…';
         showBanner(networkCameraMessage, 'Searching this network for ONVIF cameras…');
         networkCameraList.replaceChildren();
 
@@ -302,7 +329,9 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
                 'error',
             );
         } finally {
+            setButtonPending(searchButton, false);
             searchButton.disabled = false;
+            searchButton.textContent = originalLabel;
         }
     });
 
@@ -334,12 +363,17 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
         const button = event.currentTarget as HTMLButtonElement;
 
         button.disabled = true;
+        setButtonPending(button, true);
+        const originalLabel = button.textContent;
+        button.textContent = 'Testing…';
         showBanner(streamMessage, 'Trying that camera…');
 
         try {
             showResult(streamMessage, await TestCameraURL(address));
         } finally {
+            setButtonPending(button, false);
             button.disabled = false;
+            button.textContent = originalLabel;
         }
     });
 
@@ -351,22 +385,40 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
             return;
         }
 
-        showBanner(streamMessage, 'Trying that camera…');
-
-        const result = await SelectCameraURL(address);
-        if (result.ok) {
-            hideBanner(streamMessage);
-            await showCameras(Cameras);
-        } else {
-            showResult(streamMessage, result);
+        const useCameraButton = streamForm.querySelector<HTMLButtonElement>('button[type="submit"]');
+        if (useCameraButton === null || useCameraButton.disabled) {
+            return;
         }
 
-        onSettingsChanged();
+        useCameraButton.disabled = true;
+        setButtonPending(useCameraButton, true);
+        const originalLabel = useCameraButton.textContent;
+        useCameraButton.textContent = 'Trying camera…';
+
+        try {
+            showBanner(streamMessage, 'Trying that camera…');
+            const result = await SelectCameraURL(address);
+            if (result.ok) {
+                hideBanner(streamMessage);
+                await showCameras(Cameras);
+            } else {
+                showResult(streamMessage, result);
+            }
+
+            onSettingsChanged();
+        } catch {
+            showBanner(streamMessage, 'Could not select that camera. Try again.', 'error');
+        } finally {
+            setButtonPending(useCameraButton, false);
+            useCameraButton.disabled = false;
+            useCameraButton.textContent = originalLabel;
+        }
     });
 
     startButton.addEventListener('click', async () => {
         startBusy = true;
         startButton.disabled = true;
+        setButtonPending(startButton, true);
         showBanner(startMessage, 'Turning your camera on…');
 
         try {
@@ -381,6 +433,7 @@ export const registerSetupHandlers = (onSettingsChanged: () => void, onWatching:
             showBanner(startMessage, 'SpareEye could not start the camera. Try again.', 'error');
         } finally {
             startBusy = false;
+            setButtonPending(startButton, false);
             onSettingsChanged();
         }
     });

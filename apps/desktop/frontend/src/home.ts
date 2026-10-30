@@ -5,6 +5,7 @@ import {requireElement} from './elements';
 import {formatElapsedSeconds, formatWhen} from './format';
 import {guideText} from './home-guide';
 import {loadRecentEvents} from './queries';
+import {setButtonPending} from './button-state';
 
 const heroDot = requireElement<HTMLElement>('#hero-dot');
 const heroHeadline = requireElement<HTMLElement>('#hero-headline');
@@ -149,6 +150,7 @@ export const registerHomeHandlers = (onStateChanged: () => void): void => {
 
         busy = true;
         watchButton.disabled = true;
+        setButtonPending(watchButton, true);
         watchButton.textContent = starting ? 'Turning your camera on…' : 'Stopping…';
         hideBanner(messageBanner);
 
@@ -164,6 +166,7 @@ export const registerHomeHandlers = (onStateChanged: () => void): void => {
             showBanner(messageBanner, 'SpareEye could not change the camera state. Try again.', 'error');
         } finally {
             busy = false;
+            setButtonPending(watchButton, false);
             onStateChanged();
         }
     });
@@ -173,6 +176,7 @@ export const registerHomeHandlers = (onStateChanged: () => void): void => {
 
         recordingBusy = true;
         recordButton.disabled = true;
+        setButtonPending(recordButton, true);
         recordButton.textContent = starting ? 'Starting…' : 'Stopping…';
         try {
             const result = await (starting ? StartManualRecording() : StopManualRecording());
@@ -185,6 +189,7 @@ export const registerHomeHandlers = (onStateChanged: () => void): void => {
             showBanner(messageBanner, 'SpareEye could not change the recording state. Try again.', 'error');
         } finally {
             recordingBusy = false;
+            setButtonPending(recordButton, false);
             recordButton.disabled = false;
             onStateChanged();
         }
