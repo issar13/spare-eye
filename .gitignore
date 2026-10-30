@@ -20,6 +20,7 @@ DISABLED
 !/build/linux/
 !/build/windows/
 !/build/appicon.png
+!/build/README.md
 *.test
 *.out
 
@@ -51,6 +52,10 @@ desktop.ini
 
 # Internal working notes: planning, status, and release gates stay local.
 ROADMAP.md
+docs/superpowers/
+
+# Claude Code session state and agent worktrees.
+.claude/
 
 # Netlify CLI scratch state for the landing page: which site this checkout is
 # linked to, and a deploy cache. Machine-local, and it holds the site ID, so it
