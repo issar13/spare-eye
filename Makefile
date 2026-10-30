@@ -35,8 +35,8 @@ fmt: ## Format all Go code
 .PHONY: frontend
 frontend: $(FRONTEND_ENTRY) ## Build the web assets the desktop binary embeds
 
-$(FRONTEND_ENTRY): apps/desktop/frontend/package.json apps/desktop/frontend/package-lock.json $(wildcard apps/desktop/frontend/src/*)
-	cd apps/desktop/frontend && npm ci && npm run build
+$(FRONTEND_ENTRY): apps/desktop/frontend/package.json apps/desktop/frontend/pnpm-lock.yaml $(wildcard apps/desktop/frontend/src/*)
+	cd apps/desktop/frontend && pnpm install --frozen-lockfile && pnpm build
 
 .PHONY: vet
 vet: frontend ## Run go vet

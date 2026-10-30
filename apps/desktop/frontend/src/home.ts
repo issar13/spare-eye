@@ -1,8 +1,9 @@
-import {Arm, Disarm, LogLines, RecentEvents, StartManualRecording, StopManualRecording} from '../wailsjs/go/main/App';
+import {Arm, Disarm, LogLines, StartManualRecording, StopManualRecording} from '../wailsjs/go/main/App';
 import type {app} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
 import {requireElement} from './elements';
 import {formatElapsedSeconds, formatWhen} from './format';
+import {loadRecentEvents} from './queries';
 
 const heroDot = requireElement<HTMLElement>('#hero-dot');
 const heroHeadline = requireElement<HTMLElement>('#hero-headline');
@@ -14,11 +15,13 @@ const recordButton = requireElement<HTMLButtonElement>('#record-button');
 const diagnostics = requireElement<HTMLElement>('#diagnostics');
 const eventList = requireElement<HTMLElement>('#event-list');
 const logView = requireElement<HTMLPreElement>('#log-view');
+const activityMessage = requireElement<HTMLElement>('#activity-message');
 
 // busy suppresses the poll's button updates while starting or stopping is in
 // flight. Opening a camera takes a second or two, and letting the poll reset
 // the label mid-flight would make the button flicker.
 let busy = false;
+let recordingBusy = false;
 
 export const updateHome = (status: app.StatusView): void => {
     heroDot.className = `hero-dot ${status.tone}`;
@@ -30,8 +33,10 @@ export const updateHome = (status: app.StatusView): void => {
         watchButton.disabled = !status.armed && !status.canArm;
     }
 
-    recordButton.disabled = !status.armed;
-    recordButton.textContent = status.recordingManual ? 'Stop recording' : 'Record now';
+    if (!recordingBusy) {
+        recordButton.disabled = !status.armed;
+        recordButton.textContent = status.recordingManual ? 'Stop recording' : 'Record now';
+    }
 
     renderGuide(status.problem);
     renderDiagnostics(status);
@@ -40,8 +45,8 @@ export const updateHome = (status: app.StatusView): void => {
 // renderGuide points at the written walkthrough when one would help. The
 // obstacle itself is already the hero headline, and its remedy the explanation
 // underneath, so only the pointer to the guide is left to add.
-const renderGuide = (problem: app.Problem | undefined): void => {
-    const path = problem === undefined ? '' : problem.docPath;
+const renderGuide = (problem: app.Problem | null | undefined): void => {
+    const path = problem?.docPath ?? '';
 
     heroGuide.hidden = path === '';
     heroGuide.textContent = path === '' ? '' : `Step-by-step instructions are in ${path}`;
@@ -92,10 +97,20 @@ const describeAlerts = (status: app.StatusView): string => {
 };
 
 export const refreshActivity = async (): Promise<void> => {
-    const [events, lines] = await Promise.all([RecentEvents(), LogLines()]);
+    try {
+        const [events, lines] = await Promise.all([loadRecentEvents(), LogLines()]);
 
-    renderEvents(events);
-    logView.textContent = lines.join('\n');
+        renderEvents(events);
+        logView.textContent = lines.join('\n');
+        hideBanner(activityMessage);
+    } catch {
+        const failed = document.createElement('p');
+        failed.className = 'hint';
+        failed.textContent = 'Recent activity is unavailable right now.';
+        eventList.replaceChildren(failed);
+        logView.textContent = '';
+        showBanner(activityMessage, 'SpareEye could not load recent activity. It will try again shortly.', 'warn');
+    }
 };
 
 const renderEvents = (events: app.EventView[]): void => {
@@ -136,29 +151,41 @@ export const registerHomeHandlers = (onStateChanged: () => void): void => {
         watchButton.textContent = starting ? 'Turning your camera on…' : 'Stopping…';
         hideBanner(messageBanner);
 
-        const result = await (starting ? Arm() : Disarm());
+        try {
+            const result = await (starting ? Arm() : Disarm());
 
-        busy = false;
-
-        if (result.ok) {
-            hideBanner(messageBanner);
-        } else {
-            showResult(messageBanner, result);
+            if (result.ok) {
+                hideBanner(messageBanner);
+            } else {
+                showResult(messageBanner, result);
+            }
+        } catch {
+            showBanner(messageBanner, 'SpareEye could not change the camera state. Try again.', 'error');
+        } finally {
+            busy = false;
+            onStateChanged();
         }
-
-        onStateChanged();
     });
 
     recordButton.addEventListener('click', async () => {
         const starting = recordButton.textContent === 'Record now';
 
-        const result = await (starting ? StartManualRecording() : StopManualRecording());
-        if (result.ok) {
-            showBanner(messageBanner, result.headline, 'good');
-        } else {
-            showResult(messageBanner, result);
+        recordingBusy = true;
+        recordButton.disabled = true;
+        recordButton.textContent = starting ? 'Starting…' : 'Stopping…';
+        try {
+            const result = await (starting ? StartManualRecording() : StopManualRecording());
+            if (result.ok) {
+                showBanner(messageBanner, result.headline, 'good');
+            } else {
+                showResult(messageBanner, result);
+            }
+        } catch {
+            showBanner(messageBanner, 'SpareEye could not change the recording state. Try again.', 'error');
+        } finally {
+            recordingBusy = false;
+            recordButton.disabled = false;
+            onStateChanged();
         }
-
-        onStateChanged();
     });
 };

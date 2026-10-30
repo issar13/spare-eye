@@ -27,7 +27,7 @@ Unicode true
 !define PRODUCT_EXECUTABLE "spareeye.exe"
 
 ## PROJECT: preserve the previous install and uninstall identities so installing
-## SpareEye upgrades Kaa Rada in place instead of leaving two applications,
+## SpareEye upgrades an existing installation in place instead of leaving two applications,
 ## shortcuts, and uninstallers behind.
 !define LEGACY_PRODUCTNAME "Kaa Rada"
 !define LEGACY_EXECUTABLE "kaa-rada.exe"
@@ -82,7 +82,7 @@ ManifestDPIAware true
 ## loose .lnk into the Programs root; a folder lets us also ship an uninstall
 ## entry, and the chosen name is remembered for the uninstaller.
 !define MUI_STARTMENUPAGE_REGISTRY_ROOT "SHELL_CONTEXT"
-!define MUI_STARTMENUPAGE_REGISTRY_KEY "Software\Kaa Rada\Kaa Rada"
+!define MUI_STARTMENUPAGE_REGISTRY_KEY "Software\SpareEye\SpareEye"
 !define MUI_STARTMENUPAGE_REGISTRY_VALUENAME "StartMenuFolder"
 !define MUI_STARTMENUPAGE_DEFAULTFOLDER "${INFO_PRODUCTNAME}"
 Var StartMenuFolder
@@ -107,7 +107,7 @@ Name "${INFO_PRODUCTNAME}"
 OutFile "..\..\bin\${INFO_PROJECTNAME}-${ARCH}-installer.exe" # Name of the installer's file.
 !ifdef WAILS_INSTALL_SCOPE
   !if "${WAILS_INSTALL_SCOPE}" == "user"
-    InstallDir "$LOCALAPPDATA\Programs\${LEGACY_PRODUCTNAME}"
+  InstallDir "$LOCALAPPDATA\Programs\${INFO_PRODUCTNAME}"
   !else
     InstallDir "$PROGRAMFILES64\${INFO_COMPANYNAME}\${INFO_PRODUCTNAME}"
   !endif

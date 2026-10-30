@@ -4,10 +4,10 @@ SpareEye sends alerts through a Telegram bot that **you** create. There is no
 shared bot and no token built into the app, so your footage goes to your bot
 and your chat and nobody else's.
 
-The desktop app talks straight to `api.telegram.org`. It does not use a Kaa
-Rada VPS or relay, does not open an inbound port, and does not configure a
-webhook. Commands are collected through an outbound Telegram connection and
-only the automatically registered chat is allowed to control the camera.
+The desktop app talks straight to `api.telegram.org`. It does not use a hosted
+relay, open an inbound port, or configure a webhook. Commands are collected
+through an outbound Telegram connection and only the automatically registered
+chat is allowed to control the camera.
 
 You need two things:
 

@@ -3,448 +3,206 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Kaa Rada: turn a spare laptop into a home security camera</title>
-    <meta name="description" content="Leave a laptop at home, arm it, and it watches the room. Motion alerts with snapshots and clips straight to Telegram. No cameras to buy, no subscription, no cloud account.">
-    <meta name="theme-color" content="#111318">
-
+    <title>SpareEye — a second life for your old laptop</title>
+    <meta name="description" content="Turn a spare Windows or Linux laptop into a motion camera. Keep recordings on your computer and get optional Telegram alerts.">
+    <meta name="theme-color" content="#0b111e">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Kaa Rada: turn a spare laptop into a home security camera">
-    <meta property="og:description" content="Motion detection and Telegram alerts on hardware you already own. No cameras to buy, no subscription, no cloud account.">
+    <meta property="og:title" content="SpareEye — a second life for your old laptop">
+    <meta property="og:description" content="Local motion monitoring for Windows and Linux. Recordings stay on your computer; Telegram alerts are optional.">
     <meta name="twitter:card" content="summary_large_image">
-
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
 <header class="topbar">
-    <div class="wrap">
-        <a class="wordmark" href="#top">Kaa<span>Rada</span></a>
-        <nav>
-            <a class="nav-hide" href="#how">How it works</a>
-            <a class="nav-hide" href="#privacy">Privacy</a>
-            <a href="https://github.com/issar13/kaa-rada">GitHub</a>
-            <a href="#download">Download</a>
+    <div class="wrap topbar-inner">
+        <a class="brand" href="#top" aria-label="SpareEye home">
+            <svg class="brand-mark" aria-hidden="true" viewBox="0 0 40 40">
+                <path d="M4.5 20s5.7-9 15.5-9 15.5 9 15.5 9-5.7 9-15.5 9S4.5 20 4.5 20Z"/>
+                <circle cx="20" cy="20" r="5.5"/>
+                <circle class="brand-glint" cx="22" cy="18" r="1.5"/>
+            </svg>
+            <span>SpareEye</span>
+        </a>
+        <nav aria-label="Main navigation">
+            <a href="#why">Why SpareEye</a>
+            <a href="#how">How it works</a>
+            <a href="#privacy">Privacy</a>
+            <a href="#faq">FAQ</a>
         </nav>
+        <a class="button primary top-download" href="#download">Download free</a>
     </div>
 </header>
 
 <main id="top">
-
-    <!-- Hero -->
     <section class="hero">
-        <div class="wrap hero-grid">
-            <div>
-                <h1>Turn a spare laptop into a home security camera.</h1>
-                <p class="lede">
-                    Leave a laptop at home, arm it, and it watches the room. When
-                    something moves it saves a snapshot, records a clip if the movement
-                    continues, and sends both to your phone on Telegram.
-                </p>
-
-                <div class="actions" id="download-buttons">
-                    <a class="button primary" href="https://github.com/issar13/kaa-rada/releases/latest" data-platform="windows">
-                        Download for Windows <span class="platform">64-bit</span>
-                    </a>
-                    <a class="button" href="https://github.com/issar13/kaa-rada/releases/latest" data-platform="linux">
-                        Download for Linux <span class="platform">x86-64</span>
-                    </a>
-                </div>
-
-                <p class="reassure">
-                    Free and open source, MIT licensed. No cameras to buy, no
-                    subscription, no cloud account to create.
-                </p>
+        <div class="wrap hero-content">
+            <p class="availability"><span></span>Free to use <i></i> Recordings stay on your computer</p>
+            <h1>Give your old laptop a second job.</h1>
+            <p class="hero-copy">Turn it into a simple home security camera. Watch for motion, save photos and clips locally, and get an optional Telegram alert when something happens.</p>
+            <div class="actions" id="download-buttons">
+                <a class="button primary" href="https://github.com/issar13/spare-eye/releases/latest" data-platform="windows">Download for Windows <span>64-bit</span></a>
+                <a class="button" href="https://github.com/issar13/spare-eye/releases/latest" data-platform="linux">Download for Linux <span>x86-64</span></a>
+                <a class="text-link" href="#how">See how it works</a>
             </div>
+            <p class="compatibility">Windows 10 / 11 <i></i> Debian and Ubuntu <i></i> Other Linux</p>
 
-            <!-- The app's Home screen, rebuilt in markup. Every string here is the
-                 one the app actually shows. -->
-            <div class="mock" aria-hidden="true">
-                <div class="mock-chrome">
-                    <i></i><i></i><i></i>
-                    <span class="title">Kaa Rada</span>
+            <div class="product-window" role="img" aria-label="Illustration of the SpareEye desktop app">
+                <div class="window-bar">
+                    <div class="window-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+                    <span>SpareEye</span>
+                    <span class="window-status"><i></i> Watching</span>
                 </div>
-                <div class="mock-body">
-                    <div class="status">
-                        <span class="dot watching"></span>
-                        <div>
-                            <h3>Watching for motion</h3>
-                            <p>All quiet. You will get a Telegram message if anything moves.</p>
+                <div class="window-nav" aria-hidden="true">
+                    <span class="active">Live / Home</span><span>Cameras</span><span>Recordings</span><span>Settings</span>
+                </div>
+                <div class="product-screen">
+                    <div class="screen-heading">
+                        <div><span class="live-dot"></span><strong>Watching for motion</strong><small>All quiet. Recordings are saved to this computer.</small></div>
+                        <span class="live-label"><i></i> Camera on</span>
+                    </div>
+                    <div class="screen-content">
+                        <div class="room-view" role="img" aria-label="Illustration of a quiet living room viewed by a camera">
+                            <svg viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                                <rect width="1000" height="520" fill="#101b29"/>
+                                <path d="M0 0h1000v350H0z" fill="#172536"/>
+                                <path d="M0 350h1000v170H0z" fill="#101722"/>
+                                <path d="M58 48h294v220H58z" fill="#263a4b"/>
+                                <path d="M75 64h260v188H75z" fill="#152a38"/>
+                                <path d="M203 64v188M75 157h260" stroke="#4a6573" stroke-width="7"/>
+                                <path d="M102 238c34-84 68-116 98-174h70c-18 70-48 130-85 188z" fill="#7b8f83" opacity=".48"/>
+                                <path d="M0 326h1000" stroke="#4c5a60" stroke-width="3"/>
+                                <path d="M508 340h355v76H508z" rx="14" fill="#37434a"/>
+                                <path d="M535 299h301c25 0 45 20 45 45v24H490v-24c0-25 20-45 45-45Z" fill="#566267"/>
+                                <path d="M539 410v67m270-67v67" stroke="#293238" stroke-width="14"/>
+                                <path d="M426 426h256l-26 19H404z" fill="#51616a"/>
+                                <path d="M447 445v36m205-36v36" stroke="#27323a" stroke-width="8"/>
+                                <path d="M896 187v166m-38 0h82m-67-9 23-80 24 80" stroke="#b48e5a" stroke-width="8" fill="none"/>
+                                <path d="M865 180h61l-9 11h-43z" fill="#d2ad76"/>
+                                <path d="M847 177c20-66 73-66 95 0" fill="#e1bc7d" opacity=".13"/>
+                                <rect x="28" y="24" width="944" height="472" rx="9" fill="none" stroke="#53d1a0" stroke-opacity=".54" stroke-width="2"/>
+                                <rect x="48" y="42" width="170" height="34" rx="6" fill="#0b111e" fill-opacity=".88"/>
+                                <circle cx="67" cy="59" r="5" fill="#10b981"/>
+                                <text x="82" y="64" fill="#e2e8f0" font-size="16" font-family="sans-serif">CAMERA 1 · LIVE</text>
+                                <rect x="785" y="42" width="168" height="34" rx="6" fill="#0b111e" fill-opacity=".88"/>
+                                <text x="806" y="64" fill="#b8c7d8" font-size="15" font-family="sans-serif">LOCAL PREVIEW</text>
+                            </svg>
                         </div>
-                    </div>
-
-                    <div class="mock-buttons">
-                        <span class="on">Stop watching</span>
-                        <span>Record now</span>
-                    </div>
-
-                    <div class="mock-feed">
-                        <p>What has happened</p>
-                        <ul>
-                            <li><time>21:04</time> Clip saved and sent to Telegram</li>
-                            <li><time>21:03</time> Motion detected, snapshot sent</li>
-                            <li><time>19:30</time> Switched to the night profile</li>
-                            <li><time>18:12</time> Started watching</li>
-                        </ul>
+                        <aside class="screen-activity">
+                            <h2>Recent activity</h2>
+                            <p><span class="activity-mark green"></span>Camera started <time>Now</time></p>
+                            <p><span class="activity-mark amber"></span>Motion detected <time>Earlier</time></p>
+                            <p><span class="activity-mark blue"></span>Photo saved locally <time>Earlier</time></p>
+                            <div class="storage-note"><span aria-hidden="true">▣</span> Saved on this computer</div>
+                        </aside>
                     </div>
                 </div>
+            </div>
+            <p class="mock-caption">A preview of the desktop app. The illustration above is not a live camera feed.</p>
+        </div>
+    </section>
+
+    <section class="comparison section-quiet" id="why">
+        <div class="wrap">
+            <div class="section-heading split-heading">
+                <div><p class="eyebrow">Reuse what you own</p><h2>Why buy another camera?</h2></div>
+                <p>Give an old laptop a useful job instead of adding another device and another monthly bill.</p>
+            </div>
+            <div class="comparison-grid">
+                <article class="comparison-side">
+                    <div class="comparison-title"><span class="comparison-icon negative" aria-hidden="true">×</span><div><h3>Another camera</h3><p>New hardware and another service to manage</p></div></div>
+                    <ul><li>Buy and place another device</li><li>Some models need a subscription for saved clips</li><li>Recordings may depend on a vendor’s cloud</li></ul>
+                </article>
+                <article class="comparison-side spareeye-side">
+                    <div class="comparison-title"><span class="comparison-icon positive" aria-hidden="true">✓</span><div><h3>Your spare laptop</h3><p>A camera and storage you already have</p></div></div>
+                    <ul><li>Use a built-in or USB camera</li><li>Save photos and clips on the computer</li><li>Optional Telegram alerts, configured by you</li></ul>
+                </article>
             </div>
         </div>
     </section>
 
-    <!-- Setup -->
-    <section id="how">
+    <section class="capabilities">
         <div class="wrap">
-            <div class="prose">
-                <p class="eyebrow">Getting started</p>
-                <h2>Three things, then it's watching.</h2>
-                <p class="lede">
-                    The whole of setup is one screen with three numbered steps. Nothing
-                    here needs a terminal, and nothing here needs a technical background.
-                </p>
-            </div>
-
-            <div class="steps">
-                <div class="step">
-                    <span class="step-number">1</span>
-                    <h3>Get alerts on your phone</h3>
-                    <p>
-                        Create your own Telegram bot, paste in the token and chat ID, and
-                        press Test to confirm they work. About five minutes, once, with a
-                        guide that walks you through it.
-                    </p>
-                </div>
-                <div class="step">
-                    <span class="step-number">2</span>
-                    <h3>Choose your camera</h3>
-                    <p>
-                        The picker lists only the devices that actually hand over a frame,
-                        so a virtual camera from OBS or Iriun cannot quietly take the slot
-                        your real webcam should be in.
-                    </p>
-                </div>
-                <div class="step">
-                    <span class="step-number">3</span>
-                    <h3>Start watching</h3>
-                    <p>
-                        One button. The status screen tells you in plain English what is
-                        happening, and you can stop it again the same way.
-                    </p>
-                </div>
+            <div class="section-heading centered"><p class="eyebrow">Made for a laptop you already own</p><h2>Simple tools for keeping an eye on home.</h2><p>Everything you need to monitor motion, review recordings and decide what gets sent.</p></div>
+            <div class="capability-grid">
+                <article><span class="feature-icon cyan" aria-hidden="true">◉</span><h3>Use your camera</h3><p>Choose a built-in webcam, USB camera or compatible network stream.</p></article>
+                <article><span class="feature-icon blue" aria-hidden="true">⌁</span><h3>Tune motion detection</h3><p>Set day and night sensitivity, cooldowns and how long a movement must last.</p></article>
+                <article><span class="feature-icon green" aria-hidden="true">▣</span><h3>Keep recordings local</h3><p>Photos and video clips are saved on this computer and cleaned up on your schedule.</p></article>
+                <article><span class="feature-icon amber" aria-hidden="true">↗</span><h3>Choose phone alerts</h3><p>Connect your own Telegram bot if you want motion snapshots sent to your phone.</p></article>
             </div>
         </div>
     </section>
 
-    <!-- What arrives -->
-    <section>
+    <section class="setup-section section-quiet" id="how">
         <div class="wrap">
-            <div class="prose">
-                <p class="eyebrow">When something moves</p>
-                <h2>A snapshot straight away, then the clip.</h2>
-            </div>
+            <div class="section-heading centered"><p class="eyebrow">Quick setup</p><h2>Start watching in a few steps.</h2><p>No command line required.</p></div>
+            <ol class="steps">
+                <li><span class="step-number">1</span><h3>Open SpareEye</h3><p>Install the app on a Windows or Linux computer and choose the camera you want to use.</p></li>
+                <li><span class="step-number">2</span><h3>Set up alerts if you want them</h3><p>Connect your own Telegram bot. You can also use motion detection without alerts.</p></li>
+                <li><span class="step-number">3</span><h3>Start watching</h3><p>Press Start watching. Check the live preview and stop monitoring whenever you need.</p></li>
+            </ol>
+        </div>
+    </section>
 
-            <div class="split">
-                <div>
-                    <p>
-                        Motion sends a snapshot immediately, so you know something happened
-                        before you know what. If the movement carries on past the minimum
-                        duration you set, a clip records and follows it. That clip includes
-                        a few seconds from <em>before</em> the movement started, so you see
-                        what walked in rather than joining halfway through.
-                    </p>
-                    <p>
-                        A cooldown keeps a busy afternoon from becoming a hundred
-                        notifications. Everything is saved on the laptop as well, and
-                        deleted automatically after 30 days by default.
-                    </p>
-                </div>
+    <section class="local-section" id="privacy">
+        <div class="wrap local-layout">
+            <div class="section-heading"><p class="eyebrow">Your computer stays in control</p><h2>Local recording. Optional delivery.</h2><p>SpareEye detects motion and saves recordings on the computer. If you connect Telegram, alert photos and clips are sent through Telegram’s servers.</p></div>
+            <dl class="privacy-facts">
+                <div><dt>Where clips are saved</dt><dd>This computer</dd></div>
+                <div><dt>When clips are sent</dt><dd>Only when Telegram alerts are configured</dd></div>
+                <div><dt>How long clips stay</dt><dd>30 days by default; change it in Settings</dd></div>
+                <div><dt>Network camera setup</dt><dd>RTSP or HTTP stream address</dd></div>
+            </dl>
+        </div>
+    </section>
 
-                <div class="thread" aria-hidden="true">
-                    <div class="bubble">
-                        <p>⚠️ Motion detected</p>
-                        <div class="attachment">
-                            <span class="glyph">🖼</span>
-                            <span>motion_2026-07-25_19-52-01.jpg</span>
-                        </div>
-                        <span class="meta">19:52</span>
-                    </div>
-                    <div class="bubble">
-                        <p>📹 Clip saved</p>
-                        <div class="attachment">
-                            <span class="glyph">🎬</span>
-                            <span>motion_2026-07-25_19-52-03.mp4 · 0.9 MB</span>
-                        </div>
-                        <span class="meta">19:52</span>
-                    </div>
-                    <div class="bubble mine">
-                        <p>/record</p>
-                        <span class="meta">19:55</span>
-                    </div>
-                    <div class="bubble">
-                        <p>Recording started. Send /stop when you want it to end.</p>
-                        <span class="meta">19:55</span>
-                    </div>
-                </div>
+    <section class="faq-section section-quiet" id="faq">
+        <div class="wrap faq-wrap">
+            <div class="section-heading centered"><p class="eyebrow">Frequently asked questions</p><h2>Before you set it up.</h2></div>
+            <div class="faq-list">
+                <details><summary>Does SpareEye work without internet?</summary><p>Motion detection and local recording do. Telegram alerts need an internet connection.</p></details>
+                <details><summary>Can I use a USB or network camera?</summary><p>Yes. SpareEye supports local USB cameras and network cameras that provide a compatible RTSP or HTTP stream address.</p></details>
+                <details><summary>Do I need a Telegram account?</summary><p>No. Telegram is optional. You can use the camera and local recordings without setting up alerts.</p></details>
+                <details><summary>Does it watch as soon as I install it?</summary><p>No. Choose a camera and press Start watching. You can separately choose to start monitoring when the app opens.</p></details>
+                <details><summary>Which computers are supported?</summary><p>Windows 10 and 11, Debian and Ubuntu packages, and other Linux distributions with the required system libraries. macOS is not currently supported.</p></details>
             </div>
         </div>
     </section>
 
-    <!-- Plain english -->
-    <section>
-        <div class="wrap">
-            <div class="prose">
-                <p class="eyebrow">Settings you can actually answer</p>
-                <h2>No thresholds. No contour areas. No guessing.</h2>
-                <p class="lede">
-                    Motion detection is decided by two numbers that mean nothing to
-                    somebody pointing a camera at their porch. So the app asks the
-                    question you can answer, and writes the numbers itself.
-                </p>
-            </div>
-
-            <div class="presets">
-                <div class="preset">
-                    <h4>Only big movements</h4>
-                    <p>Ignores pets, shadows and swaying branches. You will get the fewest alerts.</p>
-                </div>
-                <div class="preset chosen">
-                    <h4>Recommended <span class="tag">Default</span></h4>
-                    <p>Picks up a person walking into view. A good starting point for most homes.</p>
-                </div>
-                <div class="preset">
-                    <h4>Small movements too</h4>
-                    <p>Catches pets and small changes. Expect more alerts, including false ones.</p>
-                </div>
-            </div>
-
-            <p class="aside">
-                The same treatment applies to the live view, where frames per second and
-                JPEG quality become <strong>Easy on the laptop</strong>, <strong>Recommended</strong>
-                and <strong>Smoothest picture</strong>. The raw numbers are still there
-                under an “Advanced numbers” disclosure if you want them. They are just
-                not the way in.
-            </p>
-        </div>
-    </section>
-
-    <!-- Day / night -->
-    <section>
-        <div class="wrap">
-            <div class="prose">
-                <p class="eyebrow">Day and night</p>
-                <h2>A room at noon and the same room at 19:00 are not the same room.</h2>
-                <p class="lede">
-                    So they don't share one sensitivity setting. Pick a level for daytime
-                    and a different one for night, set the hours the night profile applies,
-                    and the app switches between them on schedule.
-                </p>
-            </div>
-
-            <div class="features">
-                <div class="feature">
-                    <h3>Text it back</h3>
-                    <p>
-                        Message your bot <code>/record</code> to start a clip,
-                        <code>/stop</code> to end it, or <code>/get</code> to list what is
-                        saved and pull one up. Only the chat you configured is obeyed;
-                        anything from anywhere else is discarded.
-                    </p>
-                </div>
-                <div class="feature">
-                    <h3>Set it and forget it</h3>
-                    <p>
-                        Open when you log in, and start watching as soon as it opens. Two
-                        separate switches, because wanting one does not mean wanting both.
-                        Registered for your user only, so no administrator prompt.
-                    </p>
-                </div>
-                <div class="feature">
-                    <h3>Browse what it caught</h3>
-                    <p>
-                        Videos and photos, newest first, with thumbnails and sizes, each
-                        marked as something you started or something that moved. Delete
-                        it, open it, or send it to Telegram again.
-                    </p>
-                </div>
-                <div class="feature">
-                    <h3>Any camera it can see</h3>
-                    <p>
-                        The built-in webcam, a USB camera you plugged in, or a better
-                        camera already on your network by its RTSP or HTTP address.
-                        Network cameras get their own box, since they never show up in
-                        a scan of local devices.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Privacy -->
-    <section class="privacy" id="privacy">
-        <div class="wrap">
-            <div class="prose">
-                <p class="eyebrow">Privacy: read this first</p>
-                <h2>This records video of a room. Here is exactly what that means.</h2>
-                <p class="lede">
-                    This section is near the top of the README too. A camera in your home
-                    is not something to be casual about, and a page that buried this would
-                    be selling you a different product.
-                </p>
-            </div>
-
-            <div class="privacy-points">
-                <div class="privacy-point">
-                    <span class="index" aria-hidden="true">01</span>
-                    <h3>Footage leaves your machine</h3>
-                    <p>
-                        Delivering clips and snapshots to you means uploading them to
-                        Telegram's servers. There is no way around that while Telegram is
-                        the delivery route.
-                    </p>
-                </div>
-                <div class="privacy-point">
-                    <span class="index" aria-hidden="true">02</span>
-                    <h3>Other people have not agreed to this</h3>
-                    <p>
-                        Point it at a shared flat, an office, or a room with guests in it
-                        and you are recording them. Depending on where you live, doing
-                        that without telling them may be illegal, whoever owns the camera
-                        or the home.
-                    </p>
-                </div>
-                <div class="privacy-point">
-                    <span class="index" aria-hidden="true">03</span>
-                    <h3>Your bot token is a password</h3>
-                    <p>
-                        Anyone who gets it can receive your footage and command your
-                        camera. It is stored with owner-only permissions, and there is no
-                        shared bot and no token baked into the binary. Every install
-                        talks to a bot you made.
-                    </p>
-                </div>
-                <div class="privacy-point">
-                    <span class="index" aria-hidden="true">04</span>
-                    <h3>Clips stay on the laptop as well</h3>
-                    <p>
-                        For 30 days by default, deleted automatically after that, or kept
-                        forever if you ask. Anyone with access to your user account can
-                        watch them.
-                    </p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Download -->
-    <section id="download">
-        <div class="wrap">
-            <div class="prose">
-                <p class="eyebrow">Download</p>
-                <h2>Free, open source, and nothing to sign up for.</h2>
-            </div>
-
-            <div class="table-scroll">
-                <table>
-                    <thead>
-                        <tr>
-                            <th scope="col">Platform</th>
-                            <th scope="col">Architecture</th>
-                            <th scope="col">Install</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <th scope="row">Windows 10 / 11</th>
-                            <td>x64 (Intel/AMD)</td>
-                            <td class="wrap-cell">
-                                Run the installer and follow the wizard. It installs for
-                                your user only, so it never asks for administrator rights.
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Debian / Ubuntu</th>
-                            <td>x64 (amd64)</td>
-                            <td class="wrap-cell">
-                                <code>sudo apt install ./kaa-rada_*_amd64.deb</code>. Use apt
-                                rather than <code>dpkg -i</code>: the package declares OpenCV
-                                and WebKit, so apt pulls them in for you, while
-                                <code>dpkg</code> only reports them missing.
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Other Linux</th>
-                            <td>x64 (amd64)</td>
-                            <td class="wrap-cell">
-                                Extract the tarball, then <code>./install.sh</code>. Needs
-                                OpenCV 4.6, GTK 3.24+ and WebKit2GTK 4.1+ from your distro.
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
+    <section class="download-section" id="download">
+        <div class="wrap download-panel">
+            <p class="eyebrow">Free and open source</p>
+            <h2>Put your spare laptop to work.</h2>
+            <p>Download SpareEye for Windows or Linux. No account or subscription required.</p>
             <div class="actions">
-                <a class="button primary" href="https://github.com/issar13/kaa-rada/releases/latest">
-                    Get the latest release
-                </a>
-                <a class="button" href="https://github.com/issar13/kaa-rada">
-                    Source on GitHub
-                </a>
+                <a class="button primary" href="https://github.com/issar13/spare-eye/releases/latest">Get the latest release</a>
+                <a class="button" href="https://github.com/issar13/spare-eye">View source on GitHub</a>
             </div>
-
-            <p class="download-note">
-                You will also need a webcam that no other program is currently using, and
-                your own Telegram bot. The
-                <a href="https://github.com/issar13/kaa-rada/blob/main/docs/SETUP-TELEGRAM.md">setup guide</a>
-                covers creating one.
-            </p>
-
-            <p class="download-note">
-                <strong>The binaries are unsigned.</strong> On Windows, SmartScreen will
-                warn you that the publisher is unknown and you will have to choose to run
-                it anyway. Code-signing certificates are a recurring cost this project has
-                not taken on. Every download ships with a <code>.sha256</code> file if you
-                want to verify it yourself.
-            </p>
-
-            <p class="download-note">
-                <strong>macOS is not supported</strong>, deliberately rather than by
-                oversight: shipping a macOS build that will open at all requires paid
-                Apple Developer enrollment, so it is deferred instead of half-done.
-                Telegram is currently the only alerting channel.
-            </p>
+            <p class="download-note">Windows and Linux builds are available. macOS is not supported. <a href="https://github.com/issar13/spare-eye/blob/main/docs/SETUP-TELEGRAM.md">Read the Telegram setup guide</a>.</p>
         </div>
     </section>
-
 </main>
 
-<footer>
-    <div class="wrap">
-        <span>Kaa Rada. MIT licensed.</span>
-        <nav>
-            <a href="https://github.com/issar13/kaa-rada">GitHub</a>
-            <a href="https://github.com/issar13/kaa-rada/blob/main/docs/SETUP-TELEGRAM.md">Telegram setup</a>
-            <a href="https://github.com/issar13/kaa-rada/releases/latest">Releases</a>
-        </nav>
+<footer class="footer">
+    <div class="wrap footer-inner">
+        <span>SpareEye <span class="footer-muted">· MIT licensed</span></span>
+        <nav aria-label="Footer navigation"><a href="https://github.com/issar13/spare-eye">GitHub</a><a href="https://github.com/issar13/spare-eye/releases/latest">Releases</a><a href="https://github.com/issar13/spare-eye/blob/main/docs/SETUP-TELEGRAM.md">Telegram setup</a></nav>
     </div>
 </footer>
 
 <script>
-    // Progressive enhancement only: both download buttons are present, correct and
-    // clickable without this. All it does is lead with the visitor's own platform.
-    // Release filenames carry the version, so these link to the release page rather
-    // than to a direct asset URL that would go stale on every tag.
-    const buttonRow = document.getElementById('download-buttons');
-    const platformHint = (navigator.userAgentData?.platform ?? navigator.userAgent).toLowerCase();
-    const visitorPlatform = platformHint.includes('linux') && !platformHint.includes('android') ? 'linux' : 'windows';
-    const preferredButton = buttonRow.querySelector(`[data-platform="${visitorPlatform}"]`);
+    const downloadButtons = document.getElementById('download-buttons');
+    const platformName = (navigator.userAgentData?.platform ?? navigator.userAgent).toLowerCase();
+    const preferredPlatform = platformName.includes('linux') && !platformName.includes('android')
+        ? 'linux'
+        : 'windows';
+    const preferredDownload = downloadButtons.querySelector(`[data-platform="${preferredPlatform}"]`);
 
-    if (preferredButton && preferredButton !== buttonRow.firstElementChild) {
-        buttonRow.prepend(preferredButton);
-        buttonRow.querySelectorAll('.button').forEach((button, index) => {
+    if (preferredDownload && preferredDownload !== downloadButtons.firstElementChild) {
+        downloadButtons.prepend(preferredDownload);
+        downloadButtons.querySelectorAll('.button').forEach((button, index) => {
             button.classList.toggle('primary', index === 0);
         });
     }
 </script>
-
 </body>
 </html>

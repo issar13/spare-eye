@@ -1,15 +1,15 @@
 export namespace app {
-	
+
 	export class ActionResult {
 	    ok: boolean;
 	    headline: string;
 	    nextStep: string;
 	    docPath: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new ActionResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.ok = source["ok"];
@@ -26,11 +26,11 @@ export namespace app {
 	    mediaName: string;
 	    mediaPath: string;
 	    night: boolean;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new EventView(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.kind = source["kind"];
@@ -40,7 +40,7 @@ export namespace app {
 	        this.mediaPath = source["mediaPath"];
 	        this.night = source["night"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -62,11 +62,11 @@ export namespace app {
 	export class LiveViewForm {
 	    previewFPS: number;
 	    previewQuality: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new LiveViewForm(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.previewFPS = source["previewFPS"];
@@ -77,11 +77,11 @@ export namespace app {
 	    headline: string;
 	    nextStep: string;
 	    docPath: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new Problem(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.headline = source["headline"];
@@ -97,11 +97,11 @@ export namespace app {
 	    createdAt: string;
 	    manual: boolean;
 	    video: boolean;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new RecordingView(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -118,11 +118,11 @@ export namespace app {
 	    thresholdValue: number;
 	    sampleIntervalSeconds: number;
 	    alertCooldownSeconds: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new SensitivityForm(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.minimumContourArea = source["minimumContourArea"];
@@ -134,11 +134,11 @@ export namespace app {
 	export class StartupForm {
 	    launchAtLogin: boolean;
 	    watchOnLaunch: boolean;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new StartupForm(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.launchAtLogin = source["launchAtLogin"];
@@ -154,11 +154,11 @@ export namespace app {
 	    prebufferLeadSeconds: number;
 	    clipDurationSeconds: number;
 	    retentionDays: number;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new TuningForm(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.day = this.convertValues(source["day"], SensitivityForm);
@@ -170,7 +170,7 @@ export namespace app {
 	        this.clipDurationSeconds = source["clipDurationSeconds"];
 	        this.retentionDays = source["retentionDays"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -193,11 +193,11 @@ export namespace app {
 	    botToken: string;
 	    chatID: string;
 	    enabled: boolean;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new TelegramForm(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.botToken = source["botToken"];
@@ -214,11 +214,11 @@ export namespace app {
 	    cameraURL: string;
 	    cameraChosen: boolean;
 	    mediaDirectory: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new SettingsView(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.telegram = this.convertValues(source["telegram"], TelegramForm);
@@ -230,7 +230,7 @@ export namespace app {
 	        this.cameraChosen = source["cameraChosen"];
 	        this.mediaDirectory = source["mediaDirectory"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -249,7 +249,7 @@ export namespace app {
 		    return a;
 		}
 	}
-	
+
 	export class StatusView {
 	    headline: string;
 	    tone: string;
@@ -273,11 +273,11 @@ export namespace app {
 	    lastFailure: string;
 	    logPath: string;
 	    mediaDirectory: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new StatusView(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.headline = source["headline"];
@@ -303,7 +303,7 @@ export namespace app {
 	        this.logPath = source["logPath"];
 	        this.mediaDirectory = source["mediaDirectory"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -322,28 +322,49 @@ export namespace app {
 		    return a;
 		}
 	}
-	
+
 
 }
 
 export namespace detector {
-	
+
 	export class Camera {
 	    index: number;
 	    width: number;
 	    height: number;
 	    label: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new Camera(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.index = source["index"];
 	        this.width = source["width"];
 	        this.height = source["height"];
 	        this.label = source["label"];
+	    }
+	}
+
+}
+
+export namespace onvif {
+
+	export class Camera {
+	    name: string;
+	    address: string;
+	    serviceURL: string;
+
+	    static createFrom(source: any = {}) {
+	        return new Camera(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.address = source["address"];
+	        this.serviceURL = source["serviceURL"];
 	    }
 	}
 
