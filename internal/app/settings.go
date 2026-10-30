@@ -7,12 +7,17 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"spareeye/internal/autostart"
 	"spareeye/internal/config"
 	"spareeye/internal/detector"
 	"spareeye/internal/notify"
 )
+
+// maximumCameraLocationLength keeps the label short enough for the live-view
+// overlay and the app bar, which are the narrowest places it appears.
+const maximumCameraLocationLength = 40
 
 // verifyTimeout bounds the Telegram round trip so a wrong host cannot leave the
 // Setup screen spinning.
@@ -51,6 +56,10 @@ type StatusView struct {
 	// address says nothing about one watching a webcam.
 	CameraSource string `json:"cameraSource"`
 
+	// CameraLocation is the room the user said the camera is pointed at, empty
+	// when they have not said.
+	CameraLocation string `json:"cameraLocation"`
+
 	// AlertsEnabled is what the user asked for; AlertsConfigured is whether the
 	// credentials to honour it are actually present. Setup needs both, so that
 	// "I turned alerts off" is not mistaken for "I have not finished".
@@ -66,6 +75,14 @@ type StatusView struct {
 	LaunchAtLoginRegistered bool `json:"launchAtLoginRegistered"`
 
 	CanArm bool `json:"canArm"`
+
+	// The laptop's own condition. Pointers, so that JSON says null for what
+	// the machine could not report and the app bar hides that chip instead of
+	// showing a made-up zero.
+	BatteryPercent     *int     `json:"batteryPercent"`
+	OnMains            bool     `json:"onMains"`
+	DiskFreeBytes      *uint64  `json:"diskFreeBytes"`
+	TemperatureCelsius *float64 `json:"temperatureCelsius"`
 
 	// LastFailure is the engine's own error text. It is diagnostics only and
 	// must never be the message a user is asked to act on.
@@ -92,6 +109,8 @@ type SettingsView struct {
 	// CameraChosen is what tells Setup to wait for an answer instead of showing
 	// the shipped default as though somebody had picked it.
 	CameraChosen bool `json:"cameraChosen"`
+
+	CameraLocation string `json:"cameraLocation"`
 
 	MediaDirectory string `json:"mediaDirectory"`
 }
@@ -120,8 +139,9 @@ type TuningForm struct {
 	PrebufferLeadSeconds float64 `json:"prebufferLeadSeconds"`
 	ClipDurationSeconds  float64 `json:"clipDurationSeconds"`
 
-	RetentionDays       int     `json:"retentionDays"`
-	MaxStorageGigabytes float64 `json:"maxStorageGigabytes"`
+	RetentionDays        int     `json:"retentionDays"`
+	MaxStorageGigabytes  float64 `json:"maxStorageGigabytes"`
+	MinimumFreeGigabytes int     `json:"minimumFreeGigabytes"`
 }
 
 // LiveViewForm is the Live view screen's speed and sharpness. Both govern the
@@ -163,6 +183,7 @@ func settingsView(settings config.Config) SettingsView {
 			PrebufferLeadSeconds: settings.Detection.PrebufferLead.AsDuration().Seconds(),
 			ClipDurationSeconds:  settings.Detection.ClipDuration.AsDuration().Seconds(),
 			RetentionDays:        settings.Storage.RetentionDays,
+			MinimumFreeGigabytes: settings.Storage.MinimumFreeGigabytes,
 			MaxStorageGigabytes:  settings.Storage.MaxStorageGigabytes,
 		},
 		LiveView: LiveViewForm{
@@ -177,6 +198,7 @@ func settingsView(settings config.Config) SettingsView {
 		CameraIndex:    settings.Detection.CameraIndex,
 		CameraURL:      settings.Detection.CameraURL,
 		CameraChosen:   settings.Detection.CameraChosen,
+		CameraLocation: settings.Detection.CameraLocation,
 		MediaDirectory: settings.Storage.MediaDirectory,
 	}
 }
@@ -366,6 +388,36 @@ func (s *Service) SelectCamera(index int) ActionResult {
 	return succeeded("Camera selected")
 }
 
+// SaveCameraLocation labels the camera with the room it watches. An empty name
+// clears the label. The detector is left alone: the label is only ever shown,
+// so changing it must not interrupt a watch.
+func (s *Service) SaveCameraLocation(name string) ActionResult {
+	name = strings.TrimSpace(name)
+	if utf8.RuneCountInString(name) > maximumCameraLocationLength {
+		return failed(
+			"That camera location is too long",
+			fmt.Sprintf("Use %d characters or fewer, such as Living Room or Front Door.", maximumCameraLocationLength),
+		)
+	}
+
+	s.mutex.Lock()
+	updated := s.settings
+	updated.Detection.CameraLocation = name
+	s.mutex.Unlock()
+
+	if s.persist(updated) != nil {
+		return couldNotSave()
+	}
+
+	s.log.Info("camera location saved", "labelled", name != "")
+
+	if name == "" {
+		return succeeded("Camera location cleared")
+	}
+
+	return succeeded("Camera location saved")
+}
+
 // TestCameraURL opens an address the user has typed but not saved, so a wrong
 // one is caught before it becomes the camera a house is watched by.
 func (s *Service) TestCameraURL(address string) ActionResult {
@@ -445,6 +497,7 @@ func (s *Service) SaveTuning(form TuningForm) ActionResult {
 	updated.Detection.PrebufferLead = seconds(form.PrebufferLeadSeconds)
 	updated.Detection.ClipDuration = seconds(form.ClipDurationSeconds)
 	updated.Storage.RetentionDays = form.RetentionDays
+	updated.Storage.MinimumFreeGigabytes = form.MinimumFreeGigabytes
 	updated.Storage.MaxStorageGigabytes = form.MaxStorageGigabytes
 	s.mutex.Unlock()
 
@@ -457,6 +510,7 @@ func (s *Service) SaveTuning(form TuningForm) ActionResult {
 		"nightEnd", form.NightEndMinutes,
 		"clipSeconds", form.ClipDurationSeconds,
 		"retentionDays", form.RetentionDays,
+		"minimumFreeGigabytes", form.MinimumFreeGigabytes,
 	)
 
 	if problem := s.restartDetector(); problem != nil {
@@ -586,6 +640,12 @@ func validateTuning(form TuningForm) *Problem {
 		return &Problem{
 			Headline: "That is not a number of days",
 			NextStep: "Set how long to keep recordings to 0 or more days. 0 keeps them forever.",
+		}
+	}
+	if form.MinimumFreeGigabytes < 0 {
+		return &Problem{
+			Headline: "That is not an amount of free space",
+			NextStep: "Set the free space to keep to 0 or more gigabytes. 0 turns it off.",
 		}
 	}
 	if form.MaxStorageGigabytes < 0 {

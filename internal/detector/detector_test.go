@@ -1,6 +1,9 @@
 package detector
 
 import (
+	"image"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -251,5 +254,34 @@ func at(hour, minute int) time.Time {
 func closeAll(frames []gocv.Mat) {
 	for _, frame := range frames {
 		frame.Close()
+	}
+}
+
+func TestManualSnapshotIsSavedWithManualPrefixAndAnnounced(t *testing.T) {
+	settings := config.Default()
+	settings.Storage.MediaDirectory = t.TempDir()
+	if err := os.MkdirAll(settings.SnapshotDirectory(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	subject := New(settings)
+
+	frame := gocv.NewMatWithSize(48, 64, gocv.MatTypeCV8UC3)
+	defer frame.Close()
+
+	subject.TakeSnapshot()
+	subject.handleManualRequests(frame, image.Pt(64, 48), 10, nil)
+
+	saved, err := filepath.Glob(filepath.Join(settings.SnapshotDirectory(), "manual_*.jpg"))
+	if err != nil || len(saved) != 1 {
+		t.Fatalf("expected one manual_*.jpg, got %v (err %v)", saved, err)
+	}
+
+	select {
+	case event := <-subject.Events():
+		if event.Kind != EventSnapshotSaved || !event.Manual || event.MediaPath != saved[0] {
+			t.Errorf("unexpected event %+v, want a manual EventSnapshotSaved for %s", event, saved[0])
+		}
+	default:
+		t.Fatal("no event was published")
 	}
 }

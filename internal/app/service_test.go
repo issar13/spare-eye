@@ -16,6 +16,7 @@ import (
 	"spareeye/internal/config"
 	"spareeye/internal/desktopnotify"
 	"spareeye/internal/detector"
+	"spareeye/internal/host"
 )
 
 // newTestService builds a service whose media directories are throwaway
@@ -82,6 +83,56 @@ func TestResolveMediaRejectsPathsOutsideTheMediaDirectory(t *testing.T) {
 	}
 }
 
+func TestOpenTargetOnlyAcceptsFilesDirectlyInTheMediaDirectories(t *testing.T) {
+	service := newTestService(t)
+	mediaDirectory := service.Settings().MediaDirectory
+
+	siblingDirectory := filepath.Join(mediaDirectory, "other")
+	if err := os.MkdirAll(siblingDirectory, 0o700); err != nil {
+		t.Fatalf("creating sibling directory: %v", err)
+	}
+
+	clipPath := filepath.Join(mediaDirectory, "videos", "motion_2026-01-01_00-00-00.mp4")
+	if err := os.WriteFile(clipPath, []byte("not really video"), 0o600); err != nil {
+		t.Fatalf("writing clip: %v", err)
+	}
+
+	resolved, err := service.OpenTarget(clipPath)
+	if err != nil || resolved != clipPath {
+		t.Fatalf("OpenTarget(%q) returned %q, error %v", clipPath, resolved, err)
+	}
+
+	refused := []string{
+		"/etc/passwd",
+		filepath.Join(mediaDirectory, "videos", "..", "..", "config.json"),
+		filepath.Join(siblingDirectory, "clip.mp4"),
+	}
+
+	for _, path := range refused {
+		if _, err := service.OpenTarget(path); err == nil {
+			t.Errorf("OpenTarget(%q) was accepted, want rejection", path)
+		}
+	}
+}
+
+func TestRecordingsFolderCreatesTheMediaDirectory(t *testing.T) {
+	service := newTestService(t)
+
+	missing := filepath.Join(t.TempDir(), "not-yet-created")
+	service.mutex.Lock()
+	service.settings.Storage.MediaDirectory = missing
+	service.mutex.Unlock()
+
+	folder, err := service.RecordingsFolder()
+	if err != nil || folder != missing {
+		t.Fatalf("RecordingsFolder returned %q, error %v", folder, err)
+	}
+
+	if _, err := os.Stat(missing); err != nil {
+		t.Fatalf("media directory was not created: %v", err)
+	}
+}
+
 func TestAssetHandlerServesMediaAndRefusesTraversal(t *testing.T) {
 	service := newTestService(t)
 	settings := service.Settings()
@@ -109,6 +160,38 @@ func TestAssetHandlerServesMediaAndRefusesTraversal(t *testing.T) {
 	handler.ServeHTTP(escaped, httptest.NewRequest(http.MethodGet, videoRoute+"../secret.txt", nil))
 	if escaped.Body.String() == "private" {
 		t.Fatal("traversal escaped the video directory")
+	}
+}
+
+func TestPosterRouteServesPostersAndRefusesTraversal(t *testing.T) {
+	service := newTestService(t)
+	settings := service.Settings()
+
+	posterDirectory := filepath.Join(settings.MediaDirectory, "videos", ".posters")
+	if err := os.MkdirAll(posterDirectory, 0o700); err != nil {
+		t.Fatalf("creating poster directory: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(posterDirectory, "motion_a.mp4.jpg"), []byte("poster"), 0o600); err != nil {
+		t.Fatalf("writing poster: %v", err)
+	}
+
+	secret := filepath.Join(settings.MediaDirectory, "secret.txt")
+	if err := os.WriteFile(secret, []byte("private"), 0o600); err != nil {
+		t.Fatalf("writing secret: %v", err)
+	}
+
+	handler := service.AssetHandler()
+
+	served := httptest.NewRecorder()
+	handler.ServeHTTP(served, httptest.NewRequest(http.MethodGet, posterRoute+"motion_a.mp4.jpg", nil))
+	if served.Code != http.StatusOK || served.Body.String() != "poster" {
+		t.Fatalf("serving a poster returned %d: %q", served.Code, served.Body.String())
+	}
+
+	escaped := httptest.NewRecorder()
+	handler.ServeHTTP(escaped, httptest.NewRequest(http.MethodGet, posterRoute+"../../secret.txt", nil))
+	if escaped.Body.String() == "private" {
+		t.Fatal("traversal escaped the poster directory")
 	}
 }
 
@@ -414,6 +497,7 @@ func TestValidateTuningRejectsUnusableValues(t *testing.T) {
 		PrebufferLeadSeconds: 3,
 		ClipDurationSeconds:  15,
 		RetentionDays:        30,
+		MinimumFreeGigabytes: 5,
 	}
 
 	if problem := validateTuning(usable); problem != nil {
@@ -427,6 +511,7 @@ func TestValidateTuningRejectsUnusableValues(t *testing.T) {
 		"night start past midnight in minutes": func(form *TuningForm) { form.NightStartMinutes = 1440 },
 		"zero clip duration":                   func(form *TuningForm) { form.ClipDurationSeconds = 0 },
 		"negative retention":                   func(form *TuningForm) { form.RetentionDays = -1 },
+		"negative free space floor":            func(form *TuningForm) { form.MinimumFreeGigabytes = -1 },
 		"negative storage cap":                 func(form *TuningForm) { form.MaxStorageGigabytes = -1 },
 	}
 
@@ -823,6 +908,90 @@ func TestDeliveryOutcomesReachTheActivityList(t *testing.T) {
 	}
 	if view[0].At.IsZero() {
 		t.Fatal("a recorded entry should be stamped with the time it happened")
+	}
+}
+
+func TestStatusReadsTheHostOncePerHalfMinute(t *testing.T) {
+	service := newTestService(t)
+
+	reads := 0
+	now := time.Date(2026, time.October, 30, 12, 0, 0, 0, time.UTC)
+	service.currentTimeFor = func() time.Time { return now }
+	service.readHost = func(string) host.Reading {
+		reads++
+		return host.Reading{BatteryPercent: 64, FreeBytes: 1 << 30, CelsiusOK: true, Celsius: 41}
+	}
+
+	first := service.Status()
+	now = now.Add(10 * time.Second)
+	service.Status()
+
+	if reads != 1 {
+		t.Fatalf("host read %d times within 30s, want 1", reads)
+	}
+	if first.BatteryPercent == nil || *first.BatteryPercent != 64 || first.OnMains {
+		t.Fatalf("battery = %v, onMains = %v, want 64 on battery", first.BatteryPercent, first.OnMains)
+	}
+	if first.DiskFreeBytes == nil || first.TemperatureCelsius == nil {
+		t.Fatalf("disk and temperature should be known: %v %v", first.DiskFreeBytes, first.TemperatureCelsius)
+	}
+
+	now = now.Add(30 * time.Second)
+	service.Status()
+
+	if reads != 2 {
+		t.Fatalf("host read %d times after 30s, want 2", reads)
+	}
+}
+
+func TestStatusLeavesUnknownHostReadingsNull(t *testing.T) {
+	service := newTestService(t)
+	service.readHost = func(string) host.Reading { return host.Reading{BatteryPercent: -1, OnMains: true} }
+
+	status := service.Status()
+
+	if status.BatteryPercent != nil || status.DiskFreeBytes != nil || status.TemperatureCelsius != nil {
+		t.Fatalf("unknown readings should be nil, got %v %v %v", status.BatteryPercent, status.DiskFreeBytes, status.TemperatureCelsius)
+	}
+}
+
+func TestSaveCameraLocationTrimsAndCountsCharactersNotBytes(t *testing.T) {
+	isolateStartupRegistration(t)
+
+	service := newTestService(t)
+
+	if result := service.SaveCameraLocation("  Living Room \n"); !result.OK {
+		t.Fatalf("SaveCameraLocation() reported %+v", result)
+	}
+	if got := service.Status().CameraLocation; got != "Living Room" {
+		t.Errorf("status location = %q, want the trimmed label", got)
+	}
+
+	// Forty multi-byte characters are well over forty bytes, and still allowed.
+	fortyCharacters := strings.Repeat("é", 40)
+	if result := service.SaveCameraLocation(fortyCharacters); !result.OK {
+		t.Errorf("a label of exactly 40 characters was refused: %+v", result)
+	}
+
+	if result := service.SaveCameraLocation(fortyCharacters + "é"); result.OK {
+		t.Error("a label of 41 characters was accepted")
+	}
+	if got := service.Settings().CameraLocation; got != fortyCharacters {
+		t.Errorf("a refused label changed the saved one to %q", got)
+	}
+}
+
+func TestSaveCameraLocationWithNothingClearsTheLabel(t *testing.T) {
+	isolateStartupRegistration(t)
+
+	service := newTestService(t)
+	service.SaveCameraLocation("Garage")
+
+	if result := service.SaveCameraLocation("   "); !result.OK {
+		t.Fatalf("SaveCameraLocation() reported %+v", result)
+	}
+	if got := service.Status().CameraLocation; got != "" {
+		t.Errorf("status location = %q, want it cleared", got)
 	}
 }
 

@@ -7,7 +7,8 @@ const routeWailsAssetsAroundVite: Plugin = {
             const requestPath = new URL(request.url ?? '/', 'http://vite.local').pathname;
             const belongsToWails = requestPath === '/preview.jpg'
                 || requestPath.startsWith('/media/snapshots/')
-                || requestPath.startsWith('/media/videos/');
+                || requestPath.startsWith('/media/videos/')
+                || requestPath.startsWith('/media/posters/');
 
             if (!belongsToWails) {
                 next();
