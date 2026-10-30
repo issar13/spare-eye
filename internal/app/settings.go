@@ -84,6 +84,8 @@ type SettingsView struct {
 	LiveView LiveViewForm `json:"liveView"`
 	Startup  StartupForm  `json:"startup"`
 
+	Notifications NotificationsForm `json:"notifications"`
+
 	CameraIndex int    `json:"cameraIndex"`
 	CameraURL   string `json:"cameraURL"`
 
@@ -99,6 +101,11 @@ type TelegramForm struct {
 	BotToken string `json:"botToken"`
 	ChatID   string `json:"chatID"`
 	Enabled  bool   `json:"enabled"`
+}
+
+// NotificationsForm is the switch for alerts that stay on this computer.
+type NotificationsForm struct {
+	Desktop bool `json:"desktop"`
 }
 
 // TuningForm is the sensitivity and schedule screen.
@@ -164,6 +171,7 @@ func settingsView(settings config.Config) SettingsView {
 			LaunchAtLogin: settings.Startup.LaunchAtLogin,
 			WatchOnLaunch: settings.Startup.WatchOnLaunch,
 		},
+		Notifications:  NotificationsForm{Desktop: settings.Notifications.Desktop},
 		CameraIndex:    settings.Detection.CameraIndex,
 		CameraURL:      settings.Detection.CameraURL,
 		CameraChosen:   settings.Detection.CameraChosen,
@@ -515,6 +523,23 @@ func (s *Service) SaveStartup(form StartupForm) ActionResult {
 		s.log.Error("registering for login failed", "wanted", form.LaunchAtLogin, "error", err)
 		return loginRegistrationRefused(form.LaunchAtLogin).asResult()
 	}
+
+	return succeeded("Saved")
+}
+
+// SaveNotifications stores whether motion shows a notification on this computer.
+// It takes effect for the next alert, so nothing is restarted.
+func (s *Service) SaveNotifications(form NotificationsForm) ActionResult {
+	s.mutex.Lock()
+	updated := s.settings
+	updated.Notifications = config.NotificationSettings{Desktop: form.Desktop}
+	s.mutex.Unlock()
+
+	if s.persist(updated) != nil {
+		return couldNotSave()
+	}
+
+	s.log.Info("notification settings saved", "desktop", form.Desktop)
 
 	return succeeded("Saved")
 }

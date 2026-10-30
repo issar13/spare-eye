@@ -28,6 +28,8 @@ export function RescanCameras():Promise<Array<detector.Camera>>;
 
 export function SaveLiveView(arg1:app.LiveViewForm):Promise<app.ActionResult>;
 
+export function SaveNotifications(arg1:app.NotificationsForm):Promise<app.ActionResult>;
+
 export function SaveStartup(arg1:app.StartupForm):Promise<app.ActionResult>;
 
 export function SaveTelegram(arg1:app.TelegramForm):Promise<app.ActionResult>;

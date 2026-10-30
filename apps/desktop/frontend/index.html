@@ -168,7 +168,7 @@
                         <input min="0" name="alertCooldownMinutes" step="1" type="number"/>
                         minutes
                     </p>
-                    <p class="hint">Stops a busy street from filling your phone with messages.</p>
+                    <p class="hint">Stops a busy street from filling your screen or phone with alerts.</p>
                 </fieldset>
 
                 <fieldset>
@@ -243,9 +243,19 @@
             </form>
             </section>
 
+            <section aria-labelledby="notifications-title" class="settings-section">
+                <h3 id="notifications-title">Alerts on this computer</h3>
+                <p class="lede">Show a notification on this computer when motion is detected. Nothing leaves your machine.</p>
+                <form id="notifications-form">
+                    <label class="checkbox"><input name="desktop" type="checkbox"/>Show a notification when motion is detected</label>
+                    <div class="row"><button class="primary" type="submit">Save notification setting</button></div>
+                </form>
+                <div class="banner" hidden id="notifications-message"></div>
+            </section>
+
             <section aria-labelledby="alerts-title" class="settings-section">
-                <h3 id="alerts-title">Phone alerts</h3>
-                <p class="lede">Connect your private Telegram bot to receive motion notifications.</p>
+                <h3 id="alerts-title">Alerts to your phone <span class="hint">Optional</span></h3>
+                <p class="lede">SpareEye works without this. Connect your own private Telegram bot only if you also want alerts on your phone.</p>
                 <div class="step" id="step-telegram">
                     <div class="step-head">
                         <h3>Get alerts on your phone</h3>

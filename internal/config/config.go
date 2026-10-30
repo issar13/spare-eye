@@ -25,6 +25,16 @@ type Config struct {
 	Detection DetectionSettings `json:"detection"`
 	Storage   StorageSettings   `json:"storage"`
 	Startup   StartupSettings   `json:"startup"`
+
+	Notifications NotificationSettings `json:"notifications"`
+}
+
+// NotificationSettings are the alerts that stay on this computer.
+type NotificationSettings struct {
+	// Desktop shows a notification from the operating system when motion saves a
+	// snapshot. It is on by default because it needs no account and sends nothing
+	// anywhere, so it is the one alert a user who skipped Telegram still gets.
+	Desktop bool `json:"desktop"`
 }
 
 // StartupSettings decide what happens without anybody pressing anything.
@@ -186,7 +196,8 @@ func Default() Config {
 		// Both startup choices stay off until they are asked for. A fresh
 		// install that registered itself with the operating system, or reached
 		// for the webcam on its own, would be doing something nobody agreed to.
-		Startup: StartupSettings{LaunchAtLogin: false, WatchOnLaunch: false},
+		Startup:       StartupSettings{LaunchAtLogin: false, WatchOnLaunch: false},
+		Notifications: NotificationSettings{Desktop: true},
 	}
 }
 

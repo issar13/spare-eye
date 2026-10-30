@@ -10,14 +10,15 @@ behaviour see the [README](../README.md).
 ## Package map
 
 ```
-apps/desktop/        Wails entry point and webview UI
-apps/cli/             headless CLI application
-internal/app/         service layer bound to the UI
-internal/autostart/   launch-at-login registration
-internal/config/      settings persistence
-internal/detector/   camera, motion analysis, recording
-internal/media/       listing and retention
-internal/notify/      messaging providers
+apps/desktop/           Wails entry point and webview UI
+apps/cli/               headless CLI application
+internal/app/           service layer bound to the UI
+internal/autostart/     launch-at-login registration
+internal/config/        settings persistence
+internal/desktopnotify/ notifications on this computer
+internal/detector/      camera, motion analysis, recording
+internal/media/         listing and retention
+internal/notify/        messaging providers
 ```
 
 Dependencies run in one direction only:
@@ -26,11 +27,12 @@ Dependencies run in one direction only:
 apps/cli ──┐
            ├─> internal/detector ─> internal/config
 internal/app ─┤  internal/media   ─> (stdlib only)
-           └─> internal/notify   ─> (stdlib only)
+           ├─> internal/notify   ─> (stdlib only)
+           └─> internal/desktopnotify ─> (D-Bus / Windows toast libraries)
 ```
 
 `detector` imports `config` and nothing else of ours. `media` and `notify`
-import nothing of ours at all. Neither the detector nor the notifier knows the
+import nothing of ours at all. Neither the detector nor either notifier knows the
 other exists; the process that wires them together is the only place they meet.
 That is what makes the notifier swappable and the detector testable without a
 network.
@@ -353,6 +355,18 @@ everything", and reports how many it removed. It scans one directory, so both
 callers loop over the clip and snapshot directories in turn; pruning only clips
 left snapshots accumulating forever, which on a busy camera is the larger share
 of the files.
+
+## desktopnotify
+
+One function, `Show(Message)`, that asks the operating system to display a
+notification: D-Bus `org.freedesktop.Notifications` on Linux, a toast on
+Windows, and an "unsupported" error elsewhere, split into build-tagged files
+like `autostart`. It exists so Telegram stays optional: it needs no account and
+sends nothing off the machine. `internal/app` calls it when a snapshot is saved
+and the `notifications.desktop` setting is on. It runs off the event reader's
+goroutine and a failure is only logged, because the snapshot is already saved
+and a missing notification daemon must never stop the camera. The detector does
+not know it exists.
 
 ## notify
 
