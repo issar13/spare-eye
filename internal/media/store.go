@@ -2,11 +2,13 @@
 package media
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,6 +19,9 @@ type Recording struct {
 	SizeBytes int64     `json:"sizeBytes"`
 	CreatedAt time.Time `json:"createdAt"`
 	Manual    bool      `json:"manual"`
+
+	// Protected recordings are starred by the user and never pruned.
+	Protected bool `json:"protected"`
 }
 
 // SizeMegabytes is a display helper for the UI and message listings.
@@ -42,16 +47,20 @@ func PosterDirectory(videoDirectory string) string {
 // ListVideos returns clips newest first. The order is part of the contract, not
 // a convenience: the Telegram listing is numbered and the user replies with a
 // number, so "1" has to be the most recent clip. Filesystem order is not.
-func ListVideos(directory string) ([]Recording, error) {
-	return list(directory, ".mp4")
+//
+// protected is the starred set from LoadProtected. It is a parameter rather
+// than read here because clips and stills live in subdirectories of the folder
+// that holds protected.json, and a listing should not guess where that is.
+func ListVideos(directory string, protected map[string]bool) ([]Recording, error) {
+	return list(directory, ".mp4", protected)
 }
 
 // ListSnapshots returns still images newest first.
-func ListSnapshots(directory string) ([]Recording, error) {
-	return list(directory, ".jpg")
+func ListSnapshots(directory string, protected map[string]bool) ([]Recording, error) {
+	return list(directory, ".jpg", protected)
 }
 
-func list(directory, extension string) ([]Recording, error) {
+func list(directory, extension string, protected map[string]bool) ([]Recording, error) {
 	entries, err := os.ReadDir(directory)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -80,6 +89,7 @@ func list(directory, extension string) ([]Recording, error) {
 			SizeBytes: info.Size(),
 			CreatedAt: info.ModTime(),
 			Manual:    strings.HasPrefix(entry.Name(), "manual_"),
+			Protected: protected[entry.Name()],
 		})
 	}
 
@@ -90,24 +100,37 @@ func list(directory, extension string) ([]Recording, error) {
 	return recordings, nil
 }
 
-// Prune deletes recordings older than retentionDays and returns how many were
-// removed. A retention of zero or less keeps everything.
-func Prune(directory string, retentionDays int) (int, error) {
+// Prune deletes unprotected recordings in directory older than retentionDays
+// and returns how many were removed. A retention of zero or less keeps
+// everything. Starred recordings are kept along with their posters.
+//
+// mediaDirectory is where protected.json lives. Prune reads it itself, under
+// protectedMutex, so a star set while pruning is either seen or lands after
+// the sweep, never lost between a caller's read and the deletion.
+func Prune(directory string, retentionDays int, mediaDirectory string) (int, error) {
 	if retentionDays <= 0 {
 		return 0, nil
+	}
+
+	protectedMutex.Lock()
+	defer protectedMutex.Unlock()
+
+	protected, err := loadProtected(mediaDirectory)
+	if err != nil {
+		return 0, err
 	}
 
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)
 	removed := 0
 
 	for _, extension := range []string{".mp4", ".jpg"} {
-		recordings, err := list(directory, extension)
+		recordings, err := list(directory, extension, protected)
 		if err != nil {
 			return removed, err
 		}
 
 		for _, recording := range recordings {
-			if recording.CreatedAt.After(cutoff) {
+			if recording.Protected || recording.CreatedAt.After(cutoff) {
 				continue
 			}
 			if err := os.Remove(recording.Path); err != nil {
@@ -124,4 +147,94 @@ func Prune(directory string, retentionDays int) (int, error) {
 	}
 
 	return removed, nil
+}
+
+const protectedFileName = "protected.json"
+
+// protectedMutex serialises every read-modify-write of protected.json. The
+// webview can star a clip while the startup prune is sweeping, and both touch
+// the same file; one package-level lock is enough for a file this small.
+var protectedMutex sync.Mutex
+
+// LoadProtected returns the names of starred recordings. A missing file means
+// nothing has been starred yet.
+func LoadProtected(mediaDirectory string) (map[string]bool, error) {
+	protectedMutex.Lock()
+	defer protectedMutex.Unlock()
+
+	return loadProtected(mediaDirectory)
+}
+
+// SetProtected stars or unstars one recording by file name. Names are kept
+// instead of paths so the list survives the media directory being moved; a
+// clip and a snapshot never share a name because their extensions differ.
+//
+// Stale names are removed by DeleteRecording calling this with false. Names
+// left behind by files deleted outside the app are harmless: names carry a
+// timestamp (manual snapshots include milliseconds), so a name is never reused
+// for a different file.
+func SetProtected(mediaDirectory, name string, protected bool) error {
+	protectedMutex.Lock()
+	defer protectedMutex.Unlock()
+
+	current, err := loadProtected(mediaDirectory)
+	if err != nil {
+		return err
+	}
+
+	if protected {
+		current[name] = true
+	} else {
+		delete(current, name)
+	}
+
+	names := make([]string, 0, len(current))
+	for protectedName := range current {
+		names = append(names, protectedName)
+	}
+	sort.Strings(names)
+
+	encoded, err := json.MarshalIndent(names, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	// Write to a temporary file and rename, so an interrupted save cannot
+	// leave a truncated list that would silently unstar everything.
+	path := filepath.Join(mediaDirectory, protectedFileName)
+	temporary := path + ".tmp"
+
+	if err := os.MkdirAll(mediaDirectory, 0o700); err != nil {
+		return fmt.Errorf("creating %s: %w", mediaDirectory, err)
+	}
+	if err := os.WriteFile(temporary, encoded, 0o600); err != nil {
+		return fmt.Errorf("writing protected list: %w", err)
+	}
+	if err := os.Rename(temporary, path); err != nil {
+		return fmt.Errorf("replacing protected list: %w", err)
+	}
+
+	return nil
+}
+
+func loadProtected(mediaDirectory string) (map[string]bool, error) {
+	encoded, err := os.ReadFile(filepath.Join(mediaDirectory, protectedFileName))
+	if os.IsNotExist(err) {
+		return map[string]bool{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("reading protected list: %w", err)
+	}
+
+	var names []string
+	if err := json.Unmarshal(encoded, &names); err != nil {
+		return nil, fmt.Errorf("parsing protected list: %w", err)
+	}
+
+	protected := make(map[string]bool, len(names))
+	for _, name := range names {
+		protected[name] = true
+	}
+
+	return protected, nil
 }

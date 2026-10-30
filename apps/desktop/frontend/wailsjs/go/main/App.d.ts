@@ -42,6 +42,8 @@ export function SelectCameraURL(arg1:string):Promise<app.ActionResult>;
 
 export function SendRecording(arg1:string):Promise<app.ActionResult>;
 
+export function SetProtected(arg1:string,arg2:boolean):Promise<app.ActionResult>;
+
 export function Settings():Promise<app.SettingsView>;
 
 export function Snapshots():Promise<Array<app.RecordingView>>;

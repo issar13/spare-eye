@@ -1,4 +1,5 @@
-import {DeleteRecording, OpenExternally, SendRecording, Settings} from '../wailsjs/go/main/App';
+import {compareDesc, parseISO} from 'date-fns';
+import {DeleteRecording, OpenExternally, SendRecording, SetProtected, Settings} from '../wailsjs/go/main/App';
 import type {app} from '../wailsjs/go/models';
 import {showBanner, showResult} from './banner';
 import {requireElement} from './elements';
@@ -6,7 +7,13 @@ import {formatFullTimestamp, formatWhen} from './format';
 import {loadRecordings} from './queries';
 import {clearButtonPending, setButtonPending} from './button-state';
 
-type Collection = 'clips' | 'snapshots';
+const collections = ['clips', 'snapshots', 'starred'] as const;
+type Collection = typeof collections[number];
+
+const tabLabels: Record<Collection, string> = {clips: 'Videos', snapshots: 'Photos', starred: 'Starred'};
+
+const toCollection = (name: string | undefined): Collection =>
+    collections.find((collection) => collection === name) ?? 'clips';
 
 const list = requireElement<HTMLElement>('#recording-list');
 const message = requireElement<HTMLElement>('#recordings-message');
@@ -29,7 +36,7 @@ export const refreshRecordings = async (): Promise<void> => {
         ]);
 
         renderUsage(clips, snapshots, settings.tuning.retentionDays);
-        render(shown === 'clips' ? clips : snapshots);
+        render(recordingsToShow(clips, snapshots));
     } catch {
         // The listing only fails if the recordings folder cannot be read, which
         // is a storage problem rather than anything the user did wrong. The list
@@ -50,13 +57,32 @@ export const refreshRecordings = async (): Promise<void> => {
     }
 };
 
+// Starred shows clips and photos together, so the two lists are merged and
+// ordered by time again; each list is only newest-first on its own.
+const starredRecordings = (clips: app.RecordingView[], snapshots: app.RecordingView[]): app.RecordingView[] =>
+    [...clips, ...snapshots]
+        .filter((recording) => recording.protected)
+        .toSorted((first, second) => compareDesc(parseISO(first.createdAt), parseISO(second.createdAt)));
+
+const recordingsToShow = (clips: app.RecordingView[], snapshots: app.RecordingView[]): app.RecordingView[] => {
+    if (shown === 'starred') {
+        return starredRecordings(clips, snapshots);
+    }
+
+    return shown === 'clips' ? clips : snapshots;
+};
+
+const emptyMessages: Record<Collection, string> = {
+    clips: 'No videos yet. They appear here once motion has been recorded.',
+    snapshots: 'No photos yet. One is saved each time motion is first noticed.',
+    starred: 'No starred recordings yet. Star a clip to keep it forever.',
+};
+
 const render = (recordings: app.RecordingView[]): void => {
     if (recordings.length === 0) {
         const empty = document.createElement('p');
         empty.className = 'hint';
-        empty.textContent = shown === 'clips'
-            ? 'No videos yet. They appear here once motion has been recorded.'
-            : 'No photos yet. One is saved each time motion is first noticed.';
+        empty.textContent = emptyMessages[shown];
         list.replaceChildren(empty);
         return;
     }
@@ -71,9 +97,14 @@ const renderUsage = (clips: app.RecordingView[], snapshots: app.RecordingView[],
 
     total.textContent = megabytes >= 1024 ? `${(megabytes / 1024).toFixed(1)} GB` : `${megabytes.toFixed(1)} MB`;
     summary.textContent = `${clips.length} videos • ${snapshots.length} photos`;
+    const counts: Record<Collection, number> = {
+        clips: clips.length,
+        snapshots: snapshots.length,
+        starred: starredRecordings(clips, snapshots).length,
+    };
     tabs.forEach((tab) => {
-        const count = tab.dataset.collection === 'snapshots' ? snapshots.length : clips.length;
-        tab.textContent = `${tab.dataset.collection === 'snapshots' ? 'Photos' : 'Videos'} (${count})`;
+        const collection = toCollection(tab.dataset.collection);
+        tab.textContent = `${tabLabels[collection]} (${counts[collection]})`;
     });
 
     if (days === 0) {
@@ -86,8 +117,8 @@ const renderUsage = (clips: app.RecordingView[], snapshots: app.RecordingView[],
 
     retention.textContent = `• Auto-clears after ${days} days`;
     retentionDays.textContent = `Auto-clears after ${days}d`;
-    cleanup.textContent = `Recordings older than ${days} days are removed each time SpareEye starts.`;
-    protection.textContent = `Old clips are removed automatically after ${days} days, so your laptop’s drive never fills up.`;
+    cleanup.textContent = `Recordings older than ${days} days are removed each time SpareEye starts. Starred recordings are never removed automatically.`;
+    protection.textContent = `Old clips are removed automatically after ${days} days, so your laptop’s drive never fills up. Starred recordings are never removed automatically.`;
 };
 
 const renderRecording = (recording: app.RecordingView): HTMLElement => {
@@ -177,6 +208,14 @@ const renderActions = (recording: app.RecordingView): HTMLElement => {
     size.className = 'size';
     size.textContent = `${recording.sizeMegabytes.toFixed(1)} MB on this laptop`;
 
+    const star = iconButton('i-star', recording.protected ? 'Unstar' : 'Star (keep forever)');
+    star.classList.toggle('starred', recording.protected);
+    star.setAttribute('aria-pressed', String(recording.protected));
+    star.addEventListener('click', async () => {
+        await runAction(star, () => SetProtected(recording.path, !recording.protected));
+        await refreshRecordings();
+    });
+
     const send = iconButton('i-send', 'Send to Telegram');
     send.addEventListener('click', () => void runAction(send, () => SendRecording(recording.path)));
 
@@ -187,7 +226,8 @@ const renderActions = (recording: app.RecordingView): HTMLElement => {
     remove.classList.add('danger');
     remove.addEventListener('click', async () => {
         const label = formatFullTimestamp(recording.createdAt);
-        if (!window.confirm(`Delete the recording from ${label}? This cannot be undone.`)) {
+        const starredNote = recording.protected ? ' It is starred.' : '';
+        if (!window.confirm(`Delete the recording from ${label}?${starredNote} This cannot be undone.`)) {
             return;
         }
 
@@ -195,7 +235,7 @@ const renderActions = (recording: app.RecordingView): HTMLElement => {
         await refreshRecordings();
     });
 
-    actions.append(size, send, open, remove);
+    actions.append(size, star, send, open, remove);
 
     return actions;
 };
@@ -217,7 +257,7 @@ const runAction = async (
 
 export const registerRecordingHandlers = (): void => {
     tabs.forEach((tab) => tab.addEventListener('click', () => {
-        shown = tab.dataset.collection === 'snapshots' ? 'snapshots' : 'clips';
+        shown = toCollection(tab.dataset.collection);
         tabs.forEach((other) => other.classList.toggle('selected', other === tab));
         void refreshRecordings();
     }));

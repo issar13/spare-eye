@@ -20,6 +20,7 @@ type RecordingView struct {
 	CreatedAt     string  `json:"createdAt"`
 	Manual        bool    `json:"manual"`
 	Video         bool    `json:"video"`
+	Protected     bool    `json:"protected"`
 
 	// PosterURL is empty when the clip has no poster image on disk.
 	PosterURL string `json:"posterURL"`
@@ -29,9 +30,15 @@ type RecordingView struct {
 func (s *Service) Clips() ([]RecordingView, error) {
 	s.mutex.Lock()
 	directory := s.settings.VideoDirectory()
+	mediaDirectory := s.settings.Storage.MediaDirectory
 	s.mutex.Unlock()
 
-	recordings, err := media.ListVideos(directory)
+	protected, err := media.LoadProtected(mediaDirectory)
+	if err != nil {
+		return nil, err
+	}
+
+	recordings, err := media.ListVideos(directory, protected)
 	if err != nil {
 		return nil, err
 	}
@@ -43,9 +50,15 @@ func (s *Service) Clips() ([]RecordingView, error) {
 func (s *Service) Snapshots() ([]RecordingView, error) {
 	s.mutex.Lock()
 	directory := s.settings.SnapshotDirectory()
+	mediaDirectory := s.settings.Storage.MediaDirectory
 	s.mutex.Unlock()
 
-	recordings, err := media.ListSnapshots(directory)
+	protected, err := media.LoadProtected(mediaDirectory)
+	if err != nil {
+		return nil, err
+	}
+
+	recordings, err := media.ListSnapshots(directory, protected)
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +85,7 @@ func recordingViews(recordings []media.Recording, route string, video bool) []Re
 			CreatedAt:     recording.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			Manual:        recording.Manual,
 			Video:         video,
+			Protected:     recording.Protected,
 			PosterURL:     posterURL,
 		})
 	}
@@ -100,9 +114,46 @@ func (s *Service) DeleteRecording(path string) ActionResult {
 		s.log.Warn("deleting poster failed", "path", resolved, "error", err)
 	}
 
+	// Drop the star with the file so protected.json does not grow forever.
+	// Failing here is harmless: names are never reused, so a stale entry
+	// cannot protect a different file.
+	s.mutex.Lock()
+	mediaDirectory := s.settings.Storage.MediaDirectory
+	s.mutex.Unlock()
+	if err := media.SetProtected(mediaDirectory, filepath.Base(resolved), false); err != nil {
+		s.log.Warn("clearing star failed", "path", resolved, "error", err)
+	}
+
 	s.log.Info("recording deleted", "path", resolved)
 
 	return succeeded("Deleted " + filepath.Base(resolved))
+}
+
+// SetProtected stars or unstars one recording. Starred recordings are skipped
+// by retention pruning.
+func (s *Service) SetProtected(path string, protected bool) ActionResult {
+	resolved, _, err := s.resolveMedia(path)
+	if err != nil {
+		return NotARecording()
+	}
+
+	s.mutex.Lock()
+	mediaDirectory := s.settings.Storage.MediaDirectory
+	s.mutex.Unlock()
+
+	if err := media.SetProtected(mediaDirectory, filepath.Base(resolved), protected); err != nil {
+		s.log.Error("changing star failed", "path", resolved, "error", err)
+		return failed(
+			"That change could not be saved",
+			"The recordings folder may be read-only or full. Check it and try again.",
+		)
+	}
+
+	if protected {
+		return succeeded("Starred — this one won't be removed automatically")
+	}
+
+	return succeeded("Unstarred")
 }
 
 // SendRecording uploads one file to Telegram on the user's explicit request.

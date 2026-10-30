@@ -251,7 +251,7 @@ func (s *Service) pruneExpiredMedia() {
 	// Prune scans one directory at a time, and snapshots and clips live in
 	// separate ones.
 	for _, directory := range []string{settings.VideoDirectory(), settings.SnapshotDirectory()} {
-		removed, err := media.Prune(directory, settings.Storage.RetentionDays)
+		removed, err := media.Prune(directory, settings.Storage.RetentionDays, settings.Storage.MediaDirectory)
 		if err != nil {
 			s.log.Error("pruning failed", "directory", directory, "error", err)
 			continue

@@ -196,9 +196,16 @@ func (s *Service) followCommands(messengerContext context.Context, telegram *not
 func (s *Service) offerListing(messengerContext context.Context, telegram *notify.Telegram) {
 	s.mutex.Lock()
 	directory := s.settings.VideoDirectory()
+	mediaDirectory := s.settings.Storage.MediaDirectory
 	s.mutex.Unlock()
 
-	recordings, err := media.ListVideos(directory)
+	protected, err := media.LoadProtected(mediaDirectory)
+	if err != nil {
+		telegram.Send(messengerContext, fmt.Sprintf("⚠️ Could not list recordings: %v", err), nil)
+		return
+	}
+
+	recordings, err := media.ListVideos(directory, protected)
 	if err != nil {
 		telegram.Send(messengerContext, fmt.Sprintf("⚠️ Could not list recordings: %v", err), nil)
 		return

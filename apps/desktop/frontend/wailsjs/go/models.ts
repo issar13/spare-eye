@@ -97,6 +97,7 @@ export namespace app {
 	    createdAt: string;
 	    manual: boolean;
 	    video: boolean;
+	    protected: boolean;
 	    posterURL: string;
 
 	    static createFrom(source: any = {}) {
@@ -112,6 +113,7 @@ export namespace app {
 	        this.createdAt = source["createdAt"];
 	        this.manual = source["manual"];
 	        this.video = source["video"];
+	        this.protected = source["protected"];
 	        this.posterURL = source["posterURL"];
 	    }
 	}

@@ -107,6 +107,10 @@ func (a *App) Snapshots() ([]app.RecordingView, error) { return a.service.Snapsh
 func (a *App) DeleteRecording(path string) app.ActionResult { return a.service.DeleteRecording(path) }
 func (a *App) SendRecording(path string) app.ActionResult   { return a.service.SendRecording(path) }
 
+func (a *App) SetProtected(path string, protected bool) app.ActionResult {
+	return a.service.SetProtected(path, protected)
+}
+
 // RecentEvents returns the detector's event history, newest first.
 func (a *App) RecentEvents() []app.EventView { return a.service.Events() }
 

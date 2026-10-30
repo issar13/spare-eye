@@ -78,6 +78,10 @@ export function SendRecording(arg1) {
   return window['go']['main']['App']['SendRecording'](arg1);
 }
 
+export function SetProtected(arg1, arg2) {
+  return window['go']['main']['App']['SetProtected'](arg1, arg2);
+}
+
 export function Settings() {
   return window['go']['main']['App']['Settings']();
 }
