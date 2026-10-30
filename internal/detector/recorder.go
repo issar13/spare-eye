@@ -3,10 +3,14 @@ package detector
 import (
 	"fmt"
 	"image"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
 	"gocv.io/x/gocv"
+
+	"spareeye/internal/media"
 )
 
 // clipRequest describes one recording to write to disk.
@@ -24,6 +28,11 @@ type clipRequest struct {
 	// lead is footage captured before the trigger, prepended to the clip. The
 	// recorder takes ownership and closes each frame.
 	lead []gocv.Mat
+
+	// poster is the frame current when the clip started, saved as a JPEG beside
+	// the clips because the webview cannot decode the mp4v video itself. The
+	// recorder takes ownership and closes it.
+	poster gocv.Mat
 }
 
 // recorder writes frames to a video file on its own goroutine so the capture
@@ -102,6 +111,8 @@ func (r *recorder) wait() error {
 func (r *recorder) run() {
 	defer close(r.done)
 
+	r.writePoster()
+
 	writer, err := r.openWriter()
 	if err != nil {
 		r.writeError = err
@@ -128,6 +139,23 @@ func (r *recorder) run() {
 	}
 
 	r.releasePending()
+}
+
+// writePoster saves and releases the poster frame. A failure is deliberately
+// ignored: a clip without a poster still plays, and the UI falls back to a
+// plain tile, so there is nothing worth interrupting the recording for.
+func (r *recorder) writePoster() {
+	defer r.request.poster.Close()
+
+	if r.request.poster.Empty() {
+		return
+	}
+
+	posterPath := media.PosterPath(r.request.path)
+	if err := os.MkdirAll(filepath.Dir(posterPath), 0o700); err != nil {
+		return
+	}
+	gocv.IMWrite(posterPath, r.request.poster)
 }
 
 // clipCodecs are tried in order. H.264 is first because it is the only one the

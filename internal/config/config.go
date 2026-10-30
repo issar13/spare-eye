@@ -80,6 +80,12 @@ type DetectionSettings struct {
 	// camera the app had helped itself to.
 	CameraChosen bool `json:"cameraChosen"`
 
+	// CameraLocation is the room the camera is pointed at, in the user's own
+	// words. It is a label only: nothing is detected from it, and an empty one
+	// (which is also what a config written before labels existed holds) means
+	// the screens simply say nothing about where the camera is.
+	CameraLocation string `json:"cameraLocation"`
+
 	Day   SensitivityProfile `json:"day"`
 	Night SensitivityProfile `json:"night"`
 
@@ -136,6 +142,11 @@ type StorageSettings struct {
 	// RetentionDays discards media older than this. Zero keeps everything,
 	// which will fill the disk of anything left running for months.
 	RetentionDays int `json:"retentionDays"`
+
+	// MinimumFreeGigabytes is the free space on the media drive below which
+	// the oldest unstarred clips are recycled while the app runs, whatever
+	// their age. Zero turns that off.
+	MinimumFreeGigabytes int `json:"minimumFreeGigabytes"`
 
 	// MaxStorageGigabytes caps the combined size of clips and snapshots; the
 	// oldest are deleted first once it is exceeded. Zero means no cap. It is a
@@ -197,7 +208,7 @@ func Default() Config {
 			PreviewFPS:        12,
 			PreviewQuality:    80,
 		},
-		Storage: StorageSettings{RetentionDays: 30},
+		Storage: StorageSettings{RetentionDays: 30, MinimumFreeGigabytes: 5},
 		// Both startup choices stay off until they are asked for. A fresh
 		// install that registered itself with the operating system, or reached
 		// for the webcam on its own, would be doing something nobody agreed to.

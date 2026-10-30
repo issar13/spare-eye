@@ -16,15 +16,21 @@ export function Disarm():Promise<app.ActionResult>;
 
 export function DiscoverNetworkCameras():Promise<Array<onvif.Camera>>;
 
+export function ExportRecordings(arg1:string):Promise<app.ActionResult>;
+
 export function LogLines():Promise<Array<string>>;
 
 export function OpenExternally(arg1:string):Promise<app.ActionResult>;
+
+export function OpenRecordingsFolder():Promise<app.ActionResult>;
 
 export function PreviewFrame():Promise<string>;
 
 export function RecentEvents():Promise<Array<app.EventView>>;
 
 export function RescanCameras():Promise<Array<detector.Camera>>;
+
+export function SaveCameraLocation(arg1:string):Promise<app.ActionResult>;
 
 export function SaveLiveView(arg1:app.LiveViewForm):Promise<app.ActionResult>;
 
@@ -42,6 +48,8 @@ export function SelectCameraURL(arg1:string):Promise<app.ActionResult>;
 
 export function SendRecording(arg1:string):Promise<app.ActionResult>;
 
+export function SetProtected(arg1:string,arg2:boolean):Promise<app.ActionResult>;
+
 export function Settings():Promise<app.SettingsView>;
 
 export function Snapshots():Promise<Array<app.RecordingView>>;
@@ -51,6 +59,8 @@ export function StartManualRecording():Promise<app.ActionResult>;
 export function Status():Promise<app.StatusView>;
 
 export function StopManualRecording():Promise<app.ActionResult>;
+
+export function TakeSnapshot():Promise<app.ActionResult>;
 
 export function TestCameraURL(arg1:string):Promise<app.ActionResult>;
 
