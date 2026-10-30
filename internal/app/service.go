@@ -544,7 +544,11 @@ func (s *Service) consumeEvents(session *detectorSession, drained chan struct{})
 			}
 
 		case detector.EventSnapshotSaved:
-			s.deliverSnapshot(event.MediaPath, event.Night)
+			// A photo the user asked for is for them to look at here, not
+			// an alert, so it is not sent to their phone as motion.
+			if !event.Manual {
+				s.deliverSnapshot(event.MediaPath, event.Night)
+			}
 
 		case detector.EventClipFinished:
 			if event.Err == nil {
@@ -647,6 +651,21 @@ func (s *Service) StartManualRecording() ActionResult {
 	session.engine.StartManualRecording()
 
 	return succeeded("Recording now")
+}
+
+// TakeSnapshot saves the current picture as a photo.
+func (s *Service) TakeSnapshot() ActionResult {
+	s.mutex.Lock()
+	session := s.session
+	s.mutex.Unlock()
+
+	if session == nil {
+		return failed("Nothing to photograph yet", "Press Start watching first, then take a snapshot.")
+	}
+
+	session.engine.TakeSnapshot()
+
+	return succeeded("Taking a snapshot…")
 }
 
 // StopManualRecording ends the manual clip in progress.

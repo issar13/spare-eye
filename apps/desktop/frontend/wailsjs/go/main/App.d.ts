@@ -52,6 +52,8 @@ export function Status():Promise<app.StatusView>;
 
 export function StopManualRecording():Promise<app.ActionResult>;
 
+export function TakeSnapshot():Promise<app.ActionResult>;
+
 export function TestCameraURL(arg1:string):Promise<app.ActionResult>;
 
 export function TestTelegram(arg1:app.TelegramForm):Promise<app.ActionResult>;

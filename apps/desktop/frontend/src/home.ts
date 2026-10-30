@@ -1,5 +1,5 @@
 import {format, parseISO} from 'date-fns';
-import {Arm, Disarm, LogLines, OpenExternally, OpenRecordingsFolder, StartManualRecording, StopManualRecording} from '../wailsjs/go/main/App';
+import {Arm, Disarm, LogLines, OpenExternally, OpenRecordingsFolder, StartManualRecording, StopManualRecording, TakeSnapshot} from '../wailsjs/go/main/App';
 import type {app} from '../wailsjs/go/models';
 import {hideBanner, showBanner, showResult} from './banner';
 import {clearButtonPending, setButtonPending} from './button-state';
@@ -18,6 +18,7 @@ const heroProfileChip = requireElement<HTMLElement>('#hero-profile-chip');
 const messageBanner = requireElement<HTMLElement>('#home-message');
 const watchButton = requireElement<HTMLButtonElement>('#watch-button');
 const recordButton = requireElement<HTMLButtonElement>('#record-button');
+const snapshotButton = requireElement<HTMLButtonElement>('#snapshot-button');
 const diagnostics = requireElement<HTMLElement>('#diagnostics');
 const healthTag = requireElement<HTMLElement>('#health-tag');
 const feedFps = requireElement<HTMLElement>('#feed-fps');
@@ -38,6 +39,7 @@ const recentClipLimit = 4;
 // the label mid-flight would make the button flicker.
 let busy = false;
 let recordingBusy = false;
+let snapshotBusy = false;
 
 // The clip names last drawn, so the two-second refresh only rebuilds the cards
 // (and reloads their videos) when a clip has actually come or gone.
@@ -66,6 +68,9 @@ export const updateHome = (status: app.StatusView): void => {
     if (!recordingBusy) {
         recordButton.disabled = !status.armed;
         recordButton.textContent = status.recordingManual ? 'Stop recording' : 'Record now';
+    }
+    if (!snapshotBusy) {
+        snapshotButton.disabled = !status.armed;
     }
     recordButton.classList.toggle('i-record', !status.recordingManual);
     recordButton.classList.toggle('i-stop', status.recordingManual);
@@ -333,6 +338,27 @@ export const registerHomeHandlers = (onStateChanged: () => void): void => {
             recordingBusy = false;
             await clearButtonPending(recordButton);
             recordButton.disabled = false;
+            onStateChanged();
+        }
+    });
+
+    snapshotButton.addEventListener('click', async () => {
+        snapshotBusy = true;
+        snapshotButton.disabled = true;
+        setButtonPending(snapshotButton, true);
+        try {
+            const result = await TakeSnapshot();
+            if (result.ok) {
+                showBanner(messageBanner, result.headline, 'good');
+            } else {
+                showResult(messageBanner, result);
+            }
+        } catch {
+            showBanner(messageBanner, 'SpareEye could not take a snapshot. Try again.', 'error');
+        } finally {
+            snapshotBusy = false;
+            await clearButtonPending(snapshotButton);
+            snapshotButton.disabled = false;
             onStateChanged();
         }
     });

@@ -99,6 +99,7 @@ func (a *App) SaveStartup(form app.StartupForm) app.ActionResult {
 
 func (a *App) StartManualRecording() app.ActionResult { return a.service.StartManualRecording() }
 func (a *App) StopManualRecording() app.ActionResult  { return a.service.StopManualRecording() }
+func (a *App) TakeSnapshot() app.ActionResult         { return a.service.TakeSnapshot() }
 
 func (a *App) Clips() ([]app.RecordingView, error)     { return a.service.Clips() }
 func (a *App) Snapshots() ([]app.RecordingView, error) { return a.service.Snapshots() }

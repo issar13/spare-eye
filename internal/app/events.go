@@ -101,6 +101,9 @@ func describeDetectorEvent(event detector.Event) (string, string) {
 		return eventMotionEnded, "Everything went still again"
 
 	case detector.EventSnapshotSaved:
+		if event.Manual {
+			return eventPhotoSaved, "Saved your snapshot"
+		}
 		return eventPhotoSaved, "Saved a photo"
 
 	case detector.EventClipStarted:

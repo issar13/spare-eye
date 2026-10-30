@@ -98,6 +98,10 @@ export function StopManualRecording() {
   return window['go']['main']['App']['StopManualRecording']();
 }
 
+export function TakeSnapshot() {
+  return window['go']['main']['App']['TakeSnapshot']();
+}
+
 export function TestCameraURL(arg1) {
   return window['go']['main']['App']['TestCameraURL'](arg1);
 }
