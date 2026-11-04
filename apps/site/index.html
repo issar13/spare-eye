@@ -3,12 +3,12 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>SpareEye — turn your old laptop into a home security camera</title>
-    <meta name="description" content="Turn a spare Windows or Linux laptop into a motion camera. No monthly fees, recordings stay on your computer, optional Telegram alerts.">
+    <title>SpareEye. Turn a spare laptop into a home camera</title>
+    <meta name="description" content="SpareEye turns a spare Windows or Linux laptop into a motion camera. Free, open source, and recordings stay on the laptop.">
     <meta name="theme-color" content="#0d1320">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="SpareEye — turn your old laptop into a home security camera">
-    <meta property="og:description" content="Local motion monitoring for Windows and Linux. Recordings stay on your computer; Telegram alerts are optional.">
+    <meta property="og:title" content="SpareEye. Turn a spare laptop into a home camera">
+    <meta property="og:description" content="Free motion camera software for Windows and Linux. Recordings stay on the laptop.">
     <meta name="twitter:card" content="summary_large_image">
     <link rel="preload" href="fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="icons.css">
@@ -17,49 +17,29 @@
 <body>
 <header class="topbar">
     <div class="wrap topbar-inner">
-        <a class="brand" href="#top" aria-label="SpareEye home">
-            <span class="brand-mark"><i class="icon i-eye"></i></span>
-            <span class="brand-text">
-                <span class="brand-name">SpareEye <span class="badge">Local-first</span></span>
-                <span class="brand-sub">No Cloud • No Fees</span>
-            </span>
-        </a>
+        <a class="brand" href="#top" aria-label="SpareEye home"><i class="icon i-eye"></i>SpareEye</a>
         <nav aria-label="Main navigation">
-            <a href="#why">Why an Old Laptop?</a>
-            <a href="#laptop-care">Laptop Friendly</a>
-            <a href="#how">How It Works</a>
-            <a href="#alerts">Phone Alerts</a>
+            <a href="#how">How it works</a>
             <a href="#faq">FAQ</a>
+            <a class="accent" href="#download-buttons">Download</a>
         </nav>
-        <a class="button primary glow small" href="#download">Download Free</a>
     </div>
 </header>
 
 <main id="top">
-    <!-- HERO -->
     <section class="hero">
-        <div class="blob blob-blue" aria-hidden="true"></div>
-        <div class="blob blob-cyan" aria-hidden="true"></div>
-        <div class="wrap hero-content">
-            <p class="pill-eyebrow"><span class="pulse"></span>Free • Records without internet • No subscription</p>
-            <h1>Turn your old laptop into a <span class="gradient-text">simple home security camera.</span></h1>
-            <p class="hero-copy">No monthly fees. No vendor cloud. Point your spare laptop at the room and let it watch over your home, saving photos and clips straight to its own drive.</p>
-            <div class="actions" id="download-buttons">
-                <a class="button primary glow" href="https://github.com/issar13/spare-eye/releases/latest" data-platform="windows"><i class="icon i-windows"></i>Download for Windows</a>
-                <a class="button" href="https://github.com/issar13/spare-eye/releases/latest" data-platform="linux"><i class="icon i-terminal"></i>Download for Linux</a>
-                <a class="button quiet" href="#how"><i class="icon i-play"></i>See how it works</a>
-            </div>
-            <div class="compat">
-                <span><i class="icon i-windows"></i>Windows 10 &amp; 11</span>
-                <span><i class="icon i-terminal"></i>Debian &amp; Ubuntu</span>
-                <span><i class="icon i-laptop"></i>Other Linux</span>
+        <div class="wrap">
+            <div class="column">
+                <h1>Turn a spare laptop into a home camera.</h1>
+                <p class="lead">SpareEye saves motion clips to the laptop's own drive. It is free and needs no account.</p>
+                <div class="actions" id="download-buttons">
+                    <a class="button primary" href="https://github.com/issar13/spare-eye/releases/latest" data-platform="windows"><i class="icon i-windows"></i>Download for Windows</a>
+                    <a class="button" href="https://github.com/issar13/spare-eye/releases/latest" data-platform="linux"><i class="icon i-terminal"></i>Download for Linux</a>
+                </div>
+                <p class="note">Windows 10 and 11, Debian, Ubuntu and other Linux. No macOS yet.</p>
             </div>
 
             <div class="device" role="img" aria-label="Illustration of SpareEye watching a living room at night">
-                <div class="device-bar">
-                    <div class="device-title"><i></i><i></i><i></i><span>My Spare Laptop • SpareEye</span></div>
-                    <div class="device-status"><span class="ping"></span>Camera 1 • Living Room • Watching</div>
-                </div>
                 <div class="feed">
                     <svg viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
                         <defs>
@@ -104,236 +84,63 @@
                         <rect width="1280" height="720" fill="url(#scan)"/>
                         <rect width="1280" height="720" fill="url(#vignette)"/>
                     </svg>
-                    <div class="hud">
-                        <div class="hud-row">
-                            <span class="hud-pill"><span class="rec"></span>Living Room<span class="sep">|</span><span class="tint-green">Live preview</span></span>
-                            <span class="hud-pill"><i class="icon i-lock tint-green"></i>Private home view</span>
-                        </div>
-                        <div class="reticle"><span>Movement detection active</span></div>
-                        <div class="hud-row">
-                            <div class="hud-chips">
-                                <span class="hud-pill tint-green"><i class="icon i-video"></i>Clip saved on motion</span>
-                                <span class="hud-pill tint-cyan"><i class="icon i-moon"></i>Night profile</span>
-                                <span class="hud-pill"><i class="icon i-send"></i>Telegram alert ready</span>
-                            </div>
-                            <span class="hud-pill muted">Saved to this computer</span>
-                        </div>
-                    </div>
+                    <span class="feed-label">Living room · recording on motion</span>
                 </div>
-                <div class="device-stand" aria-hidden="true"></div>
             </div>
         </div>
     </section>
 
-    <!-- COMPARISON -->
-    <section class="section band" id="why">
-        <div class="wrap">
-            <div class="split-head">
+    <section class="section" id="facts">
+        <div class="wrap column">
+            <h2>What it does</h2>
+            <dl class="facts">
                 <div>
-                    <p class="eyebrow cyan">Why buy another gadget?</p>
-                    <h2>Why use an old laptop instead of buying a camera?</h2>
+                    <dt>Stays on the laptop</dt>
+                    <dd>Recordings save to the laptop's own drive. SpareEye uploads nothing and works offline.</dd>
                 </div>
-                <p>Instead of another plastic gadget and another monthly plan, put a machine you already own to good use.</p>
-            </div>
-            <div class="compare-grid">
-                <article class="compare-card">
-                    <div class="compare-head">
-                        <span class="compare-icon bad"><i class="icon i-credit-card-off"></i></span>
-                        <div><h3>Store-bought cameras</h3><p>Typical cloud-connected home cameras</p></div>
-                        <span class="flag bad">Often a subscription</span>
-                    </div>
-                    <ul class="list bad">
-                        <li><i class="icon i-x"></i><span><strong>Monthly fees to keep clips:</strong> many models only save recordings while you pay for a plan.</span></li>
-                        <li><i class="icon i-x"></i><span><strong>Depends on the internet:</strong> cloud-only cameras lose recordings when your Wi-Fi drops.</span></li>
-                        <li><i class="icon i-x"></i><span><strong>Your footage lives on someone else’s servers:</strong> clips are uploaded to the vendor’s cloud.</span></li>
-                        <li><i class="icon i-x"></i><span><strong>Another device to buy:</strong> more hardware, more batteries, more e-waste.</span></li>
-                    </ul>
-                    <div class="cost-row"><span>Typical cost</span><strong class="tint-red">Hardware + a monthly plan</strong></div>
-                </article>
-                <article class="compare-card good-card">
-                    <div class="blob blob-green" aria-hidden="true"></div>
-                    <div class="compare-head">
-                        <span class="compare-icon good"><i class="icon i-shield"></i></span>
-                        <div><h3>SpareEye on your spare laptop</h3><p>Your Windows or Linux laptop</p></div>
-                        <span class="flag good">$0 forever • Free</span>
-                    </div>
-                    <ul class="list good">
-                        <li><i class="icon i-check-circle"></i><span><strong>Your videos stay in your house:</strong> saved to the laptop’s own drive, never uploaded by SpareEye.</span></li>
-                        <li><i class="icon i-check-circle"></i><span><strong>Keeps recording without internet:</strong> motion detection and saving work offline.</span></li>
-                        <li><i class="icon i-check-circle"></i><span><strong>Puts an old laptop to good use:</strong> its built-in webcam, or any USB or network camera.</span></li>
-                        <li><i class="icon i-check-circle"></i><span><strong>No accounts or sign-ups:</strong> download, choose a camera, press Start watching.</span></li>
-                    </ul>
-                    <div class="cost-row"><span>Your cost</span><strong class="tint-green">$0.00 (Free &amp; open source)</strong></div>
-                </article>
-            </div>
+                <div>
+                    <dt>Clips on motion</dt>
+                    <dd>Each motion event saves a 15-second clip that includes the 3 seconds before it, plus a photo. Clips older than 30 days are deleted automatically, or you can keep everything.</dd>
+                </div>
+                <div>
+                    <dt>Telegram alerts</dt>
+                    <dd>Optional. SpareEye sends a photo through your own bot, and this is the only feature that needs internet.</dd>
+                </div>
+                <div>
+                    <dt>Any camera</dt>
+                    <dd>Use the built-in webcam, a USB webcam, or an RTSP or HTTP network camera. Night hours get their own motion sensitivity.</dd>
+                </div>
+            </dl>
         </div>
     </section>
 
-    <!-- LAPTOP FRIENDLY -->
-    <section class="section" id="laptop-care">
-        <div class="wrap">
-            <div class="center-head">
-                <p class="eyebrow blue">Laptop friendly</p>
-                <h2>Built to be kind to your laptop</h2>
-                <p>Designed so an older laptop can sit on a shelf and watch, day and night.</p>
-            </div>
-            <div class="feature-grid">
-                <article class="feature">
-                    <span class="feature-icon tint-cyan"><i class="icon i-power"></i></span>
-                    <h3>Starts with your laptop</h3>
-                    <p>Opens when you log in and stays tucked away in the taskbar. It can start watching on its own, too.</p>
-                    <span class="feature-foot tint-cyan"><i class="icon i-check"></i>Survives a restart</span>
-                </article>
-                <article class="feature">
-                    <span class="feature-icon tint-blue"><i class="icon i-gauge"></i></span>
-                    <h3>Easy on older hardware</h3>
-                    <p>Pick a lighter live view so the picture on screen costs less processor. Saved recordings stay at full quality.</p>
-                    <span class="feature-foot tint-blue"><i class="icon i-check"></i>Choose your load</span>
-                </article>
-                <article class="feature">
-                    <span class="feature-icon tint-green"><i class="icon i-broom"></i></span>
-                    <h3>Never fills the drive</h3>
-                    <p>Recordings older than 30 days are tidied up automatically. Change the number, or keep everything.</p>
-                    <span class="feature-foot tint-green"><i class="icon i-check"></i>Cleans up after itself</span>
-                </article>
-                <article class="feature">
-                    <span class="feature-icon tint-cyan"><i class="icon i-moon"></i></span>
-                    <h3>Separate day and night</h3>
-                    <p>Cameras see differently after dark, so night hours get their own motion sensitivity to cut false alerts.</p>
-                    <span class="feature-foot tint-cyan"><i class="icon i-check"></i>Fewer false alarms</span>
-                </article>
-            </div>
-        </div>
-    </section>
-
-    <!-- HOW IT WORKS -->
-    <section class="section band" id="how">
-        <div class="wrap">
-            <div class="center-head">
-                <p class="eyebrow green">Quick &amp; easy setup</p>
-                <h2>Up and running in a few minutes</h2>
-                <p>No technical setup or command line needed.</p>
-            </div>
+    <section class="section" id="how">
+        <div class="wrap column">
+            <h2>How it works</h2>
             <ol class="steps">
-                <li class="step">
-                    <span class="ghost-number" aria-hidden="true">01</span>
-                    <span class="step-badge tint-cyan">1</span>
-                    <h3>Open it on your laptop</h3>
-                    <p>Install SpareEye and choose a camera. It lists every webcam that is actually sending a picture.</p>
-                    <span class="step-foot"><i class="icon i-check-circle tint-green"></i>Webcam found automatically</span>
-                </li>
-                <li class="step">
-                    <span class="ghost-number" aria-hidden="true">02</span>
-                    <span class="step-badge tint-blue">2</span>
-                    <h3>Get alerts on your phone (optional)</h3>
-                    <p>Connect your own Telegram bot and get a photo whenever movement is detected.</p>
-                    <span class="step-foot tint-green"><i class="icon i-bell"></i>Instant phone notification</span>
-                </li>
-                <li class="step">
-                    <span class="ghost-number" aria-hidden="true">03</span>
-                    <span class="step-badge tint-green">3</span>
-                    <h3>Press Start watching and walk away</h3>
-                    <p>Each movement saves a 15-second clip with the 3 seconds that led up to it. Old clips are cleared after 30 days.</p>
-                    <span class="step-foot"><span class="mini-dot"></span>Cleans old videos automatically</span>
-                </li>
+                <li>Install SpareEye and choose a camera.</li>
+                <li>Connect your own Telegram bot, if you want alerts.</li>
+                <li>Press Start watching. It starts at login and lives in the tray.</li>
             </ol>
         </div>
     </section>
 
-    <!-- PHONE ALERTS -->
-    <section class="section" id="alerts">
-        <div class="wrap alerts-layout">
-            <div class="alerts-copy">
-                <p class="eyebrow cyan"><i class="icon i-bell"></i>Simple phone alerts</p>
-                <h2>Know the moment something moves.</h2>
-                <p>Connect a private Telegram bot and SpareEye sends a photo of the movement straight to your phone. No SpareEye account, no relay server — just your laptop and Telegram.</p>
-                <dl class="spec-list">
-                    <div><dt>Data sent to SpareEye</dt><dd class="tint-green">None (there is no SpareEye server)</dd></div>
-                    <div><dt>Where video is saved</dt><dd>On your laptop’s own drive</dd></div>
-                    <div><dt>When movement happens</dt><dd>Saves a 15-second clip and a photo</dd></div>
-                    <div><dt>Works without home internet?</dt><dd class="tint-cyan">Yes — alerts need internet</dd></div>
-                </dl>
-            </div>
-
-            <div class="status-panel" role="img" aria-label="Illustration of the SpareEye status panel">
-                <div class="status-head">
-                    <span class="status-title"><span class="pulse"></span>Living Room Camera</span>
-                    <span class="flag good">Active &amp; guarding</span>
-                </div>
-                <div class="status-grid">
-                    <div class="status-tile"><span class="tile-icon tint-cyan"><i class="icon i-video"></i></span><div><small>Camera</small><strong>Built-in webcam</strong></div></div>
-                    <div class="status-tile"><span class="tile-icon tint-green"><i class="icon i-shield"></i></span><div><small>Current state</small><strong>Watching quietly</strong></div></div>
-                    <div class="status-tile"><span class="tile-icon tint-blue"><i class="icon i-hard-drive"></i></span><div><small>Where videos are stored</small><strong>On this laptop</strong></div></div>
-                    <div class="status-tile"><span class="tile-icon tint-cyan"><i class="icon i-moon"></i></span><div><small>Lighting profile</small><strong>Night mode, 19:00–06:00</strong></div></div>
-                </div>
-                <div class="status-foot">
-                    <span><i class="icon i-send tint-green"></i>Telegram alerts: <strong>Connected</strong> — a photo is sent when motion is spotted</span>
-                    <span class="mono">Your own bot</span>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- FAQ -->
-    <section class="section band" id="faq">
-        <div class="wrap faq-wrap">
-            <div class="center-head">
-                <p class="eyebrow cyan">Frequently asked questions</p>
-                <h2>Common Questions &amp; Answers</h2>
-            </div>
+    <section class="section" id="faq">
+        <div class="wrap column">
+            <h2>Questions</h2>
             <div class="faq-list">
-                <details open><summary>Does SpareEye work without internet?</summary><p>Yes. Motion detection and local recording work offline. Only Telegram alerts need an internet connection.</p></details>
-                <details><summary>Can I use a USB or network camera?</summary><p>Yes. Plug in any standard USB webcam, or connect a network camera that offers an RTSP or HTTP stream address.</p></details>
-                <details><summary>Do I need an account or email to use it?</summary><p>No accounts, no email, no cloud logins. Telegram is optional and uses your own bot.</p></details>
-                <details><summary>Does it start watching as soon as I install it?</summary><p>No. You choose a camera and press Start watching. You can separately choose to have it start watching whenever it opens.</p></details>
-                <details><summary>Which computers are supported?</summary><p>Windows 10 and 11, Debian and Ubuntu packages, and other Linux distributions with the required system libraries. macOS is not currently supported.</p></details>
-            </div>
-        </div>
-    </section>
-
-    <!-- DOWNLOAD -->
-    <section class="section" id="download">
-        <div class="wrap">
-            <div class="cta">
-                <div class="blob blob-blue" aria-hidden="true"></div>
-                <p class="eyebrow green">Free forever • No credit card • Records offline</p>
-                <h2>Give your old laptop a second life today.</h2>
-                <p>Stop paying recurring camera bills. Keep gadgets out of landfill and guard your home with your recordings kept at home.</p>
-                <div class="actions">
-                    <a class="button primary glow" href="https://github.com/issar13/spare-eye/releases/latest"><i class="icon i-windows"></i>Download for Windows</a>
-                    <a class="button" href="https://github.com/issar13/spare-eye/releases/latest"><i class="icon i-terminal"></i>Download for Linux</a>
-                    <a class="button" href="https://github.com/issar13/spare-eye"><i class="icon i-github"></i>View source</a>
-                </div>
-                <p class="cta-note">No account required <span>•</span> No credit card <span>•</span> macOS not supported yet</p>
+                <details><summary>Does it work without internet?</summary><p>Yes, only Telegram alerts need a connection.</p></details>
+                <details><summary>Do I need an account?</summary><p>No, and Telegram uses a bot that you create.</p></details>
+                <details><summary>Which computers are supported?</summary><p>Windows 10 and 11, Debian, Ubuntu and other Linux, but not macOS yet.</p></details>
+                <details><summary>Does it cost anything?</summary><p>No, it is free and open source under the MIT licence.</p></details>
             </div>
         </div>
     </section>
 </main>
 
 <footer class="footer">
-    <div class="wrap">
-        <div class="guarantee">
-            <span class="tint-green"><i class="icon i-shield"></i>Privacy guarantee</span>
-            <p>Recordings on your computer • No SpareEye cloud • No accounts • Free forever</p>
-        </div>
-        <div class="footer-grid">
-            <div class="footer-brand">
-                <a class="brand" href="#top"><span class="brand-mark small"><i class="icon i-eye"></i></span><span class="brand-name">SpareEye</span></a>
-                <p>Turn your spare laptop into a home camera that keeps your recordings inside your own four walls.</p>
-            </div>
-            <div>
-                <h3>Quick links</h3>
-                <ul><li><a href="#how">How It Works</a></li><li><a href="#why">Compare Cameras</a></li><li><a href="#laptop-care">Laptop Friendly</a></li><li><a href="https://github.com/issar13/spare-eye/blob/main/docs/SETUP-TELEGRAM.md">Telegram Setup Guide</a></li></ul>
-            </div>
-            <div>
-                <h3>Works on</h3>
-                <ul><li>Windows 10 &amp; 11</li><li>Debian &amp; Ubuntu</li><li>Other Linux distributions</li><li>Any spare computer with a webcam</li></ul>
-            </div>
-        </div>
-        <div class="footer-bottom">
-            <p>© SpareEye. MIT licensed, free and open source.</p>
-            <div><span><span class="mini-dot"></span>Records offline</span><span><span class="mini-dot cyan"></span>Private by design</span></div>
-        </div>
+    <div class="wrap column">
+        <p>MIT licensed. <a href="https://github.com/issar13/spare-eye">Source on GitHub</a>. <a href="https://github.com/issar13/spare-eye/blob/main/docs/SETUP-TELEGRAM.md">Telegram setup guide</a>.</p>
     </div>
 </footer>
 
@@ -349,7 +156,6 @@
         downloadButtons.prepend(preferredDownload);
         downloadButtons.querySelectorAll('[data-platform]').forEach((button, index) => {
             button.classList.toggle('primary', index === 0);
-            button.classList.toggle('glow', index === 0);
         });
     }
 </script>
